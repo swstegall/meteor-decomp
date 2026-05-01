@@ -154,30 +154,71 @@ same names in `meteor-decomp`'s `include/net/`.
 
 ## What's actionable for `garlemald-server` today
 
-1. **Validate every `OP_*` in `opcodes.rs`** against the binary's
-   recovered union members. Run `tools/extract_net_vtables.py`
-   (TODO) to dump every member of `LobbyProtoUp`, `LobbyProtoDown`,
-   `ZoneProtoUp`, `ZoneProtoDown`, `ChatProtoUp`, `ChatProtoDown`.
-   Names that exist in the binary but not in garlemald are gaps.
-2. **Decompile `LobbyCryptEngine::Init`** (or the equivalent zone
-   variant). Currently `garlemald-server/common/src/blowfish.rs`
-   has a hand-derived key schedule; we want to confirm it matches
-   the binary's, especially the SqexId-token-derived key.
-3. **Decompile the `PacketBufferTmpl::Encode` / `::Decode` slot
-   pair** for one channel and document the exact endian / padding
-   semantics. The `BasePacketHeader` field order is known but the
-   subpacket layout has more unknowns (`unknown_06`, `unknown_0a`,
-   etc.).
-4. **Map the GAM `CompileTimeParameter<id, &PARAMNAME_id, ...>`
-   template instantiations** (343 found in `.rdata`) to Project
-   Meteor's `playerWork.*` / `actor.*` property names. Each
-   `PARAMNAME_N` is a `const char*` symbol — its target string
-   (e.g. `playerWork.activeQuest`) tells us what wire ID `N` means.
+1. ✅ **`tools/extract_net_vtables.py`** — done. 576 net-relevant
+   classes / 9,729 vtable slots dumped to
+   `build/wire/<binary>.net_handlers.md`. Each row links to the
+   per-function asm/ file.
+2. ✅ **`tools/extract_gam_params.py`** — done. Parses the mangled
+   `Component::GAM::CompileTimeParameter<id, &PARAMNAME_id, T,
+   Decorator>` types from `.rdata` and emits the structured
+   `(id, namespace, type, decorator)` registry to
+   `build/wire/<binary>.gam_params.md` +
+   `config/<binary>.gam_params.{json,csv}`. **192 unique params
+   recovered** across six Data classes:
+   - `Player` (92 params, ids 135-233): bool flag arrays up to
+     `bool[16384]`, int/short arrays up to `[300]`, signed char
+     gear-slot arrays `[16]`, plus single-value scalars.
+   - `PlayerPlayer` (37 params): includes `Blob<2500>` and
+     `Blob<128>[16]`.
+   - `CharaMakeData` (26): chiefly `signed char` (face/body
+     attributes) and `short` (hairstyle, etc.).
+   - `ClientSelectData` / `ClientSelectDataN` (17 each): char
+     select metadata; both include `Sqex::Misc::Utf8String`
+     (player name / etc.).
+   - `ZoneInitData` (3): zone-load payload.
+3. ⏸ **Validate every `OP_*` in garlemald-server's `opcodes.rs`**
+   against the binary's `LobbyProtoUp` / `ZoneProtoUp` /
+   `ChatProtoUp` union members. The union member layout is
+   recoverable via Ghidra's decompile of one of the
+   `Component::Network::IpcChannel::PacketBufferTmpl<...>::dispatch`
+   functions, but TBD as a tool. Names in the binary not in
+   garlemald = gaps; names in garlemald not in the binary =
+   server-side invented opcodes.
+4. ⏸ **Decompile `LobbyCryptEngine`'s 9 vtable slots** (locations
+   in `build/wire/<binary>.net_handlers.md`). Validates
+   `garlemald-server/common/src/blowfish.rs`'s key schedule against
+   the binary's OpenSSL-driven impl, especially the SqexId-token
+   key derivation.
+5. ⏸ **Decompile the `*ProtoChannel::ClientPacketBuilder` Encode /
+   `RecvCallbackInterface` Decode slots** for one channel and
+   document the exact endian / padding semantics. The
+   `BasePacketHeader` field order is known; subpacket layout has
+   more unknowns (`unknown_06`, `unknown_0a` in
+   `garlemald-server/common/src/subpacket.rs`).
 
-Deliverables 1 and 4 don't need a matching toolchain — they're pure
-documentation work and unblock garlemald-server immediately.
-Deliverables 2 and 3 land cleaner with matching, but functional
-re-derivation is still useful.
+The GAM-params extraction (#2) is the biggest immediate win —
+garlemald-server's actor-property system can now be type-checked
+against the ground truth: every `SetActorPropertyPacket` carrying
+`(id, value)` should have a `value` whose Rust type matches the
+binary's recovered C++ type.
+
+### About the `PARAMNAME_*` symbols
+
+The 343 `?PARAMNAME_<id>@<Data>@Data@GameAttributeManager@Network@Application@@`
+symbols referenced via `$1?` in CompileTimeParameter mangled types
+do NOT correspond to user-meaningful property names. The actual
+property name strings in the binary are generic placeholders
+(`IntData.Value0`, `IntData.Value1`, ..., `StringData.Value0`,
+etc.) — one per typed slot. The (namespace, id) tuple IS the
+property identifier as far as the binary is concerned; semantic
+names (`playerWork.activeQuest`, etc.) are Project Meteor's
+invention.
+
+This is consistent with how the wire protocol works: the client
+sends `SetActorPropertyPacket(id=195, value=...)` and the server
+just needs to know "id 195 in the Player namespace is the active
+quest pointer". The binary doesn't carry that mapping — it's the
+server's responsibility to decide what each id means.
 
 ## Cross-references in the workspace
 

@@ -374,18 +374,35 @@ surface we expect to recover for each:
   `map-server/src/packets/opcodes.rs`) — the Rust impl already
   models the BasePacketHeader correctly, the opcodes registry is
   comprehensive, and Blowfish key schedule matches OpenSSL bf_init.
-- ⏸ **Functional decomp (no MSVC needed) — pending PRs**:
+- ✅ **GAM property registry extracted** —
+  `tools/extract_gam_params.py` parses 192 unique `(id, namespace,
+  type, decorator)` tuples from the mangled CompileTimeParameter
+  types in `.rdata`. Output:
+  - `config/<binary>.gam_params.{json,csv}` (machine-readable)
+  - `build/wire/<binary>.gam_params.md` (human-readable, grouped
+    by namespace)
+  Six Data classes recovered: Player (92), PlayerPlayer (37),
+  CharaMakeData (26), ClientSelectData / ClientSelectDataN (17
+  each), ZoneInitData (3).
+  Important finding: the 343 `?PARAMNAME_<id>@...` symbols
+  referenced in mangled CompileTimeParameter types do NOT carry
+  user-meaningful property names — the actual strings in `.rdata`
+  are generic placeholders (`IntData.Value0`, etc.). The
+  (namespace, id) tuple IS the property identifier; semantic names
+  (`playerWork.activeQuest`, etc.) are Project Meteor's invention.
+- ⏸ **Functional decomp — pending PRs**:
   1. Map every Project Meteor `OP_*` constant to its handler
      vtable slot via `LobbyProtoUp` / `ZoneProtoUp` / `ChatProtoUp`
      union members. Validation: every name in
      `garlemald-server/map-server/src/packets/opcodes.rs` should
      land in one of those unions.
-  2. Resolve the 343 `PARAMNAME_*` indirections to actual property
-     strings (via `.rdata` cross-references) → produces the wire
-     ID → `playerWork.*` mapping.
-  3. Decompile `LobbyCryptEngine`'s 9 slots and the
+  2. Decompile `LobbyCryptEngine`'s 9 slots and the
      `*ProtoChannel::Recv`/`Send` paths into C++ headers under
      `include/net/`.
+  3. Type-check garlemald-server's actor-property handling against
+     the GAM registry — every `SetActorPropertyPacket(id, value)`
+     should have a Rust `value` type matching the binary's
+     recovered C++ type for that id.
 - **Exit criterion (unchanged)**: `garlemald-server` can replace
   its hand-written packet structs with `#include`-able C++ from
   `meteor-decomp/include/net/`, and round-trips a capture session.

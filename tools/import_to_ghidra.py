@@ -76,6 +76,11 @@ def main() -> int:
         default="8G",
         help="JVM max heap (-Xmx). Brew default is 2G; ffxivgame.exe needs ~6G+. (default: 8G)",
     )
+    ap.add_argument(
+        "--scripts",
+        default="DumpFunctions.java,DumpStrings.java,DumpRtti.java",
+        help="comma-separated Ghidra post-scripts to run (default: all three Phase-1 dumps)",
+    )
     args = ap.parse_args()
 
     ghidra = Path(args.ghidra_home)
@@ -113,16 +118,11 @@ def main() -> int:
     else:
         headless_args += ["-import", str(src)]
 
-    headless_args += [
-        "-scriptPath",
-        str(scripts),
-        "-postScript",
-        "DumpFunctions.java",
-        "-postScript",
-        "DumpStrings.java",
-        "-postScript",
-        "DumpRtti.java",
-    ]
+    headless_args += ["-scriptPath", str(scripts)]
+    for script_name in args.scripts.split(","):
+        script_name = script_name.strip()
+        if script_name:
+            headless_args += ["-postScript", script_name]
     if args.analysis_timeout:
         headless_args += ["-analysisTimeoutPerFile", str(args.analysis_timeout)]
 

@@ -35,6 +35,9 @@ config/*.strings.json
 config/*.rtti.json
 config/*.middleware.json
 config/*.vtable_slots.jsonl
+config/*.paramnames.json
+config/*.gam_params.json
+config/*.gam_params.csv
 config/*.yaml
 !config/symbols.txt
 !config/ffxivgame.yaml.example
