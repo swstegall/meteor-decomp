@@ -416,24 +416,30 @@ surface we expect to recover for each:
      `*ProtoChannel::Recv`/`Send` paths into C++ headers under
      `include/net/`.
   3. ✅ Cross-validate `garlemald-server/lobby-server/src/data/chara_info.rs`
-     against the GAM CharaMakeData registry. Done in
-     `build/wire/<binary>.chara_make_validation.md` (regenerable
-     via `make validate-chara-make`). Findings:
-     - First 8 GAM ids align cleanly with garlemald's first 8
-       reads (so the early-blob layout *is* GAM-id-ordered).
-     - After ~8 fields the alignment breaks down — the wire
-       format isn't pure id-order. Likely there's bitfield
-       packing (Project Meteor's build path packs 4 chars into
-       u32 in places). Garlemald's two `u32 skip` reads in the
-       middle of the parse may be discarding 8 real fields
-       (GAM ids 108-111 and 118-121).
-     - Garlemald reads 16 trailing bytes (the `seek 0x10`) that
-       have no GAM counterpart — likely a CRC, padding, or
-       per-version extension.
-     - Definitive resolution requires decompiling
-       `Application::Network::GameAttributeManager::Data::CharaMakeData::Serialize`
-       — vtable slot is in
-       `build/wire/<binary>.net_handlers.md`.
+     against the GAM CharaMakeData registry. **Definitive answer**
+     in `build/wire/<binary>.chara_make_validation.md`:
+     - The dispatcher fn in `CharaMakeData::MetadataProvider`
+       (vtable slot 2 at RVA 0x001ad010) is a 26-way jump table
+       that maps GAM id → property name string in `.data`.
+       `tools/extract_paramnames_dispatch.py` walks it to
+       recover the names: `tribe`, `size`, `hair`, `hairOption1`,
+       …, `initialBonusItem`, `initialTown`. All 26 resolved.
+     - The wire format IS GAM-id-ordered, with two non-GAM
+       `u32 skip` sub-record headers (between ids 107 and 108,
+       and between ids 115 and 116) and a 16-byte `seek 0x10`
+       trailer.
+     - garlemald's parser aligns field-for-field, surfacing
+       three concrete bugs:
+       * `appearance.face_features` should be `face_cheek` (id 112)
+       * `appearance.ears` should be `face_jaw` (id 114) — 1.x
+         doesn't expose ears as a separate slot
+       * `info.current_class: u16` lumps GAM id 122 `initialMainSkill`
+         + id 123 `initialEquipSet` (loses the equipment-set value)
+       * Three trailing `u32 skip` reads ARE GAM id 124
+         `initialBonusItem: int[3]` (starter items the parser
+         silently drops)
+     - Suggested patch in `build/wire/<binary>.chara_make_validation.md §
+       Suggested patch`. Apply to garlemald-server when ready.
 - **Exit criterion (unchanged)**: `garlemald-server` can replace
   its hand-written packet structs with `#include`-able C++ from
   `meteor-decomp/include/net/`, and round-trips a capture session.

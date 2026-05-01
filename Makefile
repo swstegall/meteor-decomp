@@ -23,6 +23,7 @@ help:
 	@echo "  make extract-net          Phase 3: net-class vtable → fn_rva map"
 	@echo "  make extract-gam          Phase 3: GAM property registry (id → type)"
 	@echo "  make emit-gam-header      Phase 3: include/net/gam_registry.h from GAM"
+	@echo "  make extract-paramnames   Phase 3: dereference per-class PARAMNAME dispatchers"
 	@echo "  make validate-chara-make  Phase 3: garlemald chara_info.rs ↔ GAM CharaMakeData diff"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
@@ -57,7 +58,7 @@ split-all:
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 
-.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam emit-gam-header validate-chara-make
+.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam emit-gam-header extract-paramnames validate-chara-make
 
 # Walk the RTTI dump for net-relevant classes; emit class→slot→fn_rva map.
 extract-net:
@@ -72,9 +73,17 @@ extract-gam:
 emit-gam-header: extract-gam
 	$(PY) $(TOOLS)/emit_gam_header.py $(or $(BINARY),ffxivgame)
 
+# Resolve PARAMNAME_<id> string pointers from each Data class's
+# MetadataProvider dispatcher (currently CharaMakeData; extend the
+# DISPATCHERS dict in the script to cover Player / etc. as their
+# dispatchers are identified). Enriches config/<bin>.gam_params.json
+# in-place with a `paramname` field per entry.
+extract-paramnames:
+	$(PY) $(TOOLS)/extract_paramnames_dispatch.py $(or $(BINARY),ffxivgame)
+
 # Cross-validate garlemald-server's chara_info.rs parser flow against
 # the GAM CharaMakeData schema.
-validate-chara-make:
+validate-chara-make: extract-gam extract-paramnames
 	$(PY) $(TOOLS)/validate_chara_make.py $(or $(BINARY),ffxivgame)
 
 
