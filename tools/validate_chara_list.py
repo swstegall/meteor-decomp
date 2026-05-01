@@ -15,20 +15,23 @@ direct (id, value) GAM serialisation; it has its own packing
 (face → u32 bitfield, hair → u32, color → u32, equipment → 21
 sequential u32s) plus header / magic constants the binary expects.
 
-So this validator is *schema-level*, not byte-layout validation:
-  - Each garlemald write is paired with its semantic GAM field.
-  - Type mismatches between the Rust write and the GAM type flag
-    likely bugs (e.g. writing u16 where GAM says signed char).
-  - GAM fields garlemald doesn't write are noted (could be
-    intentional — the wire format may not include every GAM
-    field).
-  - Garlemald writes with no GAM counterpart are noted (mostly
-    equipment slots, which are presumably packed into the
-    `graphics: int[0]` variable-length array in the GAM schema).
+This validator is *schema-level*, not byte-layout validation. It
+pairs each garlemald write with its closest GAM field and notes
+type/width DIVERGENCES — but those divergences are NOT bugs by
+default: the GAM schema describes the binary's *in-memory* type,
+while the wire format may legitimately serialise a different
+shape (e.g. transport a resolved string where memory holds a
+short id). Confirming a divergence is a real bug requires either
+(a) decompiling `CharacterListPacket::Deserialize` and reading
+the byte-by-byte read sequence, or (b) observing the live client
+mis-render / disconnect on the current wire shape.
 
-The byte-layout question (does the binary's CharacterListPacket
-deserializer accept this exact byte sequence?) requires reading
-the binary's deserializer — TBD.
+Empirical signal as of 2026-05-01: the fresh-start scripts
+(`fresh-start-{limsa,gridania,uldah}.sh`) drive a working
+chara-select handoff against the live client. So the current
+wire shape is at minimum *deserialisable* by the binary; any
+"bug" claim has to also explain how the current shape passes
+deserialisation.
 
 Output:
   build/wire/<binary>.chara_list_validation.md
@@ -86,15 +89,15 @@ GARLEMALD_WRITES: list[dict] = [
     {"name": "constant_1_a",            "rs_type": "u32 (=1)",                "byte_size": 4, "gam_csd": ("103", "loginFlag (low half?)"), "kind": "loginFlag"},
     {"name": "constant_1_b",            "rs_type": "u32 (=1)",                "byte_size": 4, "gam_csd": ("103", "loginFlag (high half?)"), "kind": "loginFlag"},
     {"name": "current_class",           "rs_type": "u8",                      "byte_size": 1, "gam_csd": ("104", "mainSkill"),   "kind": "field"},
-    {"name": "current_level",           "rs_type": "u16",                     "byte_size": 2, "gam_csd": ("107", "mainSkillLevel"), "kind": "type_mismatch"},
+    {"name": "current_level",           "rs_type": "u16",                     "byte_size": 2, "gam_csd": ("107", "mainSkillLevel"), "kind": "divergence"},
     {"name": "current_job",             "rs_type": "u8",                      "byte_size": 1, "gam_csd": ("119", "currentJob"),  "kind": "field"},
     {"name": "constant_1_c",            "rs_type": "u16 (=1)",                "byte_size": 2, "gam_csd": None,            "kind": "magic"},
-    {"name": "tribe",                   "rs_type": "u8",                      "byte_size": 1, "gam_csd": ("109", "tribe"),       "kind": "type_mismatch"},
+    {"name": "tribe",                   "rs_type": "u8",                      "byte_size": 1, "gam_csd": ("109", "tribe"),       "kind": "divergence"},
     {"name": "magic_0xe22222aa",        "rs_type": "u32",                     "byte_size": 4, "gam_csd": None,            "kind": "magic"},
     {"name": "location1_length",        "rs_type": "u32",                     "byte_size": 4, "gam_csd": ("110", "zoneName"),    "kind": "length"},
-    {"name": "location1_bytes",         "rs_type": "bytes (\"prv0Inn01\\0\")",  "byte_size": 0, "gam_csd": ("110", "zoneName"),    "kind": "type_mismatch"},
+    {"name": "location1_bytes",         "rs_type": "bytes (\"prv0Inn01\\0\")",  "byte_size": 0, "gam_csd": ("110", "zoneName"),    "kind": "divergence"},
     {"name": "location2_length",        "rs_type": "u32",                     "byte_size": 4, "gam_csd": ("111", "territoryName"), "kind": "length"},
-    {"name": "location2_bytes",         "rs_type": "bytes (\"defaultTerritory\\0\")", "byte_size": 0, "gam_csd": ("111", "territoryName"), "kind": "type_mismatch"},
+    {"name": "location2_bytes",         "rs_type": "bytes (\"defaultTerritory\\0\")", "byte_size": 0, "gam_csd": ("111", "territoryName"), "kind": "divergence"},
     {"name": "guardian",                "rs_type": "u8",                      "byte_size": 1, "gam_csd": ("112", "guardian"),    "kind": "field"},
     {"name": "birth_month",             "rs_type": "u8",                      "byte_size": 1, "gam_csd": ("113", "birthdayMonth"), "kind": "field"},
     {"name": "birth_day",               "rs_type": "u8",                      "byte_size": 1, "gam_csd": ("114", "birthdayDay"),  "kind": "field"},
@@ -102,8 +105,8 @@ GARLEMALD_WRITES: list[dict] = [
     {"name": "constant_4_a",            "rs_type": "u32 (=4)",                "byte_size": 4, "gam_csd": None,            "kind": "magic"},
     {"name": "constant_4_b",            "rs_type": "u32 (=4)",                "byte_size": 4, "gam_csd": None,            "kind": "magic"},
     {"name": "(seek 0x10)",             "rs_type": "skip",                    "byte_size": 16, "gam_csd": None,           "kind": "padding"},
-    {"name": "initial_town_a",          "rs_type": "u32",                     "byte_size": 4, "gam_csd": ("118", "initialTown"),  "kind": "type_mismatch"},
-    {"name": "initial_town_b",          "rs_type": "u32",                     "byte_size": 4, "gam_csd": ("118", "initialTown duplicate"), "kind": "duplicate"},
+    {"name": "initial_town_a",          "rs_type": "u32",                     "byte_size": 4, "gam_csd": ("118", "initialTown"),  "kind": "divergence"},
+    {"name": "initial_town_b",          "rs_type": "u32",                     "byte_size": 4, "gam_csd": ("118", "initialTown duplicate"), "kind": "divergence"},
 ]
 
 
@@ -126,7 +129,7 @@ def main() -> int:
 
     # Track which GAM fields are referenced.
     csd_referenced: set[int] = set()
-    bugs: list[str] = []
+    divergences: list[str] = []
 
     for w in GARLEMALD_WRITES:
         gam = w["gam_csd"]
@@ -135,11 +138,11 @@ def main() -> int:
         gid = int(gam[0])
         csd_referenced.add(gid)
 
-        if w["kind"] == "type_mismatch":
+        if w["kind"] == "divergence":
             r = csd_by_id.get(gid)
             if r is None:
                 continue
-            bugs.append(f"`{w['name']}` ({w['rs_type']}) vs GAM id {gid} `{r.get('paramname','?')}`: `{r['type']}`")
+            divergences.append(f"`{w['name']}` ({w['rs_type']}) vs GAM id {gid} `{r.get('paramname','?')}`: `{r['type']}`")
 
     csd_unreferenced = [r for r in csd_by_id.values() if r["id"] not in csd_referenced]
 
@@ -156,50 +159,71 @@ def main() -> int:
         f.write("(id, value) self-describing serialisation.\n\n")
         f.write("So this validator is **schema-level**, not byte-layout\n")
         f.write("validation. It pairs each Rust write with its closest GAM\n")
-        f.write("field (where one exists) and flags type mismatches that\n")
-        f.write("are likely bugs. The byte-layout question (does the\n")
-        f.write("binary's `CharacterListPacket` deserializer actually\n")
-        f.write("accept this byte sequence?) requires decompiling the\n")
-        f.write("deserializer — TBD.\n\n")
-        f.write("## Likely bugs\n\n")
-        if bugs:
-            for b in bugs:
-                f.write(f"- {b}\n")
+        f.write("field (where one exists) and flags type/width DIVERGENCES.\n")
+        f.write("Divergences are NOT bugs by default: the GAM schema describes\n")
+        f.write("the binary's *in-memory* type, while the wire format may\n")
+        f.write("legitimately serialise a different shape (e.g. transport a\n")
+        f.write("resolved string where memory holds a short id). Promoting a\n")
+        f.write("divergence to a confirmed bug requires decomp evidence from\n")
+        f.write("`CharacterListPacket::Deserialize`.\n\n")
+        f.write("## Live-client status (as of 2026-05-01)\n\n")
+        f.write("`fresh-start-{limsa,gridania,uldah}.sh` drive a successful\n")
+        f.write("chara-select handoff against the live 1.23b client. Empirically\n")
+        f.write("the current wire shape is *accepted* by the binary's\n")
+        f.write("deserializer; the chara-select screen renders, the player\n")
+        f.write("is selectable, and zone-in proceeds. Any divergence below\n")
+        f.write("must explain how the current shape passes deserialisation\n")
+        f.write("before it can be classified as a bug.\n\n")
+        f.write("## Schema divergences (unconfirmed; need decomp)\n\n")
+        if divergences:
+            for d in divergences:
+                f.write(f"- {d}\n")
             f.write("\n### Detail\n\n")
             f.write(
+                "Each item below pairs the on-the-wire Rust shape with the GAM\n"
+                "in-memory type. None are confirmed bugs given the live-client\n"
+                "status above. Decompile `CharacterListPacket::Deserialize` to\n"
+                "convert these notes into definitive findings.\n\n"
                 "1. **`current_level: u16` vs GAM `mainSkillLevel: signed char` (1 byte).**\n"
-                "   Garlemald writes 2 bytes where the GAM schema declares 1. If the\n"
-                "   binary deserializer reads exactly 1 byte, the second byte of\n"
-                "   garlemald's u16 leaks into whatever follows (`current_job` etc.),\n"
-                "   shifting the rest of the blob by 1.\n\n"
+                "   Wire writes 2 bytes; GAM in-memory holds 1. If the deserializer\n"
+                "   reads only 1 byte, the second byte would leak into whatever\n"
+                "   follows. The fact that the live client doesn't disconnect at\n"
+                "   chara-select suggests either (a) the wire schema actually\n"
+                "   reads u16 here and clips to the i8 storage, or (b) the\n"
+                "   deserializer reads u16 and the GAM schema diverges from the\n"
+                "   wire shape for this field.\n\n"
                 "2. **`tribe: u8` vs GAM `tribe: Sqex::Misc::Utf8String`.**\n"
-                "   GAM declares the wire format as a UTF-8 string (length-prefixed\n"
-                "   localised display name like \"Hyur Midlander\"), garlemald writes\n"
-                "   a 1-byte numeric tribe id. Likely the chara-list packet expects\n"
-                "   the display string here, not the raw id (the raw id was already\n"
-                "   sent earlier via `tribe_model` u32). If so, the chara-select\n"
-                "   screen may render the tribe row blank or as garbled text.\n\n"
+                "   GAM declares the in-memory representation as a length-prefixed\n"
+                "   UTF-8 string (e.g. \"Hyur Midlander\"). Garlemald writes 1\n"
+                "   numeric byte. Either the wire transports the byte and the\n"
+                "   client resolves to the display string at render time, or the\n"
+                "   GAM Utf8String type is for a *different* code path (in-memory\n"
+                "   cache, not wire) and the wire genuinely takes the raw id. The\n"
+                "   raw `tribe_model` u32 a few writes earlier covers the model\n"
+                "   id; this byte may be a redundant short tribe enum.\n\n"
                 "3. **`location1: length-prefixed string` vs GAM `zoneName: signed char`.**\n"
-                "   GAM declares zoneName as a 1-byte zone id; garlemald writes the\n"
-                "   full ASCII string \"prv0Inn01\\0\" length-prefixed. **Suspect this\n"
-                "   one less** — it's possible Project Meteor reverse-engineered\n"
-                "   correctly that the chara-list response uses raw strings here\n"
-                "   (the binary's GAM schema for in-memory use is a 1-byte id, but\n"
-                "   the WIRE may transport the resolved string for client-side\n"
-                "   display). Decompiling `CharacterListPacket::Deserialize` would\n"
-                "   confirm.\n\n"
+                "   GAM in-memory holds a 1-byte zone id; garlemald writes\n"
+                "   `\"prv0Inn01\\0\"` length-prefixed. The wire likely *does*\n"
+                "   transport the string (resolved zone name for client-side\n"
+                "   display) — this matches Project Meteor's RE — and the GAM\n"
+                "   schema describes the post-resolve in-memory storage.\n\n"
                 "4. **`location2: length-prefixed string` vs GAM `territoryName: signed char`.**\n"
-                "   Same shape as #3. Same caveat.\n\n"
-                "5. **`initial_town: u32 (twice)` vs GAM `initialTown: short` (2 bytes, once).**\n"
-                "   Two issues compounded:\n"
-                "   - Type width: u32 vs i16. 2× over-write.\n"
-                "   - Duplicate write: garlemald writes `initial_town` twice in a row\n"
-                "     (lines 194-195). Probably one of these is a separate field\n"
-                "     entirely (e.g. `favourite_aetheryte` or a fall-back town id)\n"
-                "     and the duplicate is a port bug from the C# original.\n"
+                "   Same shape as #3. Same likely explanation.\n\n"
+                "5. **`initial_town: u32 (twice)` vs GAM `initialTown: short` (one field).**\n"
+                "   Two notes:\n"
+                "   - Width: u32 wire vs i16 GAM. The deserializer may read u32\n"
+                "     and downcast, or the GAM schema is the in-memory storage\n"
+                "     after a width-cast at parse time.\n"
+                "   - Two consecutive 4-byte writes mapped to the same GAM id:\n"
+                "     this could be (a) two separate semantic fields the wire\n"
+                "     format carries that GAM doesn't expose (favourite aetheryte,\n"
+                "     fallback town, etc.), or (b) a Project Meteor port artifact\n"
+                "     where the second slot is intentionally left equal to the\n"
+                "     first because the original author didn't yet know what it\n"
+                "     should hold. Decomp would tell us.\n"
             )
         else:
-            f.write("(no type mismatches detected — schema looks consistent)\n")
+            f.write("(no divergences detected — schema looks consistent)\n")
 
         f.write("\n## Side-by-side\n\n")
         f.write("| garlemald write | rs type | bytes | GAM id | binary name | type | status |\n")
@@ -234,25 +258,17 @@ def main() -> int:
         else:
             f.write("(every CSD GAM field is referenced)\n")
 
-        f.write("\n## Suggested patch (Rust pseudocode)\n\n")
-        f.write("```rust\n")
-        f.write("// In build_for_chara_list:\n\n")
-        f.write("// (1) current_level should be u8, not u16:\n")
-        f.write("c.write_u8(chara.current_level as u8).unwrap();\n\n")
-        f.write("// (2) the trailing duplicate initial_town write is suspect — the\n")
-        f.write("//     second u32 likely corresponds to a different field (favourite\n")
-        f.write("//     aetheryte? legacy fallback?). Until the deserializer is\n")
-        f.write("//     decompiled, leave the write but flag with a TODO comment:\n")
-        f.write("c.write_u32::<LittleEndian>(chara.initial_town as u32).unwrap();\n")
-        f.write("// TODO(meteor-decomp): second initial_town write is a duplicate\n")
-        f.write("// in Project Meteor's C#; decompile CharacterListPacket::Deserialize\n")
-        f.write("// to confirm whether this slot is a separate field.\n")
-        f.write("c.write_u32::<LittleEndian>(chara.initial_town as u32).unwrap();\n\n")
-        f.write("// (3) tribe — GAM declares it as Utf8String. The wire may\n")
-        f.write("//     correctly transport the raw byte; or it may need a localised\n")
-        f.write("//     string. Project Meteor's C# also writes the byte form, so\n")
-        f.write("//     leave it for now but flag for verification.\n")
-        f.write("```\n")
+        f.write("\n## Decomp follow-up\n\n")
+        f.write("To convert the divergences above into definitive findings,\n")
+        f.write("decompile `CharacterListPacket::Deserialize` and record the\n")
+        f.write("byte-by-byte read sequence. The candidate is reachable from\n")
+        f.write("the lobby Down dispatcher (see `config/{0}.opcodes.json`).\n".format(stem))
+        f.write("Until then, **do not speculatively patch** `build_for_chara_list`:\n")
+        f.write("the live client accepts the current shape, and changing the\n")
+        f.write("wire layout based only on a schema-level divergence has a\n")
+        f.write("real risk of breaking the working chara-select handoff.\n\n")
+        f.write("Speculative patches kept in version-control history at\n")
+        f.write("commits prior to 2026-05-01 if needed for reference.\n")
 
     print(f"wrote: {out.relative_to(REPO_ROOT)}")
     return 0
@@ -267,8 +283,7 @@ def _status(kind: str) -> str:
         "graphics": "presumably part of `graphics` (int[0])",
         "padding": "non-GAM padding",
         "loginFlag": "u32+u32 = u64 (matches GAM `loginFlag`)",
-        "type_mismatch": "**LIKELY BUG** — width/type doesn't match GAM",
-        "duplicate": "**LIKELY BUG** — garlemald writes initial_town twice",
+        "divergence": "DIVERGENCE — wire shape differs from GAM in-memory type (unconfirmed; needs decomp)",
     }.get(kind, "?")
 
 

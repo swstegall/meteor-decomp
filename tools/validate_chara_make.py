@@ -14,22 +14,9 @@ After resolving the PARAMNAME pointers we know definitively:
     inserted as sub-record headers (or legacy redundant-packed
     fields the parser correctly ignores) and a 16-byte trailer.
 
-Garlemald's parser aligns cleanly against this, except for three
-discrepancies surfaced here:
-
-  1. `appearance.face_features` is the binary's `faceCheek` (id 112).
-     Semantic mislabel — "face_features" is misleading.
-  2. `appearance.ears` is the binary's `faceJaw` (id 114).
-     Semantic mislabel — these are the jaw/chin shape, NOT ears.
-     1.x had a separate ears field elsewhere (or none — Hyur ears
-     are attached to the face mesh).
-  3. `info.current_class: u16` lumps two GAM fields:
-     - id 122 `initialMainSkill` (signed char, 1 byte) — starting class.
-     - id 123 `initialEquipSet` (signed char, 1 byte) — starting equipment set.
-     Reading them as a u16 loses the equipment-set value.
-  4. Three trailing `u32 skip` reads (12 bytes) ARE GAM id 124
-     `initialBonusItem: int[3]` — three starter-item ids the
-     character is granted at creation. Garlemald discards them.
+Garlemald's parser aligns cleanly against this — all four
+historical discrepancies are fixed. See "Patch history" in the
+generated report for details.
 
 Output:
   build/wire/<binary>.chara_make_validation.md
@@ -68,9 +55,9 @@ GARLEMALD_FLOW: list[dict] = [
     {"kind": "field",        "name": "appearance.face_iris_size",         "rs_type": "u8",  "byte_size": 1, "gam_id": 109},
     {"kind": "field",        "name": "appearance.face_eye_shape",         "rs_type": "u8",  "byte_size": 1, "gam_id": 110},
     {"kind": "field",        "name": "appearance.face_nose",              "rs_type": "u8",  "byte_size": 1, "gam_id": 111},
-    {"kind": "mislabel",     "name": "appearance.face_features (= faceCheek)", "rs_type": "u8", "byte_size": 1, "gam_id": 112},
+    {"kind": "field",        "name": "appearance.face_cheek",             "rs_type": "u8",  "byte_size": 1, "gam_id": 112},
     {"kind": "field",        "name": "appearance.face_mouth",             "rs_type": "u8",  "byte_size": 1, "gam_id": 113},
-    {"kind": "mislabel",     "name": "appearance.ears (= faceJaw)",       "rs_type": "u8",  "byte_size": 1, "gam_id": 114},
+    {"kind": "field",        "name": "appearance.face_jaw",               "rs_type": "u8",  "byte_size": 1, "gam_id": 114},
     {"kind": "field",        "name": "appearance.hair_color",             "rs_type": "u16", "byte_size": 2, "gam_id": 115},
     {"kind": "non_gam_skip", "name": "(u32 skip — likely packed-color redundancy)", "rs_type": "u32", "byte_size": 4, "gam_id": None},
     {"kind": "field",        "name": "appearance.skin_color",             "rs_type": "u16", "byte_size": 2, "gam_id": 116},
@@ -79,10 +66,9 @@ GARLEMALD_FLOW: list[dict] = [
     {"kind": "field",        "name": "info.guardian",                     "rs_type": "u8",  "byte_size": 1, "gam_id": 119},
     {"kind": "field",        "name": "info.birth_month",                  "rs_type": "u8",  "byte_size": 1, "gam_id": 120},
     {"kind": "field",        "name": "info.birth_day",                    "rs_type": "u8",  "byte_size": 1, "gam_id": 121},
-    {"kind": "lossy",        "name": "info.current_class (u16 lumps id 122 initialMainSkill + id 123 initialEquipSet)",
-                              "rs_type": "u16", "byte_size": 2, "gam_id": "122+123"},
-    {"kind": "discarded",    "name": "(3x u32 skip = id 124 initialBonusItem int[3], starter items)",
-                              "rs_type": "u32 x 3", "byte_size": 12, "gam_id": 124},
+    {"kind": "field",        "name": "info.current_class",                "rs_type": "u8",  "byte_size": 1, "gam_id": 122},
+    {"kind": "field",        "name": "info.initial_equip_set",            "rs_type": "u8",  "byte_size": 1, "gam_id": 123},
+    {"kind": "field",        "name": "info.initial_bonus_item[0..3]",     "rs_type": "[u32; 3]", "byte_size": 12, "gam_id": 124},
     {"kind": "non_gam_skip", "name": "(seek 0x10 — non-GAM trailer / padding)", "rs_type": "skip", "byte_size": 16, "gam_id": None},
     {"kind": "trailer",      "name": "info.initial_town",                 "rs_type": "u8",  "byte_size": 1, "gam_id": 125},
 ]
@@ -120,23 +106,10 @@ def main() -> int:
         f.write(f"Garlemald's parser aligns to the binary's GAM CharaMakeData\n")
         f.write(f"schema **field-by-field**, with the wire being GAM-id-ordered\n")
         f.write(f"plus two non-GAM `u32 skip` sub-record headers and a 16-byte\n")
-        f.write(f"trailing seek. Three discrepancies are concrete bugs / data\n")
-        f.write(f"loss in the parser:\n\n")
-        f.write(f"1. **`appearance.face_features` → should be `faceCheek`** (GAM id 112).\n"
-                f"   Semantic mislabel — \"face_features\" doesn't match the binary's name.\n\n")
-        f.write(f"2. **`appearance.ears` → should be `faceJaw`** (GAM id 114).\n"
-                f"   Semantic mislabel. 1.x doesn't expose ears as a separate slot — those\n"
-                f"   bytes encode the jaw/chin shape. Whatever \"ears\" looked like in the\n"
-                f"   live client was driven by `tribe` + `face` lookups, not this field.\n\n")
-        f.write(f"3. **`info.current_class: u16` reads two GAM fields as one** (ids 122 + 123).\n"
-                f"   - id 122 `initialMainSkill` (signed char, 1 byte) — starting class.\n"
-                f"   - id 123 `initialEquipSet` (signed char, 1 byte) — starting gear set.\n"
-                f"   Reading both as a single u16 named `current_class` discards the\n"
-                f"   equipment-set value. Should split into two u8 reads.\n\n")
-        f.write(f"4. **Three trailing `u32 skip` reads correspond to GAM id 124 `initialBonusItem: int[3]`** —\n"
-                f"   three starter-item ids the character is granted at creation.\n"
-                f"   Garlemald discards them; should read as `[u32; 3]` and pass through\n"
-                f"   to the inventory init.\n\n")
+        f.write(f"trailing seek.\n\n")
+        f.write(f"**No outstanding discrepancies.** All four bugs surfaced by the\n")
+        f.write(f"original validation pass were resolved on 2026-05-01 — see the\n")
+        f.write(f"\"Patch history\" section below for the per-bug fix sites.\n\n")
         f.write(f"## Side-by-side\n\n")
         f.write("| garlemald field | rs type | bytes | GAM id | binary name | type | note |\n")
         f.write("|---|---|---:|---:|---|---|---|\n")
@@ -159,21 +132,25 @@ def main() -> int:
                     f"{gam_id if gam_id is not None else '—'} | "
                     f"`{bn}` | `{gt}` | {note} |\n")
 
-        f.write(f"\n## Suggested patch (Rust pseudocode)\n\n")
-        f.write("```rust\n")
-        f.write("// In lobby-server/src/data/chara_info.rs::parse_new_char_request,\n")
-        f.write("// rename misleading fields:\n")
-        f.write("appearance.face_cheek = c.read_u8()?;   // was face_features\n")
-        f.write("appearance.face_mouth = c.read_u8()?;\n")
-        f.write("appearance.face_jaw   = c.read_u8()?;   // was ears\n")
-        f.write("// And split current_class into the two GAM fields it lumps:\n")
-        f.write("info.initial_main_skill = c.read_u8()? as u32;  // was high byte of current_class\n")
-        f.write("info.initial_equip_set  = c.read_u8()? as u32;  // was low byte of current_class\n")
-        f.write("// And capture the three starter-item ids:\n")
-        f.write("for i in 0..3 {\n")
-        f.write("    info.initial_bonus_item[i] = c.read_u32::<LittleEndian>()?;\n")
-        f.write("}\n")
-        f.write("```\n\n")
+        f.write(f"\n## Patch history\n\n")
+        f.write(f"All four bugs were fixed on 2026-05-01.\n\n")
+        f.write(f"1. **`appearance.face_features` → `face_cheek`** (GAM id 112). Renamed in\n"
+                f"   `lobby-server/src/data.rs::Appearance`, `FaceInfo`, the parser, and the\n"
+                f"   row-mapper in `database.rs`. The SQL column name `faceFeatures` was\n"
+                f"   intentionally **kept** to avoid breaking existing `data-backups/data-*Start.zip`\n"
+                f"   save states — the named-param binding now sources from `info.appearance.face_cheek`.\n"
+                f"   Mirror rename in `map-server/src/{{database.rs::NpcAppearance, gamedata.rs::AppearanceFull, gamedata.rs::pack_face_info}}`.\n\n")
+        f.write(f"2. **`appearance.ears` → `face_jaw`** (GAM id 114). Same shape as #1; SQL\n"
+                f"   column `ears` kept for back-compat, Rust field renamed end-to-end.\n\n")
+        f.write(f"3. **`info.current_class: u16` → split into `u8 + u8`** (GAM ids 122 + 123).\n"
+                f"   `info.current_class` retained as the GAM-id-122 `initialMainSkill` value\n"
+                f"   (downstream gear lookup / class column reads it as the active class id,\n"
+                f"   which at character-creation time IS the main skill). New field\n"
+                f"   `info.initial_equip_set: u32` added for GAM id 123.\n\n")
+        f.write(f"4. **3x `u32 skip` → `info.initial_bonus_item: [u32; 3]`** (GAM id 124).\n"
+                f"   Now captured into `CharaInfo`. Inventory init does not yet consume\n"
+                f"   these values — wire-through to `make_character` is the natural follow-up\n"
+                f"   once the inventory layer accepts starter-item ids.\n\n")
         f.write(f"## Definitive answer to the earlier open questions\n\n")
         f.write(f"- **GAM id ordering vs wire order**: ✅ confirmed *id-ordered* for\n")
         f.write(f"  CharaMakeData, with 4-byte non-GAM skips inserted between groups\n")
