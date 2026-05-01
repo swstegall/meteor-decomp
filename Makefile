@@ -29,6 +29,7 @@ help:
 	@echo "  make validate-murmur2     Phase 3: MurmurHash2 vectors (FUN_00d31490 ↔ garlemald)"
 	@echo "  make extract-opcodes      Phase 3: opcode → vtable-slot map (zone/lobby/chat Down)"
 	@echo "  make extract-up-opcodes   Phase 3: Up-direction CPB ctor inventory + RX-opcode validation"
+	@echo "  make extract-crypt-engine Phase 3: decode LobbyCryptEngine 9 slots + validate Blowfish init"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
 	@echo "  make clean                wipe build/"
@@ -62,7 +63,7 @@ split-all:
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 
-.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes extract-up-opcodes
+.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes extract-up-opcodes extract-crypt-engine
 
 # Walk the RTTI dump for net-relevant classes; emit class→slot→fn_rva map.
 extract-net:
@@ -106,6 +107,12 @@ extract-opcodes:
 # .text as PUSH immediates.
 extract-up-opcodes:
 	$(PY) $(TOOLS)/extract_up_opcodes.py $(or $(BINARY),ffxivgame)
+
+# Decode LobbyCryptEngine's 9 vtable slots, verify the Blowfish P/S
+# init tables are canonical OpenSSL pi-derived, and cross-check
+# garlemald-server/common/src/blowfish_tables.rs byte-for-byte.
+extract-crypt-engine:
+	$(PY) $(TOOLS)/extract_crypt_engine.py $(or $(BINARY),ffxivgame)
 
 # Compute MurmurHash2 test vectors (Python port of FUN_00d31490).
 # Cross-check against garlemald's murmur_hash2; see docs/murmur2.md.

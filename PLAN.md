@@ -466,10 +466,37 @@ surface we expect to recover for each:
   1. ~~Map every Project Meteor `OP_*` constant to its handler
      vtable slot~~ — **done above** for the Down direction. Up
      direction reconnaissance done; full enumeration deferred.
-  2. Decompile `LobbyCryptEngine`'s 9 slots and the
-     `*ProtoChannel::Recv`/`Send` paths into C++ headers under
-     `include/net/`.
-  3. ✅ Cross-validate `garlemald-server/lobby-server/src/data/chara_info.rs`
+  2. ✅ **`LobbyCryptEngine`'s 9 slots decoded**
+     (`tools/extract_crypt_engine.py` →
+     `build/wire/ffxivgame.crypt_engine.md`). All 9 are overrides
+     of the abstract `CryptEngineInterface` (whose slots 1..8 are
+     `__purecall`). Semantics: dtor, PrepareHandshake (32-byte
+     "Test Ticket Data..." seed + `__time64` timestamp into req
+     header), three `return false / 0` interface stubs (slots 2,
+     3, 5), SetSessionKey (frees + reallocates 4168-byte BF_KEY,
+     calls `BF_set_key(key, len=16)`), Encrypt buffer (32-byte
+     chunk-aligned, ECB), Decrypt buffer (same shape), and a
+     `return true` capability-probe stub (slot 8). The per-block
+     primitives at RVA `0x0005aac0`/`0x0005aa30` are statically-
+     linked OpenSSL `BF_encrypt`/`BF_decrypt`; the key schedule
+     at `0x0005abf0` is OpenSSL `BF_set_key` with **one non-
+     canonical quirk**: the byte-cycling step uses `MOVSX` (sign-
+     extend) instead of `MOVZX`, so keys with bytes ≥ 0x80
+     produce a different schedule than stock OpenSSL. The P/S
+     init constants at VA `0x01267278` (P[18]) and `0x012672C0`
+     (S[4][256]) are **canonical pi-derived** (Schneier
+     1993 / OpenSSL `bf_pi.h`), confirmed bit-for-bit. Garlemald-
+     server's `common/src/blowfish_tables.rs` matches both tables
+     byte-for-byte; the sign-extension quirk is reproduced in
+     `common/src/blowfish.rs:74-78`. **One alignment divergence**:
+     the lobby slots round buffer length DOWN to multiples of 32
+     (= 4 Blowfish blocks); garlemald's `encipher`/`decipher`
+     require 8-aligned and reject 24-byte inputs. If the server
+     ever produces a payload whose length isn't a multiple of 32,
+     the client will silently leave the trailing bytes plaintext.
+  3. Decompile the `*ProtoChannel::Recv`/`Send` paths into C++
+     headers under `include/net/`.
+  4. ✅ Cross-validate `garlemald-server/lobby-server/src/data/chara_info.rs`
      against the GAM CharaMakeData registry. **Definitive answer**
      in `build/wire/<binary>.chara_make_validation.md`:
      - The dispatcher fn in `CharaMakeData::MetadataProvider`

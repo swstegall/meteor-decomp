@@ -184,11 +184,27 @@ same names in `meteor-decomp`'s `include/net/`.
    functions, but TBD as a tool. Names in the binary not in
    garlemald = gaps; names in garlemald not in the binary =
    server-side invented opcodes.
-4. ⏸ **Decompile `LobbyCryptEngine`'s 9 vtable slots** (locations
-   in `build/wire/<binary>.net_handlers.md`). Validates
-   `garlemald-server/common/src/blowfish.rs`'s key schedule against
-   the binary's OpenSSL-driven impl, especially the SqexId-token
-   key derivation.
+4. ✅ **Decompiled `LobbyCryptEngine`'s 9 vtable slots** —
+   `tools/extract_crypt_engine.py` + `build/wire/<binary>.crypt_engine.md`.
+   The cipher is statically-linked OpenSSL Blowfish (`BF_set_key` /
+   `BF_encrypt` / `BF_decrypt` at RVAs `0x0005abf0`, `0x0005aac0`,
+   `0x0005aa30`). The P/S init constants at VA `0x01267278`
+   (P[18]) and `0x012672C0` (S[4][256]) are canonical pi-derived,
+   confirmed bit-for-bit; garlemald-server's
+   `common/src/blowfish_tables.rs` matches both byte-for-byte. The
+   key schedule has one non-canonical quirk (`MOVSX` not `MOVZX`
+   on each cycled key byte → keys with bytes ≥ 0x80 produce a
+   different schedule than stock OpenSSL); garlemald reproduces
+   this via `key[j] as i8 as i32 as u32`. Slot map: 0=dtor,
+   1=PrepareHandshake (32-byte "Test Ticket Data..." seed +
+   timestamp), 2/3/5=interface stubs, 4=SetSessionKey (16-byte
+   key, allocates fresh BF_KEY at `[this+0x30]`), 6/7=Encrypt /
+   Decrypt buffer in 32-byte chunks, 8=capability probe.
+   **Buffer-length quirk**: slots 6/7 round length DOWN to a
+   multiple of 32 (= 4 Blowfish blocks); garlemald's
+   `encipher`/`decipher` require 8-aligned length, which is
+   *stricter* — divergent payloads will silently leave trailing
+   plaintext on the client side.
 5. ⏸ **Decompile the `*ProtoChannel::ClientPacketBuilder` Encode /
    `RecvCallbackInterface` Decode slots** for one channel and
    document the exact endian / padding semantics. The
