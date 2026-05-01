@@ -313,9 +313,9 @@ constexpr std::array<ParamDescriptor, 37> kRegistry {{
 namespace zoneinitdata_params {
 
 constexpr std::array<ParamDescriptor, 3> kRegistry {{
-    { 100, TypeKind::I32, 4, 4, "PARAMNAME_100", "int" },
-    { 101, TypeKind::UTF8_STRING, 0, 0, "PARAMNAME_101", "Sqex::Misc::Utf8String" },
-    { 102, TypeKind::I8, 1, 1, "PARAMNAME_102", "signed char" },
+    { 100, TypeKind::I32, 4, 4, "startCity", "int" },
+    { 101, TypeKind::UTF8_STRING, 0, 0, "zoneName", "Sqex::Misc::Utf8String" },
+    { 102, TypeKind::I8, 1, 1, "zoneId", "signed char" },
 }};
 
 }  // namespace zoneinitdata_params

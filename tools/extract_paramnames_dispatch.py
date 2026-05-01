@@ -118,7 +118,17 @@ DISPATCHERS: dict[str, dict] = {
         "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
         "key": "global_id",
     },
-    # ZoneInitData dispatcher TBD — locate via
+    "ZoneInitData": {
+        # Slot 2 of MetadataProvider — global-id keyed but with a
+        # `SUB EAX, 0x64; JZ; SUB EAX, 1; JZ; SUB EAX, 1; JZ` chained-
+        # compare cascade rather than a JT (more compact for 3 ids).
+        # Case handlers still appear in id-sorted source order, so the
+        # K-th `.data` PUSH still pairs with the K-th real GAM id.
+        "rva": 0x001af640,
+        "ns": "Application::Network::GameAttributeManager::Data::ZoneInitData",
+        "key": "global_id",
+    },
+    # All known Data classes covered.
     # build/wire/<binary>.net_handlers.md under each ::MetadataProvider
     # section and pick the largest non-init slot, then check the
     # prologue to classify as "global_id" vs "local_index".
