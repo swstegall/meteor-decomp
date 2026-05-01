@@ -219,7 +219,7 @@ extern const std::uintptr_t LOBBY_DOWN_DISPATCH_DWORD_TABLE;// = 0x012a42a0 (.da
 //   8  GetCompatibility         (1-arg stub, returns true)
 //
 // =====================================================================
-// 32-byte alignment quirk — IMPORTANT, partly resolved.
+// 32-byte alignment quirk — RESOLVED (benign in practice).
 // =====================================================================
 //
 // Slots 6 and 7 round the input length DOWN to a multiple of 32:
@@ -228,46 +228,72 @@ extern const std::uintptr_t LOBBY_DOWN_DISPATCH_DWORD_TABLE;// = 0x012a42a0 (.da
 //   AND   EAX, 0xFFFFFFE0   ; = round_down(len, 32)
 //
 // 32 = 4 Blowfish blocks. The trailing 0..31 bytes of every encrypt /
-// decrypt call are passed through as plaintext.
+// decrypt call are silently passed through as plaintext.
 //
 // Garlemald-server's `Blowfish::encipher`/`decipher` (in
-// `common/src/blowfish.rs`) require 8-aligned lengths and reject
-// anything else. The two policies are NOT equivalent:
+// `common/src/blowfish.rs`) require 8-aligned lengths and encrypt
+// ALL of `len`. The two policies are NOT equivalent — but the gap
+// is BENIGN in this protocol because of how the lobby builds packets:
 //
-//   - garlemald: `len` must be `len % 8 == 0`. Encrypts ALL `len`
-//     bytes. Returns an error on misalignment.
-//   - binary:    `len` is silently floored to `len & ~0x1F`. Encrypts
-//     only the floor; trailing bytes are kept plaintext. Never errors.
+//   1. Project Meteor's reference C# server (`Lobby Server/Packets/
+//      Send/AccountListPacket.cs`, `SelectCharacterConfirmPacket.cs`,
+//      etc.) and garlemald-server BOTH compute the encryption body
+//      as `subpacketSize - 16` and encrypt it with an 8-aligned
+//      Blowfish. Neither rounds to 32. Project Meteor has been
+//      working against the actual 1.x client for years.
 //
-// The risk: if garlemald sends a subpacket whose body is, say, 528
-// bytes (= 0x210, == 16 mod 32), garlemald encrypts all 528 bytes,
-// but the receiving client decrypts only the first 512 — leaving
-// the trailing 16 bytes unintelligible.
+//   2. Both servers allocate FIXED-size lobby buffers (`MemoryStream
+//      (0x98)`, `MemoryStream(0x210)`, `MemoryStream(0x280)`, etc. in
+//      C#; identical `CAPACITY` constants in garlemald). The actual
+//      meaningful content typically fills only the first N bytes of
+//      these buffers; the trailing region is **zero padding** that
+//      `MemoryStream.GetBuffer()` returns wholesale.
 //
-// Empirically, garlemald-server has been operating on lobby sessions
-// without observable corruption. Likely explanations (one or more):
+//   3. The mismatch therefore plays out as: server encrypts the full
+//      `subpacketSize - 16` bytes; client decrypts only
+//      `floor((subpacketSize - 16) / 32) * 32` of them. The trailing
+//      0..31 bytes the client fails to decrypt fall inside the
+//      buffer's trailing zero-padding region, where no meaningful
+//      data lives. The client's parser doesn't read past the field
+//      boundaries it cares about, so the garbled trailing bytes are
+//      invisible.
 //
-//   (a) Real lobby `subpacket_size` values DO arrive 32-aligned in
-//       practice, even though the build/test capacities (0x210,
-//       0x280, 0x3B0, 0x98, 0x1F0) include some that aren't —
-//       perhaps the sized buffer is filled to a 32-aligned subset
-//       and the trailing region is unused padding.
-//   (b) The trailing 0..15 bytes of each non-aligned subpacket body
-//       happen to fall inside trailing zero-padding fields the client
-//       doesn't read meaningfully.
-//   (c) The dispatcher referenced at `[arg1->[8]+0x24]` in the
-//       LobbyProtoDownCallbackInterface receives a different length
-//       than the body length we see at the encrypt call — i.e. the
-//       client encrypts at a different layer (e.g. the SubPacket
-//       INCLUDING its 16-byte header → length always 32-aligned by
-//       construction if subpacket_size is).
+// Worked example — `SelectCharacterConfirm` (opcode 0x0F):
 //
-// Resolving this definitively requires finding the call SITE for
-// `LobbyCryptEngine::vtable[6]` (encrypt) and `vtable[7]` (decrypt)
-// — i.e. who passes what length. The encrypt slot is invoked via
-// the abstract `CryptEngineInterface` vtable, not the concrete
-// `LobbyCryptEngine` vtable, so the call site searches need to walk
-// the interface vtable. Tracked as a follow-up; the client appears
-// tolerant in practice.
+//   - Buffer `data` is exactly 0x98 = 152 bytes (filled completely
+//     with: 8B sequence, 4B characterId×2, 4B zero, 64B sessionToken
+//     padded, 2B reserved, 2B worldPort, 32B worldIp padded, 32B
+//     unknownIp padded). The trailing region of `unknownIp` is
+//     zero-padding ASCII nulls.
+//   - subpacketSize = 32 + 152 = 184 bytes (0xB8).
+//   - Encryption body = 184 - 16 = 168 bytes. 168 mod 32 = 8.
+//   - Server encrypts all 168 bytes; client decrypts the floor →
+//     160 bytes; last 8 bytes left encrypted.
+//   - Those 8 bytes correspond to data[144..152], i.e. the last
+//     8 bytes of the 32-byte `unknownIp` field — entirely zero
+//     padding. The client never displays / parses past the
+//     meaningful "192.168.0.44" prefix.
+//
+// Worked example — `AccountList` (opcode 0x0C, `MAX=8` per packet):
+//
+//   - Buffer `data` is 0x280 = 640 bytes; meaningful content =
+//     16-byte list header + 8 × 72-byte entries = 592 bytes.
+//     Trailing 48 bytes are zero.
+//   - subpacketSize = 32 + 640 = 672 bytes. Encryption body = 656.
+//     656 mod 32 = 16. Last 16 of the 656 are not decrypted by
+//     client. Those 16 fall within the 48-byte trailing zero pad —
+//     never read by the client's account list parser.
+//
+// Conclusion: garlemald's `encipher`/`decipher` are CORRECT as
+// written. The 8-aligned check is appropriate (matches Project
+// Meteor; would break interop only if a packet had non-padding
+// content in its trailing 0..31 bytes — which the protocol's
+// over-provisioned buffers preclude). No code change needed; this
+// is a documentation-only finding.
+//
+// If a future packet builder packs meaningful data into the LAST
+// 32 bytes of a non-32-aligned encryption body, the client would
+// silently see garbage there. Tag any such builder for review with
+// a comment referencing this section.
 
 }  // namespace meteor_decomp::net::lobby_proto_channel

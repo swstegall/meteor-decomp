@@ -510,16 +510,32 @@ surface we expect to recover for each:
      dispatchers already documented for zone/chat. Bytes 4..7
      (packet_size + num_subpackets per garlemald) and 12..15 (high
      half of the u64 timestamp) are not written by the client's
-     BuildHeader and remain caller-populated. **Open question
-     resolved partially**: only the Lobby uses Blowfish — zone and
-     chat traffic is plaintext (no concrete CryptEngine subclass for
-     them in the binary; garlemald's world-server and map-server
-     contain no Blowfish call sites). The 32-byte alignment quirk
-     in Lobby slots 6/7 (encrypt/decrypt round len DOWN to a multiple
-     of 32) vs garlemald's 8-aligned check is documented in the
-     header — the encrypt CALL SITE still needs tracing to confirm
-     whether the encoder always passes 32-aligned bodies in retail
-     traffic. Tracked as a follow-up.
+     BuildHeader and remain caller-populated. **32-byte alignment
+     quirk RESOLVED**: only the Lobby uses Blowfish (zone and chat
+     traffic is plaintext — confirmed by the absence of a concrete
+     CryptEngine subclass for them in the binary AND the absence of
+     blowfish call sites in garlemald's world-server / map-server).
+     The slot-6/7 round-DOWN-to-32 vs garlemald's 8-aligned policy
+     is non-equivalent BUT BENIGN in practice: Project Meteor's
+     reference C# server uses the same 8-aligned policy as garlemald
+     (`Common Class Lib/BasePacket.cs::EncryptPacket` calls
+     `Encipher(data, offset+0x10, subpacketSize-0x10)` — not
+     32-aligned), and Project Meteor has been working against the
+     real 1.x client for years. Both servers allocate fixed-size
+     lobby buffers (`MemoryStream(0x98)`, `(0x210)`, `(0x280)`, etc.)
+     where the meaningful content typically fills only the prefix
+     and the trailing region is zero padding. The 0..31 bytes the
+     client fails to decrypt fall inside that trailing zero region —
+     the client never reads past the field boundaries it cares
+     about, so the garbled trailing bytes are invisible. Worked
+     examples in `include/net/lobby_proto_channel.h` for
+     `SelectCharacterConfirm` (0x98 buffer, last 8 bytes are
+     `unknownIp` zero-padding) and `AccountList` (0x280 buffer,
+     last 16 bytes are zero pad past 8 entries × 72 bytes).
+     **Garlemald's `encipher`/`decipher` are correct as written; no
+     code change needed.** Future packet builders that pack
+     meaningful data into the last 32 bytes of a non-32-aligned
+     encryption body would need review.
   4. ✅ Cross-validate `garlemald-server/lobby-server/src/data/chara_info.rs`
      against the GAM CharaMakeData registry. **Definitive answer**
      in `build/wire/<binary>.chara_make_validation.md`:
