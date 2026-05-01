@@ -102,10 +102,18 @@ DISPATCHERS: dict[str, dict] = {
         "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
         "key": "local_index",
     },
-    # ClientSelectData / ClientSelectDataN / ZoneInitData dispatchers
-    # TBD — locate via build/wire/<binary>.net_handlers.md under each
-    # ::MetadataProvider section and pick the largest non-init slot,
-    # then check the prologue to classify as "global_id" vs "local_index".
+    "ClientSelectData": {
+        # Slot 2 of MetadataProvider — global-id keyed.
+        # `ADD EAX, -0x64; CMP EAX, 0x13` → ids 100..119 (20-entry JT).
+        # GAM has 17 ids in this range (gaps at 101, 105, 106 → sentinel).
+        "rva": 0x001ad580,
+        "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+        "key": "global_id",
+    },
+    # ClientSelectDataN / ZoneInitData dispatchers TBD — locate via
+    # build/wire/<binary>.net_handlers.md under each ::MetadataProvider
+    # section and pick the largest non-init slot, then check the
+    # prologue to classify as "global_id" vs "local_index".
 }
 
 

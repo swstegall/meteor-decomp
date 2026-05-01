@@ -432,6 +432,16 @@ surface we expect to recover for each:
        7 `snpc*` (1.x Soul-Sync NPCs), 5 `harvest_*` (gathering
        history), 5 `profile_*` (item/monster encounter logs),
        Anima resource, mailbox, festival counters.
+     - ClientSelectData's slot 2 (RVA 0x001ad580) is global-id
+       keyed and resolves all 17 names — `displayName`,
+       `graphics`, `loginFlag`, `mainSkill`, `mainSkillLevel`,
+       `physicalLevel` (Utf8String — pre-formatted display
+       string), `tribe` (also Utf8String — race display name),
+       `zoneName`/`territoryName` (1-byte ID codes with string
+       lookup elsewhere), `guardian`, `birthdayMonth/Day`,
+       `initial*`, `currentJob`. Garlemald-server's
+       `lobby-server/src/data/chara_info.rs::build_for_chara_list`
+       produces this payload as a hand-rolled flat blob.
      - PlayerPlayer's slot 4 (RVA 0x001af270) extracts 37 names
        (`tribe`, `size`, `hair`, …, `loginCount`,
        `questScenario`, `questGuildleve*`, `npcLinkshellChat*`,
