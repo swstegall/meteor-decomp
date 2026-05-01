@@ -48,7 +48,7 @@
 extern "C" void rosetta_FUN_00b361b0(void *dest, int count, const void *src) {
     char *d = static_cast<char *>(dest);
     while (count > 0) {
-        if (d != nullptr) {
+        if (d != NULL) {
             // Unrolled 32-byte memcpy from `src` to `d`.
             // The original asm splits this into two writes via EAX (d)
             // and EDX (d+0x10) but a straight loop is byte-equivalent

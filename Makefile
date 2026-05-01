@@ -124,9 +124,9 @@ rosetta: setup-msvc
 	    name=$$(basename $$cpp .cpp); \
 	    obj=$(BUILD)/obj/_rosetta/$$name.obj; \
 	    echo ">>> cl $$cpp -> $$obj"; \
-	    $(TOOLS)/cl-wine.sh $(ROSETTA_FLAGS) /Fo$$(./tools/cl-wine.sh --winpath $$obj 2>/dev/null || echo $$obj) $$cpp; \
+	    $(TOOLS)/cl-wine.sh $(ROSETTA_FLAGS) /Fo$$obj $$cpp || exit $$?; \
 	    echo ">>> objdiff $$obj vs orig"; \
-	    $(PY) $(TOOLS)/compare.py FUNC=$$name; \
+	    $(PY) $(TOOLS)/compare.py FUNC=$$name || exit $$?; \
 	done
 
 diff:

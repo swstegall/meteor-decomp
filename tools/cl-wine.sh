@@ -45,9 +45,10 @@ if [[ -z "$WINE" ]]; then
     exit 1
 fi
 
-# Per-project Wine prefix (32-bit — cl.exe is i386).
+# Per-project Wine prefix. CrossOver Wine 9 (and other modern Wines) are
+# wow64-only — they reject WINEARCH=win32 and run 32-bit cl.exe via the
+# wow64 emulation layer in a unified prefix.
 export WINEPREFIX="${WINEPREFIX:-$HOME/.wine-msvc2005}"
-export WINEARCH=win32
 export WINEDEBUG="${WINEDEBUG:--all}"   # silence the noisy default fixme:'s
 
 # Translate POSIX paths in MSVC_TOOLCHAIN_DIR → Wine drive letters via

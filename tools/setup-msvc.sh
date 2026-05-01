@@ -23,12 +23,20 @@ ok()   { printf '    OK: %s\n' "$*"; }
 err()  { printf '    FAIL: %s\n' "$*" >&2; fail=$((fail + 1)); }
 
 step "Wine"
-if command -v wine64 >/dev/null 2>&1; then
-    ok "wine64: $(wine64 --version 2>&1 | head -1)"
+# Prefer the explicit $WINE env (set by ~/.config/meteor-decomp.env when
+# vstudio2005-workspace/install.sh ran). Fall back to PATH lookup.
+WINE_BIN=""
+if [[ -n "${WINE:-}" && -x "$WINE" ]]; then
+    WINE_BIN="$WINE"
+elif command -v wine64 >/dev/null 2>&1; then
+    WINE_BIN="$(command -v wine64)"
 elif command -v wine >/dev/null 2>&1; then
-    ok "wine: $(wine --version 2>&1 | head -1)"
+    WINE_BIN="$(command -v wine)"
+fi
+if [[ -n "$WINE_BIN" ]]; then
+    ok "wine: $WINE_BIN ($("$WINE_BIN" --version 2>&1 | head -1))"
 else
-    err "wine not on PATH; brew install --cask wine-stable"
+    err "wine not found via \$WINE or PATH; either run vstudio2005-workspace/install.sh (sets \$WINE) or brew install --cask wine-stable"
 fi
 
 step "MSVC_TOOLCHAIN_DIR"
@@ -52,21 +60,27 @@ else
             err "missing $MSVC_TOOLCHAIN_DIR/$required"
         fi
     done
+    # PSDK is optional for the Rosetta Stone match (the candidate function is
+    # a leaf with no Win32 calls). It IS required for any subsequent matching
+    # work that touches sockets / threads / registry. Treat as a warning.
     if [[ -d "$MSVC_TOOLCHAIN_DIR/PSDK/Include" ]]; then
         ok "PSDK/Include"
     else
-        err "missing PSDK/Include (Platform SDK 2003 R2 — Windows headers)"
+        printf '    WARN: missing PSDK/Include (Platform SDK 2003 R2). Rosetta Stone OK without it; later phases will need it. See %s/sdk/PSDK_TODO.md\n' \
+            "${MSVC_TOOLCHAIN_DIR%/sdk}" >&2
     fi
     if [[ -d "$MSVC_TOOLCHAIN_DIR/PSDK/Lib" ]]; then
         ok "PSDK/Lib"
     else
-        err "missing PSDK/Lib (Platform SDK 2003 R2 — Windows import libs)"
+        printf '    WARN: missing PSDK/Lib (Platform SDK 2003 R2). Rosetta Stone OK without it.\n' >&2
     fi
 fi
 
 step "cl.exe version"
 if (( fail == 0 )); then
-    ver_out=$("$REPO_ROOT/tools/cl-wine.sh" 2>&1 | head -1 || true)
+    # Invoke cl.exe directly via wine (without cl-wine.sh's /nologo) so we
+    # get the banner. Use the same WINE binary cl-wine.sh resolves to.
+    ver_out=$("$WINE_BIN" "$MSVC_TOOLCHAIN_DIR/VC/bin/cl.exe" 2>&1 | grep -m1 "Microsoft.* C/C++ Optimizing Compiler" || true)
     if echo "$ver_out" | grep -q "Microsoft.* C/C++ Optimizing Compiler.*Version 14\.00"; then
         ok "$ver_out"
     else
