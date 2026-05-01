@@ -65,24 +65,35 @@ TYPE_CODES = {
 
 def decode_int_literal(token: str) -> int | None:
     """Decode MSVC's mangled int literal: `$0<payload>@`.
-    Two forms:
-      - Small (0 ≤ v ≤ 9): a single digit character, e.g. `$03@` → 3.
-      - Large (v ≥ 10): base-16 with A=0..P=15, e.g. `$0HE@` → 0x74 = 116.
-    The trailing `@` terminates the literal in both forms."""
+
+    Three forms (verified against Microsoft's `undname.exe`):
+      - `$0@` (empty payload) → 0.
+      - **Single-digit form `$0N@`** (N is 0-9): encodes value `N+1`.
+        MSVC biases small literals so that `$00@` = 1, `$01@` = 2, …,
+        `$09@` = 10. There is no unbiased encoding for `1..10` in this
+        form; values 0 and 1 share `$00@` notation only when the
+        signedness rules allow.
+      - **Multi-character base-16 form `$0AB…@`** (A,B,… in `A`..`P`
+        representing 0..15): unbiased; the value is the literal hex.
+        Example: `$0HM@` = 0x7C = 124 (H=7, M=12).
+
+    Empirical confirmation (via VS 2005 `undname.exe`):
+        `$03@` → `Array<int, 4>`        (3+1 = 4)
+        `$0BA@` → `Array<int, 16>`      (0xB*16 + 0xA*0 = wait,
+                                         actually B=1, A=0 → 0x10=16)
+        `$0HM@` → `…<int, 124, …>`     (no bias for multi-char)
+    """
     m = re.match(r"^\$0([0-9A-Pa-p@]+)@$", token)
     if not m:
         return None
     payload = m.group(1)
     if payload == "@":
         return 0
-    # If the first character is a digit, this is the small form (value
-    # 0..9) — single digit followed by `@`.
-    if payload[0].isdigit():
-        try:
-            return int(payload, 10)
-        except ValueError:
-            return None
-    # Otherwise base-16 letter form.
+    # If the entire payload is a single digit, this is the BIASED
+    # small-literal form: encoded value = N+1.
+    if len(payload) == 1 and payload.isdigit():
+        return int(payload, 10) + 1
+    # Otherwise base-16 letter form (unbiased).
     val = 0
     for c in payload:
         if c == "@":
