@@ -432,10 +432,21 @@ surface we expect to recover for each:
        7 `snpc*` (1.x Soul-Sync NPCs), 5 `harvest_*` (gathering
        history), 5 `profile_*` (item/monster encounter logs),
        Anima resource, mailbox, festival counters.
-     - Pattern (dispatcher walk) documented in memory at
+     - PlayerPlayer's slot 4 (RVA 0x001af270) extracts 37 names
+       (`tribe`, `size`, `hair`, …, `loginCount`,
+       `questScenario`, `questGuildleve*`, `npcLinkshellChat*`,
+       `actionSaveWork`) but its dispatcher is **local-index-keyed**
+       (no `ADD EAX, -<base>` in prologue), so pairing names with
+       GAM ids requires decompiling slot 2 (RVA 0x001aee30) — TBD.
+       Names are reported under "Local-index-keyed dispatchers" in
+       `build/wire/<binary>.paramnames.md` and excluded from the
+       gam_params enrichment until the local→global translator is
+       resolved.
+     - Pattern (dispatcher walk + the global-id vs local-index
+       distinction) documented in memory at
        `reference_meteor_decomp_paramname_dispatcher.md` for
        reapplication to ClientSelectData / ClientSelectDataN /
-       PlayerPlayer / ZoneInitData.
+       ZoneInitData.
      - The wire format IS GAM-id-ordered, with two non-GAM
        `u32 skip` sub-record headers (between ids 107 and 108,
        and between ids 115 and 116) and a 16-byte `seek 0x10`

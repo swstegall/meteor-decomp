@@ -56,29 +56,56 @@ WIRE = REPO_ROOT / "build" / "wire"
 # CharaMakeData / Player / etc. properties." Discovered by manual
 # inspection of the largest MetadataProvider slots.
 DISPATCHERS: dict[str, dict] = {
-    # Each entry: (dispatcher RVA, owning Data-class namespace).
+    # Each entry: (dispatcher RVA, owning Data-class namespace, key kind).
     # The dispatcher is a vtable slot in the class's MetadataProvider
-    # that maps a GAM id to a property-name C-string in `.data` via a
-    # large unrolled switch.
+    # that maps a key (either the global GAM id or a local 0..N index)
+    # to a property-name C-string in `.data` via a large unrolled switch.
     #
-    # We extract by reading the asm's `PUSH <imm32>` instructions whose
-    # immediate lands in `.data` — those are the unique per-id string
-    # pointers. Sentinel-handler PUSHes (pointing at `.rdata` placeholder)
-    # are filtered. The K-th surviving PUSH maps to the K-th real GAM
-    # id for this namespace (ids in `gam_params.json` are in dispatcher
-    # case-handler order — verified for CharaMakeData and Player).
+    # `key`:
+    #   "global_id"     prologue normalises the global GAM id with
+    #                   `ADD EAX, -<base>` then indexes a JT. The K-th
+    #                   `.data` PUSH in source order corresponds to
+    #                   the K-th real GAM id (sorted ascending). Gaps
+    #                   in the id range share a single sentinel
+    #                   handler whose PUSH targets `.rdata`, so they
+    #                   collapse to one PUSH and don't shift alignment.
+    #                   ✓ Validated for CharaMakeData (26/26) and
+    #                   Player (92/92).
+    #
+    #   "local_index"   prologue has no `ADD EAX, -<base>`; it just
+    #                   `CMP EAX, <count-1>` then `JMP [EAX*4 + JT]`.
+    #                   The input is already a 0..N local index, NOT
+    #                   the global GAM id. The mapping from global id
+    #                   to local index lives in *another* slot (e.g.
+    #                   PlayerPlayer slot 2). Without decompiling that
+    #                   translator we don't know which name goes with
+    #                   which GAM id, so we extract the names as an
+    #                   ordered list keyed by local-index only and
+    #                   skip the gam_params enrichment.
     "CharaMakeData": {
         "rva": 0x001ad010,
         "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+        "key": "global_id",
     },
     "Player": {
         "rva": 0x001add90,
         "ns": "Application::Network::GameAttributeManager::Data::Player",
+        "key": "global_id",
     },
-    # ClientSelectData / ClientSelectDataN / PlayerPlayer / ZoneInitData
-    # dispatchers TBD — locate via build/wire/<binary>.net_handlers.md
-    # under each ::MetadataProvider section and pick the largest non-init
-    # slot.
+    "PlayerPlayer": {
+        # Slot 4 of MetadataProvider, 37-entry table, local-index keyed.
+        # The 37 PUSHes recover the *names* (tribe, size, …,
+        # actionSaveWork) but pairing them with GAM ids requires the
+        # local-index → global-id mapping from slot 2 (RVA 0x001aee30,
+        # 771 bytes — TBD).
+        "rva": 0x001af270,
+        "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+        "key": "local_index",
+    },
+    # ClientSelectData / ClientSelectDataN / ZoneInitData dispatchers
+    # TBD — locate via build/wire/<binary>.net_handlers.md under each
+    # ::MetadataProvider section and pick the largest non-init slot,
+    # then check the prologue to classify as "global_id" vs "local_index".
 }
 
 
@@ -122,17 +149,17 @@ def extract_dispatcher(
     name: str,
     info: dict,
     real_ids: list[int],
-) -> list[dict]:
-    """Walk a dispatcher's asm, extract its `.data` string pointers
-    from case-handler `PUSH <imm32>` instructions in source order, and
-    pair each with the K-th *real* GAM id for this namespace.
+) -> tuple[list[dict], list[dict]]:
+    """Walk a dispatcher's asm, extract its `.data` string pointers from
+    case-handler `PUSH <imm32>` instructions in source order. Returns
+    `(by_id_rows, by_local_rows)`:
 
-    The dispatcher's case handlers appear in id-sorted order. Cases
-    for ids that aren't real GAM properties (gaps in the id sequence)
-    share a single sentinel handler whose PUSH targets `.rdata`, so
-    they collapse to one PUSH and don't shift the alignment of the
-    real cases. The K-th surviving `.data` PUSH maps to the K-th real
-    GAM id."""
+      by_id_rows   one entry per resolved (id, ns, paramname) — populated
+                   only for global_id-keyed dispatchers where the K-th
+                   PUSH reliably maps to the K-th sorted real GAM id.
+      by_local_rows  one entry per local index, populated for both kinds
+                   (local-index-keyed dispatchers populate ONLY this).
+    """
     asm = asm_path.read_text()
 
     pushes: list[int] = []
@@ -142,26 +169,40 @@ def extract_dispatcher(
         if sec == ".data":
             pushes.append(va)
 
-    rows: list[dict] = []
-    if len(pushes) != len(real_ids):
-        print(
-            f"warning: {name} has {len(pushes)} .data PUSHes but {len(real_ids)} GAM ids — alignment may be off",
-            file=sys.stderr,
-        )
-    for real_id, va in zip(real_ids, pushes):
+    by_id: list[dict] = []
+    by_local: list[dict] = []
+    for k, va in enumerate(pushes):
         sec, foff = _section_for_va(sections, va)
         if sec is None:
             continue
         s = _read_cstr(pe_data, foff)
-        rows.append({
-            "id": real_id,
+        by_local.append({
             "ns": info["ns"],
+            "local_index": k,
             "paramname": s,
             "ptr_va": f"0x{va:08x}",
-            "ptr_section": sec,
-            "ptr_file_off": foff,
         })
-    return rows
+
+    if info["key"] == "global_id":
+        if len(pushes) != len(real_ids):
+            print(
+                f"warning: {name} has {len(pushes)} .data PUSHes but {len(real_ids)} GAM ids — alignment may be off",
+                file=sys.stderr,
+            )
+        for real_id, va in zip(real_ids, pushes):
+            sec, foff = _section_for_va(sections, va)
+            if sec is None:
+                continue
+            s = _read_cstr(pe_data, foff)
+            by_id.append({
+                "id": real_id,
+                "ns": info["ns"],
+                "paramname": s,
+                "ptr_va": f"0x{va:08x}",
+                "ptr_section": sec,
+                "ptr_file_off": foff,
+            })
+    return (by_id, by_local)
 
 
 def main() -> int:
@@ -191,7 +232,8 @@ def main() -> int:
     for ns_ids in ids_by_ns.values():
         ns_ids.sort()
 
-    all_rows: list[dict] = []
+    all_rows: list[dict] = []           # by GAM id (only global_id dispatchers)
+    all_local_rows: list[dict] = []     # by local index (every dispatcher)
     asm_dir = ASM_ROOT / stem
     for cls, info in DISPATCHERS.items():
         glob_prefix = f"{info['rva']:08x}_"
@@ -203,9 +245,14 @@ def main() -> int:
         if not real_ids:
             print(f"warning: no GAM ids found for namespace {info['ns']}", file=sys.stderr)
             continue
-        rows = extract_dispatcher(pe_data, sections, matches[0], cls, info, real_ids)
-        all_rows.extend(rows)
-        print(f"  {cls}: {len(rows)} of {len(real_ids)} GAM ids resolved")
+        by_id, by_local = extract_dispatcher(pe_data, sections, matches[0], cls, info, real_ids)
+        all_rows.extend(by_id)
+        all_local_rows.extend(by_local)
+        if info["key"] == "global_id":
+            print(f"  {cls}: {len(by_id)} of {len(real_ids)} GAM ids resolved (id-keyed)")
+        else:
+            print(f"  {cls}: {len(by_local)} names extracted (local-index-keyed; "
+                  f"GAM-id pairing TBD — see slot 2 translator)")
 
     # JSON dump (machine-readable).
     out_json = CONFIG / f"{stem}.paramnames_resolved.json"
@@ -214,23 +261,42 @@ def main() -> int:
     # Markdown report.
     WIRE.mkdir(parents=True, exist_ok=True)
     out_md = WIRE / f"{stem}.paramnames.md"
-    by_ns: dict[str, list[dict]] = {}
+    by_ns_id: dict[str, list[dict]] = {}
     for r in all_rows:
-        by_ns.setdefault(r["ns"], []).append(r)
+        by_ns_id.setdefault(r["ns"], []).append(r)
+    by_ns_local: dict[str, list[dict]] = {}
+    for r in all_local_rows:
+        by_ns_local.setdefault(r["ns"], []).append(r)
     with out_md.open("w") as f:
         f.write(f"# {stem}.exe — resolved GAM PARAMNAME strings\n\n")
         f.write(f"Auto-generated by `tools/extract_paramnames_dispatch.py`.\n\n")
         f.write(f"Each Data class has a vtable slot in its `MetadataProvider`\n")
-        f.write(f"that maps a GAM id (e.g. 100..125 for CharaMakeData) to a\n")
-        f.write(f"property name string in `.data`. We walk that dispatcher's\n")
-        f.write(f"asm, extract the per-id string pointers from `PUSH <imm32>`\n")
+        f.write(f"that maps either a GAM id or a local 0..N index to a\n")
+        f.write(f"property-name string in `.data`. We walk that dispatcher's\n")
+        f.write(f"asm, extract the per-key string pointers from `PUSH <imm32>`\n")
         f.write(f"instructions, and dereference them.\n\n")
-        for ns, rows in sorted(by_ns.items()):
+        f.write(f"## Id-keyed dispatchers (GAM id → name)\n\n")
+        for ns, rows in sorted(by_ns_id.items()):
             cls = ns.split("::")[-1]
-            f.write(f"## `{cls}` ({len(rows)} entries) — `{ns}`\n\n")
+            f.write(f"### `{cls}` ({len(rows)} entries) — `{ns}`\n\n")
             f.write("| id | name |\n|---:|:---|\n")
             for r in rows:
                 f.write(f"| {r['id']} | `{r['paramname']}` |\n")
+            f.write("\n")
+        f.write(f"## Local-index-keyed dispatchers (no GAM-id pairing yet)\n\n")
+        f.write(f"These dispatchers take a 0..N local-index input rather\n")
+        f.write(f"than a global GAM id. The local→global mapping lives in\n")
+        f.write(f"a separate slot (typically slot 2 of the same\n")
+        f.write(f"MetadataProvider) — TBD to decompile. For now, names are\n")
+        f.write(f"listed in dispatcher source order without GAM-id pairing.\n\n")
+        for ns, rows in sorted(by_ns_local.items()):
+            if ns in by_ns_id:
+                continue  # already shown id-keyed
+            cls = ns.split("::")[-1]
+            f.write(f"### `{cls}` ({len(rows)} entries) — `{ns}`\n\n")
+            f.write("| local idx | name |\n|---:|:---|\n")
+            for r in rows:
+                f.write(f"| {r['local_index']} | `{r['paramname']}` |\n")
             f.write("\n")
 
     # Enrich gam_params.json in-place with `paramname` field.
