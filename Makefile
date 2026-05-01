@@ -22,6 +22,7 @@ help:
 	@echo "  make rosetta              Phase 2: compile + diff staged Rosetta function"
 	@echo "  make extract-net          Phase 3: net-class vtable → fn_rva map"
 	@echo "  make extract-gam          Phase 3: GAM property registry (id → type)"
+	@echo "  make emit-gam-header      Phase 3: include/net/gam_registry.h from GAM"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
 	@echo "  make clean                wipe build/"
@@ -55,7 +56,7 @@ split-all:
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 
-.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam
+.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam emit-gam-header
 
 # Walk the RTTI dump for net-relevant classes; emit class→slot→fn_rva map.
 extract-net:
@@ -65,6 +66,10 @@ extract-net:
 # strings; emit the structured (id, namespace, type, decorator) registry.
 extract-gam:
 	$(PY) $(TOOLS)/extract_gam_params.py $(or $(BINARY),ffxivgame)
+
+# Emit include/net/gam_registry.h from the GAM extraction.
+emit-gam-header: extract-gam
+	$(PY) $(TOOLS)/emit_gam_header.py $(or $(BINARY),ffxivgame)
 
 
 # Run the setup checks: wine + MSVC_TOOLCHAIN_DIR + cl.exe + objdiff.

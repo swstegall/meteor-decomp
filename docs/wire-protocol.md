@@ -202,6 +202,37 @@ against the ground truth: every `SetActorPropertyPacket` carrying
 `(id, value)` should have a `value` whose Rust type matches the
 binary's recovered C++ type.
 
+### Two parallel actor-property systems — discovered Phase 3
+
+The binary has **two distinct actor-property wire systems** that are
+easy to conflate. They serve different protocol layers and use
+different wire-id schemes.
+
+| System | Wire id | Where used |
+|---|---|---|
+| **GAM `CompileTimeParameter`** | small ordinal id (100, 116, 137, ...) per-`Data`-class namespace | Lobby protocol — `CharaMakeData`, `ClientSelectData`, `Player`, `PlayerPlayer`, `ZoneInitData`. Sent during char creation, char select, and zone init. |
+| **`SetActorPropertyPacket` (0x0137)** | 32-bit Murmur2 hash of the property's `/`-path string (e.g. `"charaWork.parameterSave.hp[0]"` → `0xE14B0CA8`) | Zone protocol gameplay — every in-game state mutation (HP/MP, current quest sequence, equip slots, command bindings). |
+
+Garlemald-server (`map-server/src/packets/send/actor.rs`) and
+Project Meteor (`Map Server/Packets/Send/Actor/SetActorPropetyPacket.cs`)
+both implement the second system — string-keyed builders
+(`add_byte / add_short / add_int / add_float`) that hash the path
+with Murmur2 to produce the wire id. The string keys themselves
+(`"charaWork.parameterSave.hp[0]"`, `"playerWork.questScenario[0]"`)
+are server-side conventions, not symbols stored in the binary.
+
+The first system (GAM) is what the `tools/extract_gam_params.py`
+extractor recovers. Its 192 parameters are the lobby-protocol
+schema for the five Data classes — useful as a type-check for
+garlemald-server's `lobby-server/src/data/chara_info.rs` parser,
+but **not** for `SetActorPropertyPacket`. The two systems are
+parallel and independent.
+
+The auto-generated `include/net/gam_registry.h` declares the GAM
+schema as `constexpr` C++; future Rust code can use this header
+(via FFI or build.rs codegen) as the source-of-truth for
+lobby-side type checking.
+
 ### About the `PARAMNAME_*` symbols
 
 The 343 `?PARAMNAME_<id>@<Data>@Data@GameAttributeManager@Network@Application@@`
