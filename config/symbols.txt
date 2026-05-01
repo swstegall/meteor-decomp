@@ -1,0 +1,69 @@
+# meteor-decomp — seed symbol list (Phase 0)
+#
+# Format: <symbol_name>  ; <source>  ; confidence:high|medium|low
+#
+# RVA pinning happens in Phase 1 once Ghidra has run; until then this is just
+# the dictionary of names we expect to see in the binary, drawn from Project
+# Meteor / Seventh Umbral / wikis (see docs/seed-symbols.md for derivations).
+
+# === Actor system ======================================================
+Actor                                ; pmeteor C# Actor.cs                     ; high
+BattleNpc                            ; pmeteor C# BattleNpc.cs                 ; high
+Npc                                  ; pmeteor C# Npc.cs                       ; high
+Aetheryte                            ; pmeteor C# Aetheryte.cs                 ; high
+Player                               ; pmeteor C# Player.cs                    ; high
+ActorParam                           ; #linkchannel Actor Param Names sheet    ; high
+
+# === Director framework ================================================
+Director                             ; pmeteor C# Director.cs                  ; high
+OpeningDirector                      ; pmeteor C# OpeningDirector.cs           ; high
+ZoneDirector                         ; pmeteor C# ZoneDirector.cs              ; high
+WeatherDirector                      ; pmeteor C# WeatherDirector.cs           ; high
+QuestDirector                        ; pmeteor C# QuestDirector.cs             ; high
+GuildleveDirector                    ; pmeteor C# GuildleveDirector.cs         ; high
+EventDirector                        ; pmeteor C# EventDirector.cs             ; high
+CraftDirector                        ; pmeteor C# CraftDirector.cs             ; high
+HarvestDirector                      ; pmeteor C# HarvestDirector.cs           ; high
+ContentArea                          ; pmeteor C# ContentArea.cs               ; high
+PrivateArea                          ; pmeteor C# PrivateArea.cs               ; high
+
+# === Net / packets =====================================================
+BasePacket                           ; pmeteor C# BasePacket.cs                ; high
+SubPacket                            ; pmeteor C# SubPacket.cs                 ; high
+SetActorPropertyPacket               ; pmeteor C#                              ; high
+EventStartPacket                     ; pmeteor C#                              ; high
+KickEventPacket                      ; pmeteor C#                              ; high
+RunEventFunctionPacket               ; pmeteor C#                              ; high
+EndEventPacket                       ; pmeteor C#                              ; high
+SetEventStatusPacket                 ; pmeteor C# (0x0136 — see workspace memory) ; high
+SetActorQuestGraphicPacket           ; pmeteor C#                              ; high
+Blowfish                             ; SeventhUmbral C++ + pmeteor             ; high
+Blowfish::Init                       ; ditto                                   ; medium
+Blowfish::Encrypt                    ; ditto                                   ; medium
+Blowfish::Decrypt                    ; ditto                                   ; medium
+
+# === Quest framework ===================================================
+Quest                                ; pmeteor C# Quest.cs                     ; high
+QuestState                           ; pmeteor C#                              ; medium
+QuestData                            ; pmeteor C#                              ; medium
+QuestSequence                        ; pmeteor C#                              ; medium
+
+# === Sqpack / file formats =============================================
+Sqpack                               ; SeventhUmbral C++                       ; high
+Sqpack::Hash                         ; SeventhUmbral C++                       ; medium
+Sqpack::Index                        ; SeventhUmbral C++                       ; medium
+ZiPatch                              ; ffxiv_classic_wiki + SeventhUmbral      ; high
+BattleCommand                        ; battle-command-parser CSV (1,237 cmds)  ; high
+
+# === Lua bindings ======================================================
+LuaPlayer                            ; pmeteor C#                              ; high
+LuaQuest                             ; pmeteor C#                              ; high
+LuaActor                             ; pmeteor C#                              ; high
+
+# === Game world ========================================================
+World                                ; pmeteor C#                              ; high
+Lobby                                ; pmeteor C#                              ; high
+Map                                  ; pmeteor C#                              ; high
+Zone                                 ; pmeteor C#                              ; high
+Inventory                            ; pmeteor C#                              ; high
+InventoryItem                        ; pmeteor C#                              ; high

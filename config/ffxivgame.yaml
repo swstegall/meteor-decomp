@@ -1,0 +1,33 @@
+# meteor-decomp work-pool — ffxivgame.exe
+#
+# Phase 0 placeholder. Phase 1 will regenerate this by running
+# tools/build_split_yaml.py against the Ghidra symbol+strings+RTTI dumps.
+#
+# Schema (one row per function, sorted by rva):
+#
+#   - rva: 0x004a1230            # entry-point RVA (offset from image base)
+#     end: 0x004a12a0            # exclusive end RVA
+#     size: 0x70                 # convenience: end - rva
+#     module: net/blowfish       # source-tree path the function lands at
+#     symbol: Blowfish::Init     # mangled or human name; matches src/.../Init.cpp
+#     type: matching             # matching | functional | middleware-{crt,miles,dx9,stl}
+#     status: unmatched          # unmatched | wip | matched | functional
+#     owner: null                # github handle or null while unclaimed
+#     seed_source: rtti+__FILE__ # how we discovered the name
+#     notes: null                # optional one-line context
+#
+# Until Phase 1 runs, this file holds two example rows so the schema is
+# documented + tools/progress.py exercises a real path.
+
+- rva: 0x005d4baa
+  end: 0x005d4baa
+  size: 0x0
+  module: _entry
+  symbol: WinMainCRTStartup
+  type: middleware-crt
+  status: matched
+  owner: null
+  seed_source: PE optional header AddressOfEntryPoint
+  notes: "Always-matched: CRT-supplied; not in our work pool."
+
+# (Real rows generated in Phase 1.)
