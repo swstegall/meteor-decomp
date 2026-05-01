@@ -110,7 +110,15 @@ DISPATCHERS: dict[str, dict] = {
         "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
         "key": "global_id",
     },
-    # ClientSelectDataN / ZoneInitData dispatchers TBD — locate via
+    "ClientSelectDataN": {
+        # Slot 2 of MetadataProvider — global-id keyed.
+        # `ADD EAX, -0x64; CMP EAX, 0x10` → ids 100..116 (17-entry JT,
+        # contiguous, no gaps).
+        "rva": 0x001ad990,
+        "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+        "key": "global_id",
+    },
+    # ZoneInitData dispatcher TBD — locate via
     # build/wire/<binary>.net_handlers.md under each ::MetadataProvider
     # section and pick the largest non-init slot, then check the
     # prologue to classify as "global_id" vs "local_index".
