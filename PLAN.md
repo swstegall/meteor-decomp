@@ -494,8 +494,32 @@ surface we expect to recover for each:
      require 8-aligned and reject 24-byte inputs. If the server
      ever produces a payload whose length isn't a multiple of 32,
      the client will silently leave the trailing bytes plaintext.
-  3. Decompile the `*ProtoChannel::Recv`/`Send` paths into C++
-     headers under `include/net/`.
+  3. ✅ **Lobby `*ProtoChannel::Recv`/`Send` paths decoded** —
+     `include/net/lobby_proto_channel.h`. The CPB shape is a 4-slot
+     vtable shared by all three channels (Lobby / Zone / Chat):
+     dtor, `Begin()` returning `&this[0x10]`, `BuildHeader(out)` that
+     fills `header[0]=0x14, header[1]=0x00, header[2..4]=this->[0x1c]
+     (connection_type), header[8..12]=(u32)time(NULL)`, and `Send(buf,
+     len)` whose dispatch helpers in this build are `MOV EAX, [ESP+N]
+     ; RET` no-op stubs (the real send path lives in the surrounding
+     RUDP2 / IpcChannel framework). Chat's `BuildHeader` differs only
+     at byte 8, where it hardcodes `0x0A` instead of calling
+     `_time64`. The receive dispatcher is
+     `LobbyProtoDownCallbackInterface` slot 1 (RVA 0x009a4160) — same
+     byte-table + dword-table jump pattern as the Down opcode
+     dispatchers already documented for zone/chat. Bytes 4..7
+     (packet_size + num_subpackets per garlemald) and 12..15 (high
+     half of the u64 timestamp) are not written by the client's
+     BuildHeader and remain caller-populated. **Open question
+     resolved partially**: only the Lobby uses Blowfish — zone and
+     chat traffic is plaintext (no concrete CryptEngine subclass for
+     them in the binary; garlemald's world-server and map-server
+     contain no Blowfish call sites). The 32-byte alignment quirk
+     in Lobby slots 6/7 (encrypt/decrypt round len DOWN to a multiple
+     of 32) vs garlemald's 8-aligned check is documented in the
+     header — the encrypt CALL SITE still needs tracing to confirm
+     whether the encoder always passes 32-aligned bodies in retail
+     traffic. Tracked as a follow-up.
   4. ✅ Cross-validate `garlemald-server/lobby-server/src/data/chara_info.rs`
      against the GAM CharaMakeData registry. **Definitive answer**
      in `build/wire/<binary>.chara_make_validation.md`:
