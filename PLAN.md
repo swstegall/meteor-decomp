@@ -441,7 +441,29 @@ surface we expect to recover for each:
        lookup elsewhere), `guardian`, `birthdayMonth/Day`,
        `initial*`, `currentJob`. Garlemald-server's
        `lobby-server/src/data/chara_info.rs::build_for_chara_list`
-       produces this payload as a hand-rolled flat blob.
+       produces this payload as a hand-rolled flat blob; the
+       schema cross-reference is in
+       `build/wire/<binary>.chara_list_validation.md` (regenerable
+       via `make validate-chara-list`). Five likely bugs surfaced:
+       * `current_level: u16` writes 2 bytes where GAM says 1
+         (`mainSkillLevel: signed char`).
+       * `tribe: u8` written where GAM declares `Utf8String`.
+       * `location1/2`: full strings written where GAM declares
+         1-byte IDs (this one's less certain — wire form may
+         legitimately differ from in-memory).
+       * `initial_town: u32 (twice)`: 4-byte write × 2 where GAM
+         declares one 2-byte field. The duplicate is likely a
+         port bug masking a separate field (favourite_aetheryte?).
+       Definitive resolution requires decompiling the binary's
+       `CharacterListPacket::Deserialize` — TBD.
+     - ClientSelectDataN's slot 2 (RVA 0x001ad990) is global-id
+       keyed (contiguous ids 100..116, no gaps) and resolves 17
+       names. Same fields as CSD but renumbered — likely a later
+       wire-format revision; both versions kept in the binary.
+     - ZoneInitData's slot 2 (RVA 0x001af640) uses a chained-
+       compare cascade rather than a JT (more compact for 3 ids).
+       Resolves `startCity` (int), `zoneName` (Utf8String),
+       `zoneId` (i8).
      - PlayerPlayer's slot 4 (RVA 0x001af270) extracts 37 names
        (`tribe`, `size`, `hair`, …, `loginCount`,
        `questScenario`, `questGuildleve*`, `npcLinkshellChat*`,
