@@ -93,14 +93,21 @@ DISPATCHERS: dict[str, dict] = {
         "key": "global_id",
     },
     "PlayerPlayer": {
-        # Slot 4 of MetadataProvider, 37-entry table, local-index keyed.
-        # The 37 PUSHes recover the *names* (tribe, size, …,
-        # actionSaveWork) but pairing them with GAM ids requires the
-        # local-index → global-id mapping from slot 2 (RVA 0x001aee30,
-        # 771 bytes — TBD).
-        "rva": 0x001af270,
+        # Slot 2 of MetadataProvider — global-id keyed, dual-bound shape:
+        #   CMP EAX, 0x243; JA default; JZ id-579-handler;
+        #   ADD EAX, -0xCB; CMP EAX, 0x8E; JA default;
+        #   JMP [byte_table + dword_table]
+        # Covers ids 203 + 321..345 (via the JT) + 579 (via the JZ
+        # special case). The remaining 10 ids (580..589 + 595) are
+        # NOT in this dispatcher — they're in the (much bigger) slot 1
+        # @ RVA 0x001da320 which has a different structure. We leave
+        # those as unresolved for now; their names can be cross-derived
+        # by matching slot 4's local-index list (which has all 37
+        # names) against slot 2's confirmed 27 — what's left over in
+        # slot 4 is the 10 we want.
+        "rva": 0x001aee30,
         "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
-        "key": "local_index",
+        "key": "global_id",
     },
     "ClientSelectData": {
         # Slot 2 of MetadataProvider — global-id keyed.

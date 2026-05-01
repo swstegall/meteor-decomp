@@ -518,16 +518,25 @@ surface we expect to recover for each:
        compare cascade rather than a JT (more compact for 3 ids).
        Resolves `startCity` (int), `zoneName` (Utf8String),
        `zoneId` (i8).
-     - PlayerPlayer's slot 4 (RVA 0x001af270) extracts 37 names
-       (`tribe`, `size`, `hair`, …, `loginCount`,
-       `questScenario`, `questGuildleve*`, `npcLinkshellChat*`,
-       `actionSaveWork`) but its dispatcher is **local-index-keyed**
-       (no `ADD EAX, -<base>` in prologue), so pairing names with
-       GAM ids requires decompiling slot 2 (RVA 0x001aee30) — TBD.
-       Names are reported under "Local-index-keyed dispatchers" in
-       `build/wire/<binary>.paramnames.md` and excluded from the
-       gam_params enrichment until the local→global translator is
-       resolved.
+     - PlayerPlayer's slot 2 (RVA 0x001aee30) is global-id keyed
+       with a dual-bound prologue (CMP-JG-JZ-SUB-CMP-JA, same shape
+       as Lobby's). Its main JT covers ids 203 + 321..345 (26 real
+       cases via byte_table at VA 0x5af1a0); a JZ branch handles id
+       579; a JA-target sub-dispatch handles ids 580..595. All 37
+       names recovered, verified by reading the actual string
+       contents at each PUSH target: `tribe`, `size`, `hair`, …,
+       `voice`, `loginCount`, `questScenario`,
+       `questScenarioSavework`, `questScenarioComplete`,
+       `questGuildleve`, `questGuildleveSavework`,
+       `questGuildleveComplete`, `npcLinkshellChatErrand`,
+       `guardian`, `birthdayMonth`, `birthdayDay`,
+       `initialMainSkill`, `initialEquipSet`, `initialBonusItem`,
+       `initialTown`, `npcLinkshellChatCalling`,
+       `npcLinkshellChatExtra`, `actionSaveWork`. Type checks
+       confirm 192/192 GAM ids now have resolved property names.
+       (Earlier "slot 4 was the dispatcher" analysis was wrong —
+       slot 2 is the canonical name dispatcher; slot 4 is a
+       local-index alternate.)
      - Pattern (dispatcher walk + the global-id vs local-index
        distinction) documented in memory at
        `reference_meteor_decomp_paramname_dispatcher.md` for
