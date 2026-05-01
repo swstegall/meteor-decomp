@@ -449,11 +449,23 @@ surface we expect to recover for each:
     coordination opcodes).
   This is the canonical cross-reference for garlemald's
   `map-server/src/packets/opcodes.rs` going forward.
+- 🟡 **Up direction reconnaissance** —
+  `tools/extract_up_opcodes.py` documented the architectural finding
+  that Up packets don't have a flat dispatcher analogous to Down.
+  The opcode is stored at `[ClientPacketBuilder + 0x1C]` and set by
+  the constructor (`MOV [this+0x1C], <stack-arg>`); each per-opcode
+  send is a separate "send Xxx" function that builds a CPB and
+  passes the opcode dynamically (not as a literal immediate the
+  static scanner can recover). Validated that all 30 garlemald
+  `OP_RX_*` values appear as PUSH immediates in `.text` (necessary
+  but not sufficient — confirms no garlemald RX opcode is invented).
+  Full Up-opcode enumeration requires Ghidra-driven cross-reference
+  analysis (per-callsite constant propagation through the CPB
+  constructor's arg0); deferred.
 - ⏸ **Functional decomp — pending PRs**:
   1. ~~Map every Project Meteor `OP_*` constant to its handler
      vtable slot~~ — **done above** for the Down direction. Up
-     direction (client→server) requires walking ClientPacketBuilder's
-     callers since builders are 4-slot generic interfaces.
+     direction reconnaissance done; full enumeration deferred.
   2. Decompile `LobbyCryptEngine`'s 9 slots and the
      `*ProtoChannel::Recv`/`Send` paths into C++ headers under
      `include/net/`.

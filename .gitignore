@@ -40,6 +40,8 @@ config/*.paramnames_resolved.json
 config/*.gam_params.json
 config/*.gam_params.csv
 config/*.opcodes.json
+config/*.up_opcodes.json
+config/*.up_opcode_writes.json
 config/*.yaml
 !config/symbols.txt
 !config/ffxivgame.yaml.example
