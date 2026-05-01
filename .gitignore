@@ -24,13 +24,23 @@ build/
 # objdiff caches
 .objdiff/
 
-# Splat-style auto-generated dumps (regenerated from orig/)
+# Splat-style auto-generated dumps (regenerated from orig/ + Ghidra)
 asm/*/
 !asm/.gitkeep
 
-# Strings + RTTI dumps are intermediate; regenerate from orig + Ghidra
-config/strings.json
-config/rtti.json
+# Per-binary Ghidra dumps — large (10s of MB), deterministic from orig/.
+# Re-derived by `python3 tools/import_to_ghidra.py <binary>`.
+config/*.symbols.json
+config/*.strings.json
+config/*.rtti.json
+config/*.middleware.json
+config/*.vtable_slots.jsonl
+config/*.yaml
+!config/symbols.txt
+!config/ffxivgame.yaml.example
+
+# Build logs
+build/logs/
 
 # OS / editor noise
 .DS_Store

@@ -63,9 +63,10 @@ let us pin functions by their constant references.
 
 ### From `.rdata` string literals (Phase 1 seeds)
 
-Once Ghidra is run, `tools/ghidra_scripts/dump_strings.py` writes
-every string in `.rdata` to `config/strings.json` with its RVA. We
-expect these patterns to surface function names:
+Once Ghidra is run, `tools/ghidra_scripts/DumpStrings.java` writes
+every string in `.rdata` to `config/<binary>.strings.json` with its
+RVA + a `kind` field that flags `__FILE__` / `__FUNCTION__` / Lua
+hints. We expect these patterns to surface function names:
 
 - `__FILE__` macros: `c:\\dev\\ffxiv\\src\\<module>\\<file>.cpp`. The
   path components ARE module names.
@@ -81,8 +82,8 @@ expect these patterns to surface function names:
 
 ### From RTTI (Phase 1)
 
-`tools/ghidra_scripts/dump_rtti.py` writes vtable + class hierarchy
-data to `config/rtti.json`. MSVC RTTI exposes:
+`tools/ghidra_scripts/DumpRtti.java` writes vtable + class hierarchy
+data to `config/<binary>.rtti.json`. MSVC RTTI exposes:
 
 - `??_R0` — `type_info` records → fully-qualified class names.
 - `??_R1` — Hierarchy descriptor → base classes (parent vtables).

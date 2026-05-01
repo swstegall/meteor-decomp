@@ -13,13 +13,14 @@ TOOLS   := tools
 
 help:
 	@echo "meteor-decomp — top-level targets"
-	@echo "  make bootstrap     symlink orig/ + dump PE structure (Phase 0)"
-	@echo "  make pe-info       re-run tools/extract_pe.py (Phase 0)"
-	@echo "  make split         Phase 1: Ghidra split + work-pool YAML (TODO)"
-	@echo "  make rosetta       Phase 2: build the Rosetta-Stone function (TODO)"
-	@echo "  make diff FUNC=X   Phase 2: objdiff-cli on one matched function (TODO)"
-	@echo "  make progress      print matched/total per binary (TODO)"
-	@echo "  make clean         wipe build/"
+	@echo "  make bootstrap            symlink orig/ + dump PE structure (Phase 0)"
+	@echo "  make pe-info              re-run tools/extract_pe.py (Phase 0)"
+	@echo "  make split BINARY=X.exe   Phase 1: Ghidra import + dump + work-pool YAML"
+	@echo "  make split-all            Phase 1: split every binary in orig/"
+	@echo "  make rosetta              Phase 2: build the Rosetta-Stone function (TODO)"
+	@echo "  make diff FUNC=X          Phase 2: objdiff-cli on one matched function (TODO)"
+	@echo "  make progress             print matched/total across all *.yaml"
+	@echo "  make clean                wipe build/"
 
 bootstrap:
 	@$(TOOLS)/symlink_orig.sh
@@ -33,19 +34,20 @@ clean:
 
 # --- Phase 1 (TODO once Ghidra is wired) -------------------------------
 
-.PHONY: split
+.PHONY: split split-all
 
+# Single-binary split. Usage: make split BINARY=ffxivgame.exe
 split:
-	@if [ -z "$$GHIDRA_HOME" ]; then \
-	    echo "error: \$$GHIDRA_HOME not set; run tools/setup.sh --with-ghidra"; \
-	    exit 1; \
-	fi
+	@if [ -z "$(BINARY)" ]; then echo "usage: make split BINARY=<binary>.exe"; exit 1; fi
+	mkdir -p $(BUILD)/logs
+	$(PY) $(TOOLS)/import_to_ghidra.py $(BINARY) 2>&1 | tee $(BUILD)/logs/$(basename $(BINARY)).import.log
+	$(PY) $(TOOLS)/build_split_yaml.py $(basename $(BINARY))
+
+split-all:
 	@for exe in $(ORIG)/*.exe; do \
 	    bn=$$(basename $$exe); \
-	    echo ">>> ghidra import $$bn"; \
-	    $(PY) $(TOOLS)/import_to_ghidra.py $$bn; \
+	    $(MAKE) split BINARY=$$bn || exit $$?; \
 	done
-	@$(PY) $(TOOLS)/build_split_yaml.py
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 

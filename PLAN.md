@@ -151,10 +151,10 @@ seeing which matches with default `/O2` flags.
   the MIPS ecosystem. We roll our own:
   - `tools/extract_pe.py` — parse `IMAGE_NT_HEADERS`, list sections,
     dump per-section binaries.
-  - `tools/ghidra_scripts/dump_functions.py` — Ghidra headless
+  - `tools/ghidra_scripts/DumpFunctions.java` — Ghidra headless
     script that walks `currentProgram.getFunctionManager()` and
     writes one `asm/<rva>_<symbolname>.s` per function plus a JSON
-    symbol map.
+    symbol map. (Java, not Jython — Ghidra 12 dropped Jython 2.7.)
   - `tools/build_split_yaml.py` — generate `config/ffxivgame.yaml`
     listing every `(start_rva, end_rva, name, status)` tuple — the
     work-pool for the project.
@@ -223,11 +223,11 @@ meteor-decomp/
 │   ├── setup.sh                  <- one-shot: ghidra + JDK + wine + msvc + objdiff
 │   ├── symlink_orig.sh           <- populate orig/ from ffxiv-install-environment
 │   ├── extract_pe.py             <- dump PE structure + per-section binaries
-│   ├── import_to_ghidra.py       <- headless Ghidra import + analysis
+│   ├── import_to_ghidra.py       <- headless Ghidra import + analysis (Java scripts)
 │   ├── ghidra_scripts/
-│   │   ├── dump_functions.py     <- export every function as asm/symbol map
-│   │   ├── dump_strings.py       <- .rdata strings → config/strings.json
-│   │   └── dump_rtti.py          <- RTTI → config/rtti.json
+│   │   ├── DumpFunctions.java    <- export every function as asm/symbol map
+│   │   ├── DumpStrings.java      <- .rdata strings → config/<bin>.strings.json
+│   │   └── DumpRtti.java         <- RTTI → config/<bin>.rtti.json
 │   ├── build_split_yaml.py       <- ghidra dump → config/ffxivgame.yaml
 │   ├── cl-wine.sh                <- wraps VS2005 cl.exe under Wine
 │   ├── compare.py                <- objdiff batch runner → CSV report
@@ -278,17 +278,24 @@ surface we expect to recover for each:
 - **Exit criterion**: a fresh clone + `make bootstrap` populates
   `orig/` and runs `tools/extract_pe.py` cleanly.
 
-### Phase 1 — Static-analysis pipeline
-- Install Ghidra 11.x, JDK 17 (homebrew on macOS).
-- Ghidra headless project + import script.
-- Run RTTI analyser; export `config/rtti.json`.
-- Export every function as `asm/<rva>_<sym>.s` + symbol map.
-- Run `tools/build_split_yaml.py` to produce
-  `config/ffxivgame.yaml` (~the project's work-pool — every function
-  starts as `unmatched`).
-- **Exit criterion**: `make split` produces `asm/ffxivgame/` with
-  one .s per function and `config/ffxivgame.yaml` listing every
-  function with status=`unmatched`.
+### Phase 1 — Static-analysis pipeline ✅ COMPLETE 2026-04-30
+- Install Ghidra 12.0.4 + JDK 21 via `brew install ghidra` (pulls
+  `openjdk@21` as a dep). JDK 25 happens to also work but the brew
+  formula targets 21.
+- Ghidra headless wrapper at `tools/import_to_ghidra.py` calls
+  `support/launch.sh` directly (so we can override the brew default
+  `MAXMEM=2G` — the 16 MB `ffxivgame.exe` needs ~6 GB to analyse;
+  the wrapper defaults to 8 GB).
+- Three Java post-scripts in `tools/ghidra_scripts/`:
+  `DumpFunctions.java`, `DumpStrings.java`, `DumpRtti.java`.
+  (Ghidra 12 dropped Jython 2.7; PyGhidra is opt-in / venv-only.
+  Java is the path of least resistance for headless.)
+- `tools/build_split_yaml.py` folds the three JSON dumps into
+  `config/<binary>.yaml` — the work-pool.
+- **Exit criterion** ✅: `make split` produces `asm/<binary>/` with
+  one .s per function and `config/<binary>.yaml` listing every
+  function with status=`unmatched` (or `matched` for auto-classified
+  middleware).
 
 ### Phase 2 — Toolchain pinning
 - Procure VS 2005 SP1 `cl.exe`/`link.exe` + Platform SDK 2003 R2.

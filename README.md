@@ -9,15 +9,26 @@ See **[PLAN.md](PLAN.md)** for the full strategy, scope, and roadmap.
 ## Quickstart
 
 ```sh
-# 1. Symlink original binaries from the workspace install (does NOT copy).
-./tools/symlink_orig.sh
+# 0. Symlink original binaries from the workspace install (does NOT copy)
+#    + dump PE structure (sanity check):
+make bootstrap
 
-# 2. Dump PE structure for every binary; sanity check.
-python3 tools/extract_pe.py
+# 1. Static-analysis pipeline. Requires Ghidra 12 + JDK 21
+#    (`brew install ghidra` pulls openjdk@21).
+make split BINARY=ffxivlogin.exe   # ~30s — sanity check
+make split BINARY=ffxivgame.exe    # ~30-60 min on Apple Silicon
 
-# 3. (Phase 1+) Run the static-analysis pipeline. Requires Ghidra 11.x.
-make split
+# 2. Inspect the work pool:
+make progress
 ```
+
+After `make split`:
+- `asm/<binary>/<rva>_<symbol>.s` — one file per function
+- `config/<binary>.symbols.json` — function list with sizes / sections
+- `config/<binary>.strings.json` — strings + seed-hint flags (`__FILE__`,
+  `__FUNCTION__`, Lua callbacks)
+- `config/<binary>.rtti.json` — recovered class names + vtable RVAs
+- `config/<binary>.yaml` — work pool, one row per function
 
 ## Why "meteor-decomp"?
 
