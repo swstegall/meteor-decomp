@@ -233,23 +233,56 @@ schema as `constexpr` C++; future Rust code can use this header
 (via FFI or build.rs codegen) as the source-of-truth for
 lobby-side type checking.
 
-### About the `PARAMNAME_*` symbols
+### About the `PARAMNAME_*` symbols (resolved 2026-04-30)
 
-The 343 `?PARAMNAME_<id>@<Data>@Data@GameAttributeManager@Network@Application@@`
-symbols referenced via `$1?` in CompileTimeParameter mangled types
-do NOT correspond to user-meaningful property names. The actual
-property name strings in the binary are generic placeholders
-(`IntData.Value0`, `IntData.Value1`, ..., `StringData.Value0`,
-etc.) — one per typed slot. The (namespace, id) tuple IS the
-property identifier as far as the binary is concerned; semantic
-names (`playerWork.activeQuest`, etc.) are Project Meteor's
-invention.
+Initial Phase-3 inspection found only generic
+`IntData.Value0`/`StringData.Value0`/etc. placeholders in `.rdata`,
+which led to an incorrect conclusion that the GAM ids were anonymous.
 
-This is consistent with how the wire protocol works: the client
-sends `SetActorPropertyPacket(id=195, value=...)` and the server
-just needs to know "id 195 in the Player namespace is the active
-quest pointer". The binary doesn't carry that mapping — it's the
-server's responsibility to decide what each id means.
+The real property names are recovered by walking each Data class's
+**MetadataProvider dispatcher** — a vtable slot containing a 26/92/N-way
+unrolled jump table that maps `id → const char*` lookups in `.data`.
+`tools/extract_paramnames_dispatch.py` walks the dispatcher's asm,
+extracts the `PUSH <imm32>` immediates that land in `.data`, and
+dereferences each. Currently resolved:
+
+| Data class | dispatcher RVA | ids resolved |
+|---|---:|---:|
+| `CharaMakeData` | 0x001ad010 | 26 / 26 |
+| `Player` | 0x001add90 | 92 / 92 |
+| `ClientSelectData` | TBD | 0 / 17 |
+| `ClientSelectDataN` | TBD | 0 / 17 |
+| `PlayerPlayer` | TBD | 0 / 37 |
+| `ZoneInitData` | TBD | 0 / 3 |
+
+Results land in `config/<binary>.gam_params.json` (the existing
+GAM registry, enriched in-place with a `paramname` field per entry)
+and in the auto-generated `include/net/gam_registry.h`. Sample names
+recovered for the `Player` class:
+
+```
+135 craft_assist_buff_type     159 guildleveSeed (bool[4096])
+136 craft_assist_buff_level    160 guildleveFaction
+144 guildleveId                166 event_achieve_aetheryte
+148 guildleveBoostPoint        191 latest_aetheryte
+149 guildleveMark              202 anima
+150 guildleveRewardItem        211 companyId
+153 guildleveRewardSubItem     212 companyMemberRank
+155 guildleveRewardSubNumber   228 craftMakingRecipeHistory
+156 guildleveBonusRewardStock  230 favoriteAetheryte
+```
+
+**Important caveat**: these are LOBBY-protocol property names, not
+the same naming convention as Project Meteor's
+`SetActorPropertyPacket`-side `playerWork.*` / `charaWork.*`
+strings. The two systems are still parallel (see "Two parallel
+actor-property systems" above), but each one's properties are now
+named — GAM via dispatcher walk, SetActorProperty via
+project-meteor-server's C# class names hashed through Murmur2.
+
+The `IntData.Value0` placeholder strings ARE in `.rdata` — they're
+referenced by *other* GAM-related code paths (probably debug
+formatting), separate from the dispatcher's per-id name table.
 
 ## Cross-references in the workspace
 

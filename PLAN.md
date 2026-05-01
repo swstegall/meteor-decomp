@@ -424,6 +424,18 @@ surface we expect to recover for each:
        `tools/extract_paramnames_dispatch.py` walks it to
        recover the names: `tribe`, `size`, `hair`, `hairOption1`,
        …, `initialBonusItem`, `initialTown`. All 26 resolved.
+     - Player's dispatcher (slot 2 at RVA 0x001add90) similarly
+       resolves all 92 GAM ids to names like `guildleveId`,
+       `craft_assist_buff_type`, `anima`, `companyId`,
+       `latest_aetheryte`, etc. Property categories: ~20
+       `guildleve*` fields, ~14 `company*` (Free Company state),
+       7 `snpc*` (1.x Soul-Sync NPCs), 5 `harvest_*` (gathering
+       history), 5 `profile_*` (item/monster encounter logs),
+       Anima resource, mailbox, festival counters.
+     - Pattern (dispatcher walk) documented in memory at
+       `reference_meteor_decomp_paramname_dispatcher.md` for
+       reapplication to ClientSelectData / ClientSelectDataN /
+       PlayerPlayer / ZoneInitData.
      - The wire format IS GAM-id-ordered, with two non-GAM
        `u32 skip` sub-record headers (between ids 107 and 108,
        and between ids 115 and 116) and a 16-byte `seek 0x10`

@@ -56,15 +56,29 @@ WIRE = REPO_ROOT / "build" / "wire"
 # CharaMakeData / Player / etc. properties." Discovered by manual
 # inspection of the largest MetadataProvider slots.
 DISPATCHERS: dict[str, dict] = {
+    # Each entry: (dispatcher RVA, owning Data-class namespace).
+    # The dispatcher is a vtable slot in the class's MetadataProvider
+    # that maps a GAM id to a property-name C-string in `.data` via a
+    # large unrolled switch.
+    #
+    # We extract by reading the asm's `PUSH <imm32>` instructions whose
+    # immediate lands in `.data` — those are the unique per-id string
+    # pointers. Sentinel-handler PUSHes (pointing at `.rdata` placeholder)
+    # are filtered. The K-th surviving PUSH maps to the K-th real GAM
+    # id for this namespace (ids in `gam_params.json` are in dispatcher
+    # case-handler order — verified for CharaMakeData and Player).
     "CharaMakeData": {
         "rva": 0x001ad010,
         "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
-        "id_base": 100,  # ADD EAX, -0x64 in prologue
-        "id_count": 26,  # CMP EAX, 0x19 = 25 → 0..25 inclusive
     },
-    # Add other dispatchers as we identify them — each Data class has
-    # one in its MetadataProvider vtable. ClientSelectData / Player /
-    # PlayerPlayer / ZoneInitData TBD.
+    "Player": {
+        "rva": 0x001add90,
+        "ns": "Application::Network::GameAttributeManager::Data::Player",
+    },
+    # ClientSelectData / ClientSelectDataN / PlayerPlayer / ZoneInitData
+    # dispatchers TBD — locate via build/wire/<binary>.net_handlers.md
+    # under each ::MetadataProvider section and pick the largest non-init
+    # slot.
 }
 
 
@@ -107,13 +121,20 @@ def extract_dispatcher(
     asm_path: Path,
     name: str,
     info: dict,
+    real_ids: list[int],
 ) -> list[dict]:
-    """Walk a dispatcher's asm, extract its 26-entry string-pointer
-    table from `PUSH <imm32>` instructions in case-handler order."""
+    """Walk a dispatcher's asm, extract its `.data` string pointers
+    from case-handler `PUSH <imm32>` instructions in source order, and
+    pair each with the K-th *real* GAM id for this namespace.
+
+    The dispatcher's case handlers appear in id-sorted order. Cases
+    for ids that aren't real GAM properties (gaps in the id sequence)
+    share a single sentinel handler whose PUSH targets `.rdata`, so
+    they collapse to one PUSH and don't shift the alignment of the
+    real cases. The K-th surviving `.data` PUSH maps to the K-th real
+    GAM id."""
     asm = asm_path.read_text()
 
-    # Match `PUSH 0x<hex>` lines — extract the immediates that look
-    # like .data addresses (>= 0x012... typically lands in .data).
     pushes: list[int] = []
     for m in re.finditer(r"^\s*[0-9a-f]+:\s+(?:[0-9a-f][0-9a-f] )+\s+PUSH (0x[0-9a-fA-F]+)$", asm, re.MULTILINE):
         va = int(m.group(1), 16)
@@ -121,15 +142,19 @@ def extract_dispatcher(
         if sec == ".data":
             pushes.append(va)
 
-    expected = info["id_count"]
     rows: list[dict] = []
-    for i, va in enumerate(pushes[:expected]):
+    if len(pushes) != len(real_ids):
+        print(
+            f"warning: {name} has {len(pushes)} .data PUSHes but {len(real_ids)} GAM ids — alignment may be off",
+            file=sys.stderr,
+        )
+    for real_id, va in zip(real_ids, pushes):
         sec, foff = _section_for_va(sections, va)
         if sec is None:
             continue
         s = _read_cstr(pe_data, foff)
         rows.append({
-            "id": info["id_base"] + i,
+            "id": real_id,
             "ns": info["ns"],
             "paramname": s,
             "ptr_va": f"0x{va:08x}",
@@ -151,6 +176,21 @@ def main() -> int:
         return 1
     pe_data, sections = _parse_pe(pe_path)
 
+    # Load gam_params.json so we can look up the real GAM ids per
+    # namespace — the dispatcher's case handlers are sorted by id, and
+    # we need to map the K-th .data PUSH to the K-th real id (skipping
+    # gaps in the id sequence).
+    gam_path = CONFIG / f"{stem}.gam_params.json"
+    if not gam_path.exists():
+        print(f"error: missing {gam_path}; run extract_gam_params.py first", file=sys.stderr)
+        return 1
+    gam = json.loads(gam_path.read_text())
+    ids_by_ns: dict[str, list[int]] = {}
+    for entry in gam:
+        ids_by_ns.setdefault(entry["ns"], []).append(entry["id"])
+    for ns_ids in ids_by_ns.values():
+        ns_ids.sort()
+
     all_rows: list[dict] = []
     asm_dir = ASM_ROOT / stem
     for cls, info in DISPATCHERS.items():
@@ -159,9 +199,13 @@ def main() -> int:
         if not matches:
             print(f"warning: dispatcher asm missing for {cls} at rva {info['rva']:#x}", file=sys.stderr)
             continue
-        rows = extract_dispatcher(pe_data, sections, matches[0], cls, info)
+        real_ids = ids_by_ns.get(info["ns"], [])
+        if not real_ids:
+            print(f"warning: no GAM ids found for namespace {info['ns']}", file=sys.stderr)
+            continue
+        rows = extract_dispatcher(pe_data, sections, matches[0], cls, info, real_ids)
         all_rows.extend(rows)
-        print(f"  {cls}: {len(rows)} of {info['id_count']} resolved")
+        print(f"  {cls}: {len(rows)} of {len(real_ids)} GAM ids resolved")
 
     # JSON dump (machine-readable).
     out_json = CONFIG / f"{stem}.paramnames_resolved.json"

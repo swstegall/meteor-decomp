@@ -160,18 +160,23 @@ def main() -> int:
         f.write("    TypeKind      kind;\n")
         f.write("    std::uint16_t element_size;  // bytes per element (0 for variable-length Utf8String)\n")
         f.write("    std::uint32_t total_bytes;   // wire footprint (0 for variable-length)\n")
-        f.write('    std::string_view raw_type;   // the type token from extract_gam_params.py\n')
+        f.write('    std::string_view name;       // property name from the binary\n')
+        f.write('    std::string_view raw_type;   // raw type token (incl. unhandled templates)\n')
         f.write("};\n\n")
 
         for ns in sorted(by_ns):
             cls = sanitize_class_name(ns)
             ns_rows = by_ns[ns]
-            f.write(f"// {ns} — {len(ns_rows)} parameters.\n")
+            named = sum(1 for r in ns_rows if r.get("paramname"))
+            f.write(f"// {ns} — {len(ns_rows)} parameters ({named} named).\n")
             f.write(f"namespace {cls.lower()}_params {{\n\n")
             f.write(f"constexpr std::array<ParamDescriptor, {len(ns_rows)}> kRegistry {{{{\n")
             for r in ns_rows:
                 _, kind, elem_size, total = cpp_for_type(r["type"])
-                f.write(f'    {{ {r["id"]}, TypeKind::{kind}, {elem_size}, {total}, "{r["type"]}" }},\n')
+                name = r.get("paramname") or ""
+                # Escape any " inside the name (shouldn't happen but be safe).
+                name_lit = name.replace("\\", "\\\\").replace('"', '\\"')
+                f.write(f'    {{ {r["id"]}, TypeKind::{kind}, {elem_size}, {total}, "{name_lit}", "{r["type"]}" }},\n')
             f.write("}};\n\n")
             f.write(f"}}  // namespace {cls.lower()}_params\n\n")
 

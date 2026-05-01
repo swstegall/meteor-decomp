@@ -69,8 +69,9 @@ extract-net:
 extract-gam:
 	$(PY) $(TOOLS)/extract_gam_params.py $(or $(BINARY),ffxivgame)
 
-# Emit include/net/gam_registry.h from the GAM extraction.
-emit-gam-header: extract-gam
+# Emit include/net/gam_registry.h from the GAM extraction. Pulls
+# extract-paramnames first so the header carries property names.
+emit-gam-header: extract-gam extract-paramnames
 	$(PY) $(TOOLS)/emit_gam_header.py $(or $(BINARY),ffxivgame)
 
 # Resolve PARAMNAME_<id> string pointers from each Data class's
