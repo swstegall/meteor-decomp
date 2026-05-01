@@ -297,21 +297,47 @@ surface we expect to recover for each:
   function with status=`unmatched` (or `matched` for auto-classified
   middleware).
 
-### Phase 2 — Toolchain pinning
-- Procure VS 2005 SP1 `cl.exe`/`link.exe` + Platform SDK 2003 R2.
-- Wrap under Wine with `tools/cl-wine.sh`.
-- Build the **Rosetta Stone** function: pick the smallest, simplest
-  function in `.text` (likely a hand-rolled `strncpy`-equivalent
-  visible from a `.rdata` string), hand-write C, compile, diff
-  against the original. Iterate compiler flags (`/O2`, `/Oy`, `/Gy`,
-  `/GS-`, `/GR`, `/GF`, `/Gw`, `/Zc:wchar_t-`) until matched.
-- Lock those flags in `Makefile` as `MSVC_FLAGS=...`.
-- Set up `objdiff` to use this flag set.
-- **Exit criterion**: at least one function in
-  `src/ffxivgame/.../rosetta.cpp` matches byte-for-byte under
-  `objdiff`. The rest of the project compiles even though no other
-  C source exists yet (every other function is just a stub
-  `__declspec(naked) { __asm { ... } }` or an `#include "asm/...s"`).
+### Phase 2 — Toolchain pinning ⏸ scaffolding done; awaiting MSVC procurement
+- ✅ `tools/find_rosetta.py` scans the binary for the best Rosetta
+  Stone candidate. For ffxivgame.exe the top pick is
+  `FUN_00b361b0` at RVA 0x007361b0 (86 bytes, 31 integer ops, no
+  calls / no FP / no SEH — score 80 of 1,789 valid candidates).
+  Disassembly cached at `build/rosetta/ffxivgame.top.txt`; full
+  ranked list at `build/rosetta/ffxivgame.candidates.json`.
+- ✅ `src/ffxivgame/_rosetta/FUN_00b361b0.cpp` is the contributor's
+  starting C draft (Ghidra-derived, annotated).
+- ✅ `tools/cl-wine.sh` wraps `cl.exe` / `link.exe` under Wine —
+  reads `MSVC_TOOLCHAIN_DIR` from `~/.config/meteor-decomp.env`,
+  sets `INCLUDE` / `LIB`, dispatches via Wine's `Z:` drive.
+- ✅ `tools/setup-msvc.sh` verifies Wine + cl.exe + objdiff are
+  reachable and the cl.exe version is "Microsoft … 14.00.x".
+- ✅ `make rosetta` compiles every staged `_rosetta/*.cpp` and
+  invokes `tools/compare.py` for the diff.
+- ✅ Procurement guide at [`docs/msvc-setup.md`](docs/msvc-setup.md)
+  — MSDN subscriber downloads / archive.org / Microsoft Update
+  Catalog / LEGO Island recipe.
+- ⏸ **Manual blocker**: VS 2005 SP1 `cl.exe 14.00.50727.762` +
+  Platform SDK 2003 R2 SP1 must be obtained from a legitimate
+  source (Microsoft no longer redistributes them). When the bits
+  land at `$MSVC_TOOLCHAIN_DIR`:
+    1. `make setup-msvc`           → all checks GREEN
+    2. `make rosetta`              → first attempt; diff will be
+       non-zero
+    3. Iterate `MSVC_FLAGS` in `Makefile` — the
+       `docs/matching-workflow.md §7` cheat-sheet covers the bag
+       of tricks (RTM vs SP1 vs SP1-ATL, /Oy vs /Oy-, /GS, etc.)
+       until objdiff reports zero delta.
+    4. Lock the matching `MSVC_FLAGS` for the rest of the project.
+- **Exit criterion (unchanged)**: at least one function in
+  `src/ffxivgame/_rosetta/*.cpp` matches byte-for-byte under
+  `objdiff`. The rest of the project compiles even though no
+  other C source exists yet.
+- **Fallback if procurement stalls indefinitely**: drop matching
+  decomp on the contested modules and proceed with functional-only
+  decomp (Phase 3 onward — see `docs/msvc-setup.md §6`). The bulk
+  of the workspace's deliverables (wire opcodes, packet structs,
+  battle math, director state machines) live in the functional
+  tier and don't need a matching toolchain.
 
 ### Phase 3 — Net layer (matching target)
 - Locate the packet-base vtable via RTTI (Project Meteor's C#

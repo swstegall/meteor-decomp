@@ -28,7 +28,33 @@ After `make split`:
 - `config/<binary>.strings.json` — strings + seed-hint flags (`__FILE__`,
   `__FUNCTION__`, Lua callbacks)
 - `config/<binary>.rtti.json` — recovered class names + vtable RVAs
+- `config/<binary>.vtable_slots.jsonl` — per-vtable function-pointer map
 - `config/<binary>.yaml` — work pool, one row per function
+
+## Phase 2 — matching toolchain
+
+Phase 2 needs VS 2005 SP1 `cl.exe` (linker version 8.0 — see
+[`docs/compiler-detection.md`](docs/compiler-detection.md)). Microsoft
+no longer redistributes it; obtain from MSDN subscription, archive.org,
+or LEGO-Island-decomp's recipe (see
+[`docs/msvc-setup.md`](docs/msvc-setup.md)). Once installed:
+
+```sh
+# 1. Configure (one-time):
+echo 'export MSVC_TOOLCHAIN_DIR="$HOME/sdk/msvc-2005-sp1"' \
+    > ~/.config/meteor-decomp.env
+
+# 2. Verify:
+make setup-msvc                # all checks should pass
+
+# 3. First match attempt:
+make rosetta                   # compiles src/ffxivgame/_rosetta/*.cpp,
+                               # diffs against the binary slice
+```
+
+Iterate `MSVC_FLAGS` in `Makefile` until `objdiff` reports zero delta
+on the staged Rosetta function (currently `FUN_00b361b0` — 86 bytes,
+unrolled 32-byte block-copy loop, no calls or FP).
 
 ## Why "meteor-decomp"?
 

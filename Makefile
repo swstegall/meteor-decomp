@@ -17,8 +17,10 @@ help:
 	@echo "  make pe-info              re-run tools/extract_pe.py (Phase 0)"
 	@echo "  make split BINARY=X.exe   Phase 1: Ghidra import + dump + work-pool YAML"
 	@echo "  make split-all            Phase 1: split every binary in orig/"
-	@echo "  make rosetta              Phase 2: build the Rosetta-Stone function (TODO)"
-	@echo "  make diff FUNC=X          Phase 2: objdiff-cli on one matched function (TODO)"
+	@echo "  make setup-msvc           Phase 2: verify VS 2005 SP1 + Wine setup"
+	@echo "  make find-rosetta         Phase 2: pick best Rosetta-Stone candidate"
+	@echo "  make rosetta              Phase 2: compile + diff staged Rosetta function"
+	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
 	@echo "  make clean                wipe build/"
 
@@ -51,15 +53,40 @@ split-all:
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 
-.PHONY: rosetta diff progress
+.PHONY: setup-msvc find-rosetta rosetta diff progress
 
-rosetta:
-	@echo "rosetta: not yet wired — see PLAN.md §6 Phase 2 + docs/compiler-detection.md"
-	@false
+# Run the setup checks: wine + MSVC_TOOLCHAIN_DIR + cl.exe + objdiff.
+setup-msvc:
+	$(TOOLS)/setup-msvc.sh
+
+# Pick the best Rosetta-Stone candidate function. Output:
+#   build/rosetta/ffxivgame.candidates.json
+#   build/rosetta/ffxivgame.top.txt
+find-rosetta:
+	$(PY) $(TOOLS)/find_rosetta.py $(or $(BINARY),ffxivgame)
+
+# Compile + diff the staged Rosetta source against the original binary.
+# The candidate's .cpp lives at src/ffxivgame/_rosetta/<sym>.cpp.
+ROSETTA_FLAGS ?= /c /O2 /Oy /GR /EHsc /Gy /GS /MT /Zc:wchar_t /Zc:forScope /TP
+rosetta: setup-msvc
+	@if ! ls src/ffxivgame/_rosetta/*.cpp >/dev/null 2>&1; then \
+	    echo "no rosetta source staged in src/ffxivgame/_rosetta/"; \
+	    echo "run 'make find-rosetta' and hand-translate the top candidate."; \
+	    exit 1; \
+	fi
+	mkdir -p $(BUILD)/obj/_rosetta
+	@for cpp in src/ffxivgame/_rosetta/*.cpp; do \
+	    name=$$(basename $$cpp .cpp); \
+	    obj=$(BUILD)/obj/_rosetta/$$name.obj; \
+	    echo ">>> cl $$cpp -> $$obj"; \
+	    $(TOOLS)/cl-wine.sh $(ROSETTA_FLAGS) /Fo$$(./tools/cl-wine.sh --winpath $$obj 2>/dev/null || echo $$obj) $$cpp; \
+	    echo ">>> objdiff $$obj vs orig"; \
+	    $(PY) $(TOOLS)/compare.py FUNC=$$name; \
+	done
 
 diff:
 	@if [ -z "$(FUNC)" ]; then echo "usage: make diff FUNC=Symbol::Name"; exit 1; fi
-	@$(PY) $(TOOLS)/compare.py FUNC=$(FUNC)
+	$(PY) $(TOOLS)/compare.py FUNC=$(FUNC)
 
 progress:
-	@$(PY) $(TOOLS)/progress.py
+	$(PY) $(TOOLS)/progress.py
