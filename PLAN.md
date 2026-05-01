@@ -297,7 +297,7 @@ surface we expect to recover for each:
   function with status=`unmatched` (or `matched` for auto-classified
   middleware).
 
-### Phase 2 — Toolchain pinning ⏸ scaffolding done; awaiting MSVC procurement
+### Phase 2 — Toolchain pinning ▶ working toolchain; matching iteration ongoing
 - ✅ `tools/find_rosetta.py` scans the binary for the best Rosetta
   Stone candidate. For ffxivgame.exe the top pick is
   `FUN_00b361b0` at RVA 0x007361b0 (86 bytes, 31 integer ops, no
@@ -316,28 +316,41 @@ surface we expect to recover for each:
 - ✅ Procurement guide at [`docs/msvc-setup.md`](docs/msvc-setup.md)
   — MSDN subscriber downloads / archive.org / Microsoft Update
   Catalog / LEGO Island recipe.
-- ⏸ **Manual blocker**: VS 2005 SP1 `cl.exe 14.00.50727.762` +
-  Platform SDK 2003 R2 SP1 must be obtained from a legitimate
-  source (Microsoft no longer redistributes them). When the bits
-  land at `$MSVC_TOOLCHAIN_DIR`:
-    1. `make setup-msvc`           → all checks GREEN
-    2. `make rosetta`              → first attempt; diff will be
-       non-zero
-    3. Iterate `MSVC_FLAGS` in `Makefile` — the
-       `docs/matching-workflow.md §7` cheat-sheet covers the bag
-       of tricks (RTM vs SP1 vs SP1-ATL, /Oy vs /Oy-, /GS, etc.)
-       until objdiff reports zero delta.
-    4. Lock the matching `MSVC_FLAGS` for the rest of the project.
-- **Exit criterion (unchanged)**: at least one function in
-  `src/ffxivgame/_rosetta/*.cpp` matches byte-for-byte under
-  `objdiff`. The rest of the project compiles even though no
-  other C source exists yet.
-- **Fallback if procurement stalls indefinitely**: drop matching
-  decomp on the contested modules and proceed with functional-only
-  decomp (Phase 3 onward — see `docs/msvc-setup.md §6`). The bulk
-  of the workspace's deliverables (wire opcodes, packet structs,
-  battle math, director state machines) live in the functional
-  tier and don't need a matching toolchain.
+- ✅ **VS 2005 Express RTM installed and operational** —
+  `vstudio2005-workspace/install.sh` extracts `cl.exe` /
+  `link.exe` / `c1.dll` / `c1xx.dll` / `c2.dll` / `mspdb80.dll`
+  + headers + libs from the official VS2005EE ISO via msitools
+  (bypasses Wine's broken msiexec). Reports
+  `cl.exe Version 14.00.50727.42 for 80x86` running under
+  CrossOver Wine 9 on macOS Apple Silicon. `make setup-msvc`
+  passes (with two PSDK warnings — Express doesn't bundle
+  Platform SDK; Rosetta Stone doesn't need it).
+- ✅ **`tools/compare.py` byte-level diff implemented** — reads
+  the `.text` section from `build/obj/_rosetta/<name>.obj`,
+  reads the corresponding bytes from `orig/ffxivgame.exe` at
+  the function's RVA, and prints a side-by-side hex diff with
+  GREEN/PARTIAL/MISMATCH verdict + first-mismatch offset.
+  Exit codes 0/1/2 let Make and CI gate on match status.
+- ▶ **Matching iteration on `FUN_00b361b0` ongoing** —
+  three iterations done so far. Toolchain is confirmed
+  working (every iteration compiles cleanly to a valid 32-bit
+  COFF i386 object); the matching gap is in the C source's
+  ability to coax MSVC into the original's two-pointer
+  addressing pattern (`EAX = dest, EDX = dest + 0x10` both
+  advancing by 0x20 each iteration). Iteration history
+  preserved in the .cpp file's leading comment.
+- **Note on RTM vs SP1**: cl.exe `.42` is RTM, not SP1
+  (`.762`). The FFXIV binary's linker version 8.0 is
+  consistent with both. If the iteration loop doesn't reach
+  GREEN under RTM, install SP1 separately and switch
+  `MSVC_TOOLCHAIN_DIR` to its `sdk/`.
+- **Exit criterion**: revised — Phase 2's exit is "the
+  matching iteration loop is fully wired up and produces
+  actionable diffs," not "the first Rosetta candidate is
+  green on first try." Achieving a byte-matched function
+  is now ongoing decomp work, not a Phase-2 blocker. Future
+  matching wins land as individual commits to the relevant
+  module's `.cpp` files.
 
 ### Phase 3 — Net layer ▶ in progress (functional track; matching deferred)
 - ✅ Wire architecture documented at

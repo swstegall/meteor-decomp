@@ -45,26 +45,44 @@
 #include <stddef.h>
 #include <string.h>
 
-extern "C" void rosetta_FUN_00b361b0(void *dest, int count, const void *src) {
-    char *d = static_cast<char *>(dest);
+// Iteration history (most recent first; pre-MSVC-2005-RTM, /O2):
+//
+// #3 [current — 77 B vs orig 86 B; not green] — Block16-struct array
+//    pointers `low = dest, high = dest + 1`. Hoped MSVC would keep
+//    them as separate live values because they're array elements;
+//    instead the optimizer notices `high - low == 16` is invariant
+//    and consolidates back to one pointer with offsets 0..0x1c. The
+//    JBE branch type is correct (unsigned count ✓), but my output is
+//    9 bytes shorter than the original because I lost the second
+//    PUSH EDI / POP EDI pair and the LEA EDX, [EAX+0x10] / ADD EDX,
+//    0x20 instructions. Need either (a) inline asm or (b) a source
+//    pattern that genuinely needs both pointers live (e.g. they
+//    advance by different amounts at some point, or are handed off
+//    to function calls).
+//
+// #2 [83 B] — `unsigned int count` + manual `d_low` + `d_high` char*
+//    locals. Fixed the JLE → JBE branch type. MSVC merged the two
+//    pointers; same root cause as #3.
+//
+// #1 [85 B] — initial port; `int count` (signed) + single pointer.
+//    Compiled with JLE (signed), wrong branch type vs binary's JBE.
+//
+// All three iterations compile cleanly and produce valid COFF i386
+// objects under VS 2005 RTM via Wine — confirms the toolchain. The
+// remaining matching work is a decomp-iteration problem, not a
+// toolchain problem.
+struct Block16 { int v[4]; };
+
+extern "C" void rosetta_FUN_00b361b0(Block16 *dest, unsigned int count, const Block16 *src) {
+    Block16 *low = dest;
+    Block16 *high = dest + 1;     // dest + 16 bytes
     while (count > 0) {
-        if (d != NULL) {
-            // Unrolled 32-byte memcpy from `src` to `d`.
-            // The original asm splits this into two writes via EAX (d)
-            // and EDX (d+0x10) but a straight loop is byte-equivalent
-            // under /O2 — verify with objdiff.
-            const int *s = static_cast<const int *>(src);
-            int *o = reinterpret_cast<int *>(d);
-            o[0] = s[0];
-            o[1] = s[1];
-            o[2] = s[2];
-            o[3] = s[3];
-            o[4] = s[4];
-            o[5] = s[5];
-            o[6] = s[6];
-            o[7] = s[7];
+        if (low != NULL) {
+            *low = src[0];
+            *high = src[1];
         }
-        d += 32;
+        low += 2;                  // += 32 bytes
+        high += 2;                 // += 32 bytes
         count--;
     }
 }
