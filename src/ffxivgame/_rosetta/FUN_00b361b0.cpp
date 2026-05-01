@@ -47,18 +47,39 @@
 
 // Iteration history (most recent first; pre-MSVC-2005-RTM, /O2):
 //
-// #3 [current — 77 B vs orig 86 B; not green] — Block16-struct array
-//    pointers `low = dest, high = dest + 1`. Hoped MSVC would keep
-//    them as separate live values because they're array elements;
-//    instead the optimizer notices `high - low == 16` is invariant
-//    and consolidates back to one pointer with offsets 0..0x1c. The
-//    JBE branch type is correct (unsigned count ✓), but my output is
-//    9 bytes shorter than the original because I lost the second
-//    PUSH EDI / POP EDI pair and the LEA EDX, [EAX+0x10] / ADD EDX,
-//    0x20 instructions. Need either (a) inline asm or (b) a source
-//    pattern that genuinely needs both pointers live (e.g. they
-//    advance by different amounts at some point, or are handed off
-//    to function calls).
+// #5 [GREEN — 86/86 bytes match] — same shape as #4 but with the
+//    `count != 0` checks rewritten to `count > 0` (unsigned compare).
+//    The two remaining mismatches in #4 were both branch-encoding
+//    choices: TEST followed by `count != 0` produces JE/JNE
+//    (`74`/`75`), while TEST followed by an unsigned `> 0` produces
+//    JBE/JA (`76`/`77`) — functionally identical after TEST clears
+//    CF, but MSVC picks the encoding based on source comparison
+//    operator. The orig uses the unsigned-comparison form.
+//
+// #4 [86/86 bytes — only 2 byte differences, branch-encoding only] —
+//    port of Ghidra's decompiler reconstruction for FUN_00b361b0.
+//    Three shape changes from #3 closed the size gap from 77→86 B
+//    and matched all of the body bytes:
+//      (a) plain `int *` element-wide pointers, not struct types —
+//          eight explicit element writes; no struct-copy for MSVC's
+//          optimizer to fold into a single-base-pointer access.
+//      (b) `high = dest + 4` computed ONCE before the loop, then both
+//          `dest` and `high` advanced INDEPENDENTLY by 8 (= 32 bytes)
+//          per iteration. Both are dereferenced inside the body, so
+//          MSVC keeps them as separate live values rather than
+//          rederiving `high = dest + 0x10` each iteration.
+//      (c) `do { … } while (count …)` with an outer `if (count …)`
+//          guard — matches the orig's TEST/JBE-skip-forward at the
+//          prologue and TEST/JA-loop-back at the bottom.
+//
+// #3 [77 B vs orig 86 B; not green] — Block16-struct array pointers
+//    `low = dest, high = dest + 1`. Hoped MSVC would keep them as
+//    separate live values because they're array elements; instead
+//    the optimizer notices `high - low == 16` is invariant and
+//    consolidates back to one pointer with offsets 0..0x1c. The
+//    struct-copy `*low = src[0]; *high = src[1]` is the reason: MSVC
+//    sees two assignments it can rewrite as a single base+offset
+//    access, which then collapses the two pointers.
 //
 // #2 [83 B] — `unsigned int count` + manual `d_low` + `d_high` char*
 //    locals. Fixed the JLE → JBE branch type. MSVC merged the two
@@ -66,24 +87,31 @@
 //
 // #1 [85 B] — initial port; `int count` (signed) + single pointer.
 //    Compiled with JLE (signed), wrong branch type vs binary's JBE.
-//
-// All three iterations compile cleanly and produce valid COFF i386
-// objects under VS 2005 RTM via Wine — confirms the toolchain. The
-// remaining matching work is a decomp-iteration problem, not a
-// toolchain problem.
-struct Block16 { int v[4]; };
 
-extern "C" void rosetta_FUN_00b361b0(Block16 *dest, unsigned int count, const Block16 *src) {
-    Block16 *low = dest;
-    Block16 *high = dest + 1;     // dest + 16 bytes
-    while (count > 0) {
-        if (low != NULL) {
-            *low = src[0];
-            *high = src[1];
-        }
-        low += 2;                  // += 32 bytes
-        high += 2;                 // += 32 bytes
-        count--;
+extern "C" void rosetta_FUN_00b361b0(unsigned int *dest, unsigned int count, const unsigned int *src) {
+    unsigned int *high;
+    // `count > 0` (unsigned compare, not `!= 0`) → MSVC emits TEST + JBE
+    // for the initial guard and TEST + JA for the loop-back, matching
+    // the orig's unsigned-comparison branch encoding (76 / 77 opcodes).
+    // `count != 0` produces JE / JNE (74 / 75) — functionally identical
+    // after TEST but a 1-byte mismatch each.
+    if (count > 0) {
+        high = dest + 4;        // = dest + 16 bytes (LEA EDX, [EAX+0x10])
+        do {
+            if (dest != 0) {
+                dest[0] = src[0];
+                dest[1] = src[1];
+                dest[2] = src[2];
+                dest[3] = src[3];
+                high[0] = src[4];
+                high[1] = src[5];
+                high[2] = src[6];
+                high[3] = src[7];
+            }
+            count = count - 1;
+            dest = dest + 8;     // += 32 bytes
+            high = high + 8;     // += 32 bytes (lockstep)
+        } while (count > 0);
     }
 }
 
