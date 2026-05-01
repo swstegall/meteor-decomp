@@ -68,8 +68,8 @@ GARLEMALD_FLOW: list[dict] = [
     {"kind": "field",        "name": "info.birth_day",                    "rs_type": "u8",  "byte_size": 1, "gam_id": 121},
     {"kind": "field",        "name": "info.current_class",                "rs_type": "u8",  "byte_size": 1, "gam_id": 122},
     {"kind": "field",        "name": "info.initial_equip_set",            "rs_type": "u8",  "byte_size": 1, "gam_id": 123},
-    {"kind": "field",        "name": "info.initial_bonus_item[0..3]",     "rs_type": "[u32; 3]", "byte_size": 12, "gam_id": 124},
-    {"kind": "non_gam_skip", "name": "(seek 0x10 — non-GAM trailer / padding)", "rs_type": "skip", "byte_size": 16, "gam_id": None},
+    {"kind": "field",        "name": "info.initial_bonus_item[0..4]",     "rs_type": "[u32; 4]", "byte_size": 16, "gam_id": 124},
+    {"kind": "non_gam_skip", "name": "(seek 0xc — non-GAM trailer / padding)", "rs_type": "skip", "byte_size": 12, "gam_id": None},
     {"kind": "trailer",      "name": "info.initial_town",                 "rs_type": "u8",  "byte_size": 1, "gam_id": 125},
 ]
 
@@ -86,6 +86,12 @@ def main() -> int:
         return 1
     rows = json.loads(src.read_text())
     by_id_ns = {(r["id"], r["ns"]): r for r in rows}
+
+    # Prefer RTTI-derived types when available (`extract_gam_types_rtti.py`
+    # enriches gam_params.json with a `rtti_type` field). RTTI is ground
+    # truth from the binary's CompileTimeParameter template instantiation.
+    def gam_type(row: dict) -> str:
+        return row.get("rtti_type") or row.get("type", "?")
 
     cmd_ns = "Application::Network::GameAttributeManager::Data::CharaMakeData"
     cmd = sorted(
@@ -118,12 +124,12 @@ def main() -> int:
             if isinstance(gam_id, int):
                 gam = by_id_ns.get((gam_id, cmd_ns), {})
                 bn = gam.get("paramname", "?")
-                gt = gam.get("type", "?")
+                gt = gam_type(gam) if gam else "?"
             elif gam_id == "122+123":
                 a = by_id_ns.get((122, cmd_ns), {})
                 b = by_id_ns.get((123, cmd_ns), {})
                 bn = f"{a.get('paramname','?')} + {b.get('paramname','?')}"
-                gt = f"{a.get('type','?')} + {b.get('type','?')}"
+                gt = f"{gam_type(a)} + {gam_type(b)}"
             else:
                 bn = "—"
                 gt = "—"
@@ -147,10 +153,13 @@ def main() -> int:
                 f"   (downstream gear lookup / class column reads it as the active class id,\n"
                 f"   which at character-creation time IS the main skill). New field\n"
                 f"   `info.initial_equip_set: u32` added for GAM id 123.\n\n")
-        f.write(f"4. **3x `u32 skip` → `info.initial_bonus_item: [u32; 3]`** (GAM id 124).\n"
-                f"   Now captured into `CharaInfo`. Inventory init does not yet consume\n"
-                f"   these values — wire-through to `make_character` is the natural follow-up\n"
-                f"   once the inventory layer accepts starter-item ids.\n\n")
+        f.write(f"4. **4x `u32 skip` → `info.initial_bonus_item: [u32; 4]`** (GAM id 124).\n"
+                f"   Initial fix captured 3 ints + 16-byte seek (matched Project Meteor's\n"
+                f"   C# RE), but RTTI ground truth via `tools/extract_gam_types_rtti.py`\n"
+                f"   confirmed the field is `int[4]` (16 bytes); the 4th int was silently\n"
+                f"   consumed by the seek. Corrected to read 4 ints and shrink the seek\n"
+                f"   to 12 bytes; net byte count to `initial_town` is unchanged. Inventory\n"
+                f"   init does not yet consume these values.\n\n")
         f.write(f"## Definitive answer to the earlier open questions\n\n")
         f.write(f"- **GAM id ordering vs wire order**: ✅ confirmed *id-ordered* for\n")
         f.write(f"  CharaMakeData, with 4-byte non-GAM skips inserted between groups\n")

@@ -1,0 +1,1154 @@
+[
+  {
+    "id": 100,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 101,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 102,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 103,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 104,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 105,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 106,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 107,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 108,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 109,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 110,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 111,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 112,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 113,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 114,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 115,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 116,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 117,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 118,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 119,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 120,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 121,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 122,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 123,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 124,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,4>",
+    "rtti_type": "int[4]"
+  },
+  {
+    "id": 125,
+    "ns": "Application::Network::GameAttributeManager::Data::CharaMakeData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 100,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "class_Sqex::Misc::Utf8String",
+    "rtti_type": "Sqex::Misc::Utf8String"
+  },
+  {
+    "id": 102,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,0>",
+    "rtti_type": "int[0]"
+  },
+  {
+    "id": 103,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "unsigned___int64",
+    "rtti_type": "unsigned   int64"
+  },
+  {
+    "id": 104,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 107,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 108,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "class_Sqex::Misc::Utf8String",
+    "rtti_type": "Sqex::Misc::Utf8String"
+  },
+  {
+    "id": 109,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "class_Sqex::Misc::Utf8String",
+    "rtti_type": "Sqex::Misc::Utf8String"
+  },
+  {
+    "id": 110,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 111,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 112,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 113,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 114,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 115,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,4>",
+    "rtti_type": "int[4]"
+  },
+  {
+    "id": 116,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 117,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 118,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 119,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 100,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "class_Sqex::Misc::Utf8String",
+    "rtti_type": "Sqex::Misc::Utf8String"
+  },
+  {
+    "id": 101,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,0>",
+    "rtti_type": "int[0]"
+  },
+  {
+    "id": 102,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "unsigned___int64",
+    "rtti_type": "unsigned   int64"
+  },
+  {
+    "id": 103,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 104,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 105,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 106,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 107,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 108,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "class_Sqex::Misc::Utf8String",
+    "rtti_type": "Sqex::Misc::Utf8String"
+  },
+  {
+    "id": 109,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "class_Sqex::Misc::Utf8String",
+    "rtti_type": "Sqex::Misc::Utf8String"
+  },
+  {
+    "id": 110,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 111,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 112,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 113,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 114,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 115,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,4>",
+    "rtti_type": "int[4]"
+  },
+  {
+    "id": 116,
+    "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 135,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 136,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 137,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,10>",
+    "rtti_type": "int[10]"
+  },
+  {
+    "id": 138,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,10>",
+    "rtti_type": "int[10]"
+  },
+  {
+    "id": 139,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<short,40>",
+    "rtti_type": "short[40]"
+  },
+  {
+    "id": 140,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 141,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<short,10>",
+    "rtti_type": "short[10]"
+  },
+  {
+    "id": 142,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<short,300>",
+    "rtti_type": "short[300]"
+  },
+  {
+    "id": 143,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,300>",
+    "rtti_type": "int[300]"
+  },
+  {
+    "id": 144,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<short,16>",
+    "rtti_type": "short[16]"
+  },
+  {
+    "id": 145,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,16>",
+    "rtti_type": "bool[16]"
+  },
+  {
+    "id": 146,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,16>",
+    "rtti_type": "bool[16]"
+  },
+  {
+    "id": 147,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,16>",
+    "rtti_type": "bool[16]"
+  },
+  {
+    "id": 148,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<signed_char,16>",
+    "rtti_type": "signed char[16]"
+  },
+  {
+    "id": 149,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<signed_char,16>",
+    "rtti_type": "signed char[16]"
+  },
+  {
+    "id": 150,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,16>",
+    "rtti_type": "int[16]"
+  },
+  {
+    "id": 152,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,16>",
+    "rtti_type": "int[16]"
+  },
+  {
+    "id": 153,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<signed_char,16>",
+    "rtti_type": "signed char[16]"
+  },
+  {
+    "id": 155,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "int",
+    "rtti_type": "int"
+  },
+  {
+    "id": 156,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 157,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<short,8>",
+    "rtti_type": "short[8]"
+  },
+  {
+    "id": 159,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,4096>",
+    "rtti_type": "bool[4096]"
+  },
+  {
+    "id": 160,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,8>",
+    "rtti_type": "int[8]"
+  },
+  {
+    "id": 161,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,512>",
+    "rtti_type": "bool[512]"
+  },
+  {
+    "id": 162,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,1024>",
+    "rtti_type": "bool[1024]"
+  },
+  {
+    "id": 163,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,1024>",
+    "rtti_type": "bool[1024]"
+  },
+  {
+    "id": 164,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,1024>",
+    "rtti_type": "bool[1024]"
+  },
+  {
+    "id": 165,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,16384>",
+    "rtti_type": "bool[16384]"
+  },
+  {
+    "id": 166,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,16384>",
+    "rtti_type": "bool[16384]"
+  },
+  {
+    "id": 167,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,512>",
+    "rtti_type": "bool[512]"
+  },
+  {
+    "id": 168,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,256>",
+    "rtti_type": "bool[256]"
+  },
+  {
+    "id": 169,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,256>",
+    "rtti_type": "bool[256]"
+  },
+  {
+    "id": 170,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,2560>",
+    "rtti_type": "bool[2560]"
+  },
+  {
+    "id": 172,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "int",
+    "rtti_type": "int"
+  },
+  {
+    "id": 173,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "int",
+    "rtti_type": "int"
+  },
+  {
+    "id": 174,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<short,8>",
+    "rtti_type": "short[8]"
+  },
+  {
+    "id": 175,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<signed_char,8>",
+    "rtti_type": "signed char[8]"
+  },
+  {
+    "id": 176,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "int",
+    "rtti_type": "int"
+  },
+  {
+    "id": 177,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 178,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 179,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<signed_char,8>",
+    "rtti_type": "signed char[8]"
+  },
+  {
+    "id": 180,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,256>",
+    "rtti_type": "bool[256]"
+  },
+  {
+    "id": 181,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<signed_char,16>",
+    "rtti_type": "signed char[16]"
+  },
+  {
+    "id": 182,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<signed_char,32>",
+    "rtti_type": "signed char[32]"
+  },
+  {
+    "id": 183,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "int",
+    "rtti_type": "int"
+  },
+  {
+    "id": 184,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<signed_char,64>",
+    "rtti_type": "signed char[64]"
+  },
+  {
+    "id": 185,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 186,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "class_Sqex::Misc::Utf8String",
+    "rtti_type": "Sqex::Misc::Utf8String"
+  },
+  {
+    "id": 187,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 188,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 189,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 190,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 191,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 192,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 193,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 194,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 195,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "int",
+    "rtti_type": "int"
+  },
+  {
+    "id": 196,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "bool",
+    "rtti_type": "bool"
+  },
+  {
+    "id": 197,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<short,10>",
+    "rtti_type": "short[10]"
+  },
+  {
+    "id": 198,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<signed_char,10>",
+    "rtti_type": "signed char[10]"
+  },
+  {
+    "id": 199,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<unsigned_int,10>",
+    "rtti_type": "unsigned int[10]"
+  },
+  {
+    "id": 200,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<float,10>",
+    "rtti_type": "float[10]"
+  },
+  {
+    "id": 201,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<signed_char,10>",
+    "rtti_type": "signed char[10]"
+  },
+  {
+    "id": 202,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,20>",
+    "rtti_type": "int[20]"
+  },
+  {
+    "id": 203,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,16>",
+    "rtti_type": "int[16]"
+  },
+  {
+    "id": 204,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<signed_char,8>",
+    "rtti_type": "signed char[8]"
+  },
+  {
+    "id": 205,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<float,8>",
+    "rtti_type": "float[8]"
+  },
+  {
+    "id": 206,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<float,8>",
+    "rtti_type": "float[8]"
+  },
+  {
+    "id": 207,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,8>",
+    "rtti_type": "int[8]"
+  },
+  {
+    "id": 208,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,8>",
+    "rtti_type": "int[8]"
+  },
+  {
+    "id": 209,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<short,8>",
+    "rtti_type": "short[8]"
+  },
+  {
+    "id": 210,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<short,8>",
+    "rtti_type": "short[8]"
+  },
+  {
+    "id": 211,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,8>",
+    "rtti_type": "int[8]"
+  },
+  {
+    "id": 212,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,8>",
+    "rtti_type": "int[8]"
+  },
+  {
+    "id": 213,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,8>",
+    "rtti_type": "int[8]"
+  },
+  {
+    "id": 214,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<unsigned_int,8>",
+    "rtti_type": "unsigned int[8]"
+  },
+  {
+    "id": 215,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<unsigned_int,64>",
+    "rtti_type": "unsigned int[64]"
+  },
+  {
+    "id": 216,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<signed_char,64>",
+    "rtti_type": "signed char[64]"
+  },
+  {
+    "id": 217,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "int",
+    "rtti_type": "int"
+  },
+  {
+    "id": 218,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "int",
+    "rtti_type": "int"
+  },
+  {
+    "id": 222,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,16>",
+    "rtti_type": "int[16]"
+  },
+  {
+    "id": 223,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "int",
+    "rtti_type": "int"
+  },
+  {
+    "id": 224,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "int",
+    "rtti_type": "int"
+  },
+  {
+    "id": 225,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<short,4>",
+    "rtti_type": "short[4]"
+  },
+  {
+    "id": 226,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,4>",
+    "rtti_type": "int[4]"
+  },
+  {
+    "id": 227,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,16>",
+    "rtti_type": "bool[16]"
+  },
+  {
+    "id": 228,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,8>",
+    "rtti_type": "int[8]"
+  },
+  {
+    "id": 229,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,8>",
+    "rtti_type": "int[8]"
+  },
+  {
+    "id": 230,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,4>",
+    "rtti_type": "int[4]"
+  },
+  {
+    "id": 231,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 232,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 233,
+    "ns": "Application::Network::GameAttributeManager::Data::Player",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 203,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 321,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 322,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 323,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 324,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 325,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 326,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 327,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 328,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 329,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 330,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 331,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 332,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 333,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 334,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 335,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 336,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 337,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "short",
+    "rtti_type": "short"
+  },
+  {
+    "id": 338,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 339,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "int",
+    "rtti_type": "int"
+  },
+  {
+    "id": 340,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "struct_Component::GAM::Array<unsigned_int,16>",
+    "rtti_type": "unsigned int[16]"
+  },
+  {
+    "id": 341,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "struct_Component::GAM::Array<struct_Component::GAM::Blob<128>,16>",
+    "rtti_type": "Component::GAM::Blob<128>[16]"
+  },
+  {
+    "id": 342,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,2048>",
+    "rtti_type": "bool[2048]"
+  },
+  {
+    "id": 343,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "struct_Component::GAM::Array<unsigned_int,8>",
+    "rtti_type": "unsigned int[8]"
+  },
+  {
+    "id": 344,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "struct_Component::GAM::Array<struct_Component::GAM::Blob<128>,8>",
+    "rtti_type": "Component::GAM::Blob<128>[8]"
+  },
+  {
+    "id": 345,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,2048>",
+    "rtti_type": "bool[2048]"
+  },
+  {
+    "id": 579,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "struct_Component::GAM::Array<unsigned_int,16>",
+    "rtti_type": "unsigned int[16]"
+  },
+  {
+    "id": 580,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,64>",
+    "rtti_type": "bool[64]"
+  },
+  {
+    "id": 581,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "struct_Component::GAM::Array<bool,64>",
+    "rtti_type": "bool[64]"
+  },
+  {
+    "id": 583,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 584,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 585,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 586,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 587,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 588,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "struct_Component::GAM::Array<int,4>",
+    "rtti_type": "int[4]"
+  },
+  {
+    "id": 589,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  },
+  {
+    "id": 595,
+    "ns": "Application::Network::GameAttributeManager::Data::PlayerPlayer",
+    "rtti_type_raw": "struct_Component::GAM::Blob<2500>",
+    "rtti_type": "Component::GAM::Blob<2500>"
+  },
+  {
+    "id": 100,
+    "ns": "Application::Network::GameAttributeManager::Data::ZoneInitData",
+    "rtti_type_raw": "int",
+    "rtti_type": "int"
+  },
+  {
+    "id": 101,
+    "ns": "Application::Network::GameAttributeManager::Data::ZoneInitData",
+    "rtti_type_raw": "class_Sqex::Misc::Utf8String",
+    "rtti_type": "Sqex::Misc::Utf8String"
+  },
+  {
+    "id": 102,
+    "ns": "Application::Network::GameAttributeManager::Data::ZoneInitData",
+    "rtti_type_raw": "signed_char",
+    "rtti_type": "signed char"
+  }
+]

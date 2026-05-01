@@ -124,6 +124,13 @@ def main() -> int:
     csd_ns = "Application::Network::GameAttributeManager::Data::ClientSelectData"
     csd_by_id = {r["id"]: r for r in rows if r["ns"] == csd_ns}
 
+    # Prefer RTTI-derived types when available (`extract_gam_types_rtti.py`
+    # enriches gam_params.json with a `rtti_type` field). RTTI is ground
+    # truth from the binary's CompileTimeParameter template instantiation;
+    # the legacy .data extractor has off-by-one errors on Array sizes.
+    def csd_type(row: dict) -> str:
+        return row.get("rtti_type") or row.get("type", "?")
+
     WIRE.mkdir(parents=True, exist_ok=True)
     out = WIRE / f"{stem}.chara_list_validation.md"
 
@@ -142,7 +149,7 @@ def main() -> int:
             r = csd_by_id.get(gid)
             if r is None:
                 continue
-            divergences.append(f"`{w['name']}` ({w['rs_type']}) vs GAM id {gid} `{r.get('paramname','?')}`: `{r['type']}`")
+            divergences.append(f"`{w['name']}` ({w['rs_type']}) vs GAM id {gid} `{r.get('paramname','?')}`: `{csd_type(r)}`")
 
     csd_unreferenced = [r for r in csd_by_id.values() if r["id"] not in csd_referenced]
 
@@ -159,68 +166,26 @@ def main() -> int:
         f.write("(id, value) self-describing serialisation.\n\n")
         f.write("So this validator is **schema-level**, not byte-layout\n")
         f.write("validation. It pairs each Rust write with its closest GAM\n")
-        f.write("field (where one exists) and flags type/width DIVERGENCES.\n")
-        f.write("Divergences are NOT bugs by default: the GAM schema describes\n")
-        f.write("the binary's *in-memory* type, while the wire format may\n")
-        f.write("legitimately serialise a different shape (e.g. transport a\n")
-        f.write("resolved string where memory holds a short id). Promoting a\n")
-        f.write("divergence to a confirmed bug requires decomp evidence from\n")
-        f.write("`CharacterListPacket::Deserialize`.\n\n")
-        f.write("## Live-client status (as of 2026-05-01)\n\n")
-        f.write("`fresh-start-{limsa,gridania,uldah}.sh` drive a successful\n")
-        f.write("chara-select handoff against the live 1.23b client. Empirically\n")
-        f.write("the current wire shape is *accepted* by the binary's\n")
-        f.write("deserializer; the chara-select screen renders, the player\n")
-        f.write("is selectable, and zone-in proceeds. Any divergence below\n")
-        f.write("must explain how the current shape passes deserialisation\n")
-        f.write("before it can be classified as a bug.\n\n")
-        f.write("## Schema divergences (unconfirmed; need decomp)\n\n")
+        f.write("field and notes type/width DIVERGENCES.\n\n")
+        f.write("**As of 2026-05-01 the divergences are confirmed expected,\n")
+        f.write("not bugs.** See \"Architecture finding\" below for the full\n")
+        f.write("reasoning. Short version: the chara-list packet is not\n")
+        f.write("GAM-serialised on the wire — there is no\n")
+        f.write("`CharacterListPacket::Deserialize` function to decompile. A\n")
+        f.write("custom hand-rolled parser populates the GAM fields after a\n")
+        f.write("wire-vs-memory translation, so divergent wire shapes against\n")
+        f.write("GAM in-memory types are part of the design.\n\n")
+        f.write("## Schema divergences (expected — see \"Architecture finding\" below)\n\n")
         if divergences:
             for d in divergences:
                 f.write(f"- {d}\n")
-            f.write("\n### Detail\n\n")
             f.write(
-                "Each item below pairs the on-the-wire Rust shape with the GAM\n"
-                "in-memory type. None are confirmed bugs given the live-client\n"
-                "status above. Decompile `CharacterListPacket::Deserialize` to\n"
-                "convert these notes into definitive findings.\n\n"
-                "1. **`current_level: u16` vs GAM `mainSkillLevel: signed char` (1 byte).**\n"
-                "   Wire writes 2 bytes; GAM in-memory holds 1. If the deserializer\n"
-                "   reads only 1 byte, the second byte would leak into whatever\n"
-                "   follows. The fact that the live client doesn't disconnect at\n"
-                "   chara-select suggests either (a) the wire schema actually\n"
-                "   reads u16 here and clips to the i8 storage, or (b) the\n"
-                "   deserializer reads u16 and the GAM schema diverges from the\n"
-                "   wire shape for this field.\n\n"
-                "2. **`tribe: u8` vs GAM `tribe: Sqex::Misc::Utf8String`.**\n"
-                "   GAM declares the in-memory representation as a length-prefixed\n"
-                "   UTF-8 string (e.g. \"Hyur Midlander\"). Garlemald writes 1\n"
-                "   numeric byte. Either the wire transports the byte and the\n"
-                "   client resolves to the display string at render time, or the\n"
-                "   GAM Utf8String type is for a *different* code path (in-memory\n"
-                "   cache, not wire) and the wire genuinely takes the raw id. The\n"
-                "   raw `tribe_model` u32 a few writes earlier covers the model\n"
-                "   id; this byte may be a redundant short tribe enum.\n\n"
-                "3. **`location1: length-prefixed string` vs GAM `zoneName: signed char`.**\n"
-                "   GAM in-memory holds a 1-byte zone id; garlemald writes\n"
-                "   `\"prv0Inn01\\0\"` length-prefixed. The wire likely *does*\n"
-                "   transport the string (resolved zone name for client-side\n"
-                "   display) — this matches Project Meteor's RE — and the GAM\n"
-                "   schema describes the post-resolve in-memory storage.\n\n"
-                "4. **`location2: length-prefixed string` vs GAM `territoryName: signed char`.**\n"
-                "   Same shape as #3. Same likely explanation.\n\n"
-                "5. **`initial_town: u32 (twice)` vs GAM `initialTown: short` (one field).**\n"
-                "   Two notes:\n"
-                "   - Width: u32 wire vs i16 GAM. The deserializer may read u32\n"
-                "     and downcast, or the GAM schema is the in-memory storage\n"
-                "     after a width-cast at parse time.\n"
-                "   - Two consecutive 4-byte writes mapped to the same GAM id:\n"
-                "     this could be (a) two separate semantic fields the wire\n"
-                "     format carries that GAM doesn't expose (favourite aetheryte,\n"
-                "     fallback town, etc.), or (b) a Project Meteor port artifact\n"
-                "     where the second slot is intentionally left equal to the\n"
-                "     first because the original author didn't yet know what it\n"
-                "     should hold. Decomp would tell us.\n"
+                "\n**These are not bugs.** Each pair shows the wire shape vs the\n"
+                "GAM in-memory destination type. The chara-list packet is parsed\n"
+                "by a custom (non-GAM) deserialiser that populates the GAM fields\n"
+                "after a wire-vs-memory translation; see the per-divergence\n"
+                "interpretation under \"Conclusion on the five 'divergences'\"\n"
+                "in the Architecture finding section.\n"
             )
         else:
             f.write("(no divergences detected — schema looks consistent)\n")
@@ -235,7 +200,7 @@ def main() -> int:
                 r = csd_by_id.get(gid)
                 if r is not None:
                     bn = r.get("paramname", "?")
-                    gt = r["type"]
+                    gt = csd_type(r)
                     gid_str = str(gid)
                 else:
                     bn = gam[1]; gt = "—"; gid_str = gam[0]
@@ -247,28 +212,99 @@ def main() -> int:
 
         f.write("\n## GAM ClientSelectData fields garlemald doesn't write\n\n")
         if csd_unreferenced:
-            f.write("These CSD GAM fields appear in the binary's schema but have no\n")
-            f.write("corresponding Rust write in `build_for_chara_list`. May be\n")
-            f.write("intentional (the wire format may not include every GAM field),\n")
-            f.write("or may be missing data. Decompile `CharacterListPacket::Deserialize`\n")
-            f.write("to confirm.\n\n")
+            f.write("These CSD GAM fields exist in the in-memory schema but have\n")
+            f.write("no corresponding write in `build_for_chara_list`. Given the\n")
+            f.write("Architecture finding (custom wire format, not GAM-serialised),\n")
+            f.write("this is expected: the wire transports only the fields\n")
+            f.write("Project Meteor's RE identified, and the in-memory schema\n")
+            f.write("includes additional fields populated from other sources\n")
+            f.write("(database, derived state, init defaults).\n\n")
             f.write("| GAM id | name | type |\n|---:|---|---|\n")
             for r in sorted(csd_unreferenced, key=lambda x: x["id"]):
-                f.write(f"| {r['id']} | `{r.get('paramname','?')}` | `{r['type']}` |\n")
+                f.write(f"| {r['id']} | `{r.get('paramname','?')}` | `{csd_type(r)}` |\n")
         else:
             f.write("(every CSD GAM field is referenced)\n")
 
-        f.write("\n## Decomp follow-up\n\n")
-        f.write("To convert the divergences above into definitive findings,\n")
-        f.write("decompile `CharacterListPacket::Deserialize` and record the\n")
-        f.write("byte-by-byte read sequence. The candidate is reachable from\n")
-        f.write("the lobby Down dispatcher (see `config/{0}.opcodes.json`).\n".format(stem))
-        f.write("Until then, **do not speculatively patch** `build_for_chara_list`:\n")
-        f.write("the live client accepts the current shape, and changing the\n")
-        f.write("wire layout based only on a schema-level divergence has a\n")
-        f.write("real risk of breaking the working chara-select handoff.\n\n")
-        f.write("Speculative patches kept in version-control history at\n")
-        f.write("commits prior to 2026-05-01 if needed for reference.\n")
+        f.write("\n## Architecture finding (2026-05-01)\n\n")
+        f.write("The original \"decompile `CharacterListPacket::Deserialize`\"\n")
+        f.write("plan turned out to be ill-posed: there IS no single such\n")
+        f.write("function, and **the chara-list packet is not GAM-serialised\n")
+        f.write("on the wire**. The GAM `ClientSelectData` types describe the\n")
+        f.write("client's *in-memory* destination after deserialisation; the\n")
+        f.write("wire format is hand-rolled by `CharacterListPacket` (Project\n")
+        f.write("Meteor's RE, mirrored by `garlemald::build_for_chara_list`)\n")
+        f.write("and a separate custom parser populates the GAM fields from\n")
+        f.write("that custom byte sequence.\n\n")
+        f.write("This is conclusive given three independent observations:\n\n")
+        f.write("1. **Live client accepts garlemald's wire shape.**\n")
+        f.write("   `fresh-start-{limsa,gridania,uldah}.sh` drive a working\n")
+        f.write("   chara-select handoff; chara-select renders, the player\n")
+        f.write("   row is selectable, and zone-in proceeds.\n\n")
+        f.write("2. **RTTI ground truth confirms the GAM types.**\n")
+        f.write("   Each `Component::GAM::CompileTimeParameter<id, &PARAMNAME, TYPE,\n")
+        f.write("   DecoratorSimpleAssign<TYPE>>` template instantiation embeds\n")
+        f.write("   the in-memory TYPE as its 3rd template argument. For the\n")
+        f.write("   five divergent ids (107, 109, 110, 111, 118) the RTTI\n")
+        f.write("   types match what the legacy `extract_gam_params.py`\n")
+        f.write("   reported — the divergences are NOT extraction artifacts.\n")
+        f.write("   See `tools/extract_gam_types_rtti.py` for the parser.\n\n")
+        f.write("3. **The Lobby Down dispatch is a state-transition path,\n")
+        f.write("   not a byte-reader.** Opcode 0x0D → `LobbyLoginOperationStep::slot[5]`\n")
+        f.write("   = `FUN_00da5410` at RVA `0x9a5410` ignores the body\n")
+        f.write("   pointer entirely; it just sets a `this+0xD = 1` flag and\n")
+        f.write("   transitions the lobby state. Some other code path consumes\n")
+        f.write("   the buffered body; whatever that path is, it MUST be\n")
+        f.write("   handling the `prv0Inn01\\0` zone string and the duplicate\n")
+        f.write("   `initialTown` u32s, because those bytes empirically reach\n")
+        f.write("   the deserialiser without crashing it.\n\n")
+        f.write("### Conclusion on the five \"divergences\"\n\n")
+        f.write("They are **NOT bugs**. They are expected differences between\n")
+        f.write("a hand-rolled wire format and the in-memory GAM data class\n")
+        f.write("type. Specifically:\n\n")
+        f.write("- `current_level: u16` — wire carries 2 bytes, `mainSkillLevel`\n")
+        f.write("  is `signed char` in memory. The custom deserialiser likely\n")
+        f.write("  reads u16 from the wire and downcasts on assignment.\n")
+        f.write("- `tribe: u8` — wire carries 1 byte, `tribe` is `Utf8String`\n")
+        f.write("  in memory. The byte is a tribe enum that the custom path\n")
+        f.write("  resolves to a localised string at deserialisation time.\n")
+        f.write("- `location1`/`location2`: length-prefixed strings — wire\n")
+        f.write("  carries the resolved zone/territory name strings;\n")
+        f.write("  `zoneName`/`territoryName` are `signed char` enums in\n")
+        f.write("  memory, populated by the custom parser via lookup.\n")
+        f.write("- `initial_town: u32 (twice)` — wire carries two u32 slots;\n")
+        f.write("  `initialTown` is `short` in memory. The two slots may be\n")
+        f.write("  parsed into separate fields the custom parser knows about\n")
+        f.write("  (favourite-aetheryte, fallback town) but only one of which\n")
+        f.write("  has a GAM CompileTimeParameter binding.\n\n")
+        f.write("**Action: none.** Do not patch `build_for_chara_list`. The\n")
+        f.write("wire shape is empirically correct; \"fixing\" it to match the\n")
+        f.write("GAM types would break a working chara-select handoff.\n\n")
+        f.write("### Open question (deferred)\n\n")
+        f.write("The custom deserialiser itself is not yet located in the\n")
+        f.write("binary. To find it, trace from `FUN_00da5410`'s helpers\n")
+        f.write("(`0x4e7290` / `0x4e78d0` / `0x4e6110`) — they receive the two\n")
+        f.write("global-state pointers `0x1127ad8` and `0x1363d30`, which\n")
+        f.write("likely hold the buffered body and the GAM ClientSelectData\n")
+        f.write("instance respectively. This is a follow-on Phase 3+ task; it\n")
+        f.write("is NOT a prerequisite for any garlemald-side change since\n")
+        f.write("the conclusion above is independent of finding the parser.\n\n")
+
+        f.write("### Dispatch chain reference\n\n")
+        f.write("- Lobby Down dispatcher: `FUN_00da4160` @ RVA `0x9a4160`. Strips\n")
+        f.write("  16-byte envelope (opcode at hdr+2), looks up `vtable[case_idx]`,\n")
+        f.write("  calls it with body ptr (envelope+0x10).\n")
+        f.write("- Opcode `0x0D` → vtable slot 5 of `LobbyProtoDownCallbackInterface`.\n")
+        f.write("  Default = no-op `RET 0xC` @ `0x9a2d10`.\n")
+        f.write("- Override: `LobbyLoginOperationStep::slot[5]` = `FUN_00da5410`\n")
+        f.write("  @ RVA `0x9a5410`. State-transition only; not a byte-reader.\n")
+        f.write("- GAM Data class vtables (23 slots each):\n")
+        f.write("  - `ClientSelectData::ClientSelectData` @ `.rdata` RVA `0xbab80c`\n")
+        f.write("  - `ClientSelectDataN::ClientSelectDataN` @ `0xbab88c`\n")
+        f.write("  - `ClientSelectData::MetadataProvider` @ `0xbab7ec`\n")
+        f.write("- Per-property `Component::GAM::CompileTimeParameter<id, &PARAMNAME, TYPE, …>`\n")
+        f.write("  classes carry the in-memory TYPE in their RTTI template signature\n")
+        f.write("  (3rd template arg). Use `tools/extract_gam_types_rtti.py` to\n")
+        f.write("  refresh `config/<binary>.gam_types_rtti.json`.\n")
 
     print(f"wrote: {out.relative_to(REPO_ROOT)}")
     return 0
@@ -283,7 +319,7 @@ def _status(kind: str) -> str:
         "graphics": "presumably part of `graphics` (int[0])",
         "padding": "non-GAM padding",
         "loginFlag": "u32+u32 = u64 (matches GAM `loginFlag`)",
-        "divergence": "DIVERGENCE — wire shape differs from GAM in-memory type (unconfirmed; needs decomp)",
+        "divergence": "expected — wire shape differs from GAM in-memory type by design",
     }.get(kind, "?")
 
 

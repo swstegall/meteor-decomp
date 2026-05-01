@@ -24,6 +24,7 @@ help:
 	@echo "  make extract-gam          Phase 3: GAM property registry (id → type)"
 	@echo "  make emit-gam-header      Phase 3: include/net/gam_registry.h from GAM"
 	@echo "  make extract-paramnames   Phase 3: dereference per-class PARAMNAME dispatchers"
+	@echo "  make extract-gam-types-rtti Phase 3: enrich gam_params.json with RTTI types"
 	@echo "  make validate-chara-make  Phase 3: garlemald parse_new_char_request ↔ GAM CharaMakeData"
 	@echo "  make validate-chara-list  Phase 3: garlemald build_for_chara_list ↔ GAM ClientSelectData"
 	@echo "  make validate-murmur2     Phase 3: MurmurHash2 vectors (FUN_00d31490 ↔ garlemald)"
@@ -63,7 +64,7 @@ split-all:
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 
-.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes extract-up-opcodes extract-crypt-engine
+.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam extract-gam-types-rtti emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes extract-up-opcodes extract-crypt-engine
 
 # Walk the RTTI dump for net-relevant classes; emit class→slot→fn_rva map.
 extract-net:
@@ -87,14 +88,21 @@ emit-gam-header: extract-gam extract-paramnames
 extract-paramnames:
 	$(PY) $(TOOLS)/extract_paramnames_dispatch.py $(or $(BINARY),ffxivgame)
 
+# Augment gam_params.json with `rtti_type` parsed from the
+# CompileTimeParameter template-parameter signature in the binary's
+# RTTI. This is ground truth and corrects the legacy extractor's
+# off-by-one Array sizes (e.g. Array<int,4> vs reported int[3]).
+extract-gam-types-rtti: extract-gam extract-net
+	$(PY) $(TOOLS)/extract_gam_types_rtti.py $(or $(BINARY),ffxivgame)
+
 # Cross-validate garlemald-server's chara_info.rs parser flow against
 # the GAM CharaMakeData schema.
-validate-chara-make: extract-gam extract-paramnames
+validate-chara-make: extract-gam extract-paramnames extract-gam-types-rtti
 	$(PY) $(TOOLS)/validate_chara_make.py $(or $(BINARY),ffxivgame)
 
 # Cross-validate garlemald's build_for_chara_list against GAM
 # ClientSelectData (schema-level — not byte-layout).
-validate-chara-list: extract-gam extract-paramnames
+validate-chara-list: extract-gam extract-paramnames extract-gam-types-rtti
 	$(PY) $(TOOLS)/validate_chara_list.py $(or $(BINARY),ffxivgame)
 
 # Walk the binary's Down dispatchers (zone/lobby/chat) and emit
