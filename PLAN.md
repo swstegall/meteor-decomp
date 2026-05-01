@@ -406,6 +406,15 @@ surface we expect to recover for each:
   from `config/<binary>.gam_params.json`. Future Rust code can
   consume via FFI or build.rs codegen as the ground-truth schema
   for lobby-side type checking.
+- ✅ **MurmurHash2 validated** — `FUN_00d31490` (RVA 0x00931490,
+  170 bytes) is the binary's *backward-walking* MurmurHash2 used to
+  derive 32-bit wire ids for `SetActorPropertyPacket` from
+  `/`-path string keys (`"charaWork.parameterSave.hp[0]"` →
+  `0x4232BCAA`). Bit-for-bit step-by-step trace against
+  `garlemald-server/common/src/utils.rs::murmur_hash2` in
+  [`docs/murmur2.md`](docs/murmur2.md), plus 6/6 test vectors
+  cross-verified by a standalone Rust binary on 2026-05-01. The
+  `SetActorProperty` wire-id derivation in garlemald is correct.
 - ⏸ **Functional decomp — pending PRs**:
   1. Map every Project Meteor `OP_*` constant to its handler
      vtable slot via `LobbyProtoUp` / `ZoneProtoUp` / `ChatProtoUp`
