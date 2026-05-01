@@ -428,12 +428,32 @@ surface we expect to recover for each:
   [`docs/murmur2.md`](docs/murmur2.md), plus 6/6 test vectors
   cross-verified by a standalone Rust binary on 2026-05-01. The
   `SetActorProperty` wire-id derivation in garlemald is correct.
+- ✅ **Down-channel opcode dispatchers extracted** —
+  `tools/extract_opcode_dispatch.py` walks each `*ProtoDownDummyCallback`
+  vtable slot 1 (the dispatcher; slots 0=destructor, 2..N=handlers),
+  parses its prologue + two-level dispatch tables (byte_table maps
+  opcode → case_index, dword_table → 21-byte case body, each loading
+  `MOV EAX, [ESI + slot*4]`), and produces an opcode → vtable_slot
+  map cross-referenced with garlemald-server's `opcodes.rs`. Output
+  at `build/wire/<binary>.opcodes.md`. Headline numbers:
+  - **211 total real Down opcodes** across 3 channels (Zone 197 of
+    502 possible; Lobby 10 of 23; Chat 4 of 200).
+  - **60 opcodes the binary handles that garlemald has no entry for**
+    — potentially missing handlers in the Rust impl.
+  - **5 opcodes garlemald has labelled RX-only that the binary
+    handles in Down** — likely miscategorized in garlemald (need
+    both directions or just TX).
+  - **19 garlemald TX opcodes that don't appear in any Down channel**
+    — server-invented opcodes the client doesn't actually handle, or
+    out-of-scope ranges (e.g., the ≥ 0x1000 world-server↔map-server
+    coordination opcodes).
+  This is the canonical cross-reference for garlemald's
+  `map-server/src/packets/opcodes.rs` going forward.
 - ⏸ **Functional decomp — pending PRs**:
-  1. Map every Project Meteor `OP_*` constant to its handler
-     vtable slot via `LobbyProtoUp` / `ZoneProtoUp` / `ChatProtoUp`
-     union members. Validation: every name in
-     `garlemald-server/map-server/src/packets/opcodes.rs` should
-     land in one of those unions.
+  1. ~~Map every Project Meteor `OP_*` constant to its handler
+     vtable slot~~ — **done above** for the Down direction. Up
+     direction (client→server) requires walking ClientPacketBuilder's
+     callers since builders are 4-slot generic interfaces.
   2. Decompile `LobbyCryptEngine`'s 9 slots and the
      `*ProtoChannel::Recv`/`Send` paths into C++ headers under
      `include/net/`.

@@ -27,6 +27,7 @@ help:
 	@echo "  make validate-chara-make  Phase 3: garlemald parse_new_char_request ↔ GAM CharaMakeData"
 	@echo "  make validate-chara-list  Phase 3: garlemald build_for_chara_list ↔ GAM ClientSelectData"
 	@echo "  make validate-murmur2     Phase 3: MurmurHash2 vectors (FUN_00d31490 ↔ garlemald)"
+	@echo "  make extract-opcodes      Phase 3: opcode → vtable-slot map (zone/lobby/chat Down)"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
 	@echo "  make clean                wipe build/"
@@ -60,7 +61,7 @@ split-all:
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 
-.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2
+.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes
 
 # Walk the RTTI dump for net-relevant classes; emit class→slot→fn_rva map.
 extract-net:
@@ -93,6 +94,11 @@ validate-chara-make: extract-gam extract-paramnames
 # ClientSelectData (schema-level — not byte-layout).
 validate-chara-list: extract-gam extract-paramnames
 	$(PY) $(TOOLS)/validate_chara_list.py $(or $(BINARY),ffxivgame)
+
+# Walk the binary's Down dispatchers (zone/lobby/chat) and emit
+# opcode → vtable-slot map cross-referenced with garlemald opcodes.rs.
+extract-opcodes:
+	$(PY) $(TOOLS)/extract_opcode_dispatch.py $(or $(BINARY),ffxivgame)
 
 # Compute MurmurHash2 test vectors (Python port of FUN_00d31490).
 # Cross-check against garlemald's murmur_hash2; see docs/murmur2.md.
