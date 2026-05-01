@@ -415,12 +415,25 @@ surface we expect to recover for each:
   2. Decompile `LobbyCryptEngine`'s 9 slots and the
      `*ProtoChannel::Recv`/`Send` paths into C++ headers under
      `include/net/`.
-  3. Cross-validate `garlemald-server/lobby-server/src/data/chara_info.rs`
-     against `gam_registry.h::charamakedata_params::kRegistry`.
-     Both describe the chara-creation wire payload — schema
-     should align (same field count, same types in same order),
-     even though the wire layout (positional flat blob) is
-     different from the GAM (id, value) self-describing form.
+  3. ✅ Cross-validate `garlemald-server/lobby-server/src/data/chara_info.rs`
+     against the GAM CharaMakeData registry. Done in
+     `build/wire/<binary>.chara_make_validation.md` (regenerable
+     via `make validate-chara-make`). Findings:
+     - First 8 GAM ids align cleanly with garlemald's first 8
+       reads (so the early-blob layout *is* GAM-id-ordered).
+     - After ~8 fields the alignment breaks down — the wire
+       format isn't pure id-order. Likely there's bitfield
+       packing (Project Meteor's build path packs 4 chars into
+       u32 in places). Garlemald's two `u32 skip` reads in the
+       middle of the parse may be discarding 8 real fields
+       (GAM ids 108-111 and 118-121).
+     - Garlemald reads 16 trailing bytes (the `seek 0x10`) that
+       have no GAM counterpart — likely a CRC, padding, or
+       per-version extension.
+     - Definitive resolution requires decompiling
+       `Application::Network::GameAttributeManager::Data::CharaMakeData::Serialize`
+       — vtable slot is in
+       `build/wire/<binary>.net_handlers.md`.
 - **Exit criterion (unchanged)**: `garlemald-server` can replace
   its hand-written packet structs with `#include`-able C++ from
   `meteor-decomp/include/net/`, and round-trips a capture session.

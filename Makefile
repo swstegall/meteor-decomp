@@ -23,6 +23,7 @@ help:
 	@echo "  make extract-net          Phase 3: net-class vtable → fn_rva map"
 	@echo "  make extract-gam          Phase 3: GAM property registry (id → type)"
 	@echo "  make emit-gam-header      Phase 3: include/net/gam_registry.h from GAM"
+	@echo "  make validate-chara-make  Phase 3: garlemald chara_info.rs ↔ GAM CharaMakeData diff"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
 	@echo "  make clean                wipe build/"
@@ -56,7 +57,7 @@ split-all:
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 
-.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam emit-gam-header
+.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam emit-gam-header validate-chara-make
 
 # Walk the RTTI dump for net-relevant classes; emit class→slot→fn_rva map.
 extract-net:
@@ -70,6 +71,11 @@ extract-gam:
 # Emit include/net/gam_registry.h from the GAM extraction.
 emit-gam-header: extract-gam
 	$(PY) $(TOOLS)/emit_gam_header.py $(or $(BINARY),ffxivgame)
+
+# Cross-validate garlemald-server's chara_info.rs parser flow against
+# the GAM CharaMakeData schema.
+validate-chara-make:
+	$(PY) $(TOOLS)/validate_chara_make.py $(or $(BINARY),ffxivgame)
 
 
 # Run the setup checks: wine + MSVC_TOOLCHAIN_DIR + cl.exe + objdiff.
