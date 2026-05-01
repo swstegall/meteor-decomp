@@ -339,20 +339,60 @@ surface we expect to recover for each:
   battle math, director state machines) live in the functional
   tier and don't need a matching toolchain.
 
-### Phase 3 — Net layer (matching target)
-- Locate the packet-base vtable via RTTI (Project Meteor's C#
-  `BasePacket` and the FFXIV 1.0 Opcodes spreadsheet from
-  `ffxiv_linkchannel_context.md` are our seeds).
-- Decompile Blowfish init / encrypt / decrypt — these are
-  reference-implementation cribs, easy to match.
-- Decompile packet header CRC + sequence handling.
-- Decompile each known opcode encoder/decoder (~200 packets).
-  Cross-check by re-encoding a saved capture from
-  `ffxiv-actor-cli/logs/*.log` or `captures/` and byte-comparing.
-- Each function lands as a PR with `objdiff: GREEN` evidence.
-- **Exit criterion**: `garlemald-server` can replace its
-  hand-written packet structs with `#include`-able C++ from
+### Phase 3 — Net layer ▶ in progress (functional track; matching deferred)
+- ✅ Wire architecture documented at
+  [`docs/wire-protocol.md`](docs/wire-protocol.md):
+  - Three IpcChannels: `LobbyProtoChannel`, `ZoneProtoChannel`,
+    `ChatProtoChannel` (with Up/Down union types each).
+  - Transport is **RUDP2** (Sqex::Socket::RUDP2 — SE in-house
+    protocol, NOT raw TCP). Project Meteor's TCP impl works because
+    of the launcher's `ws2_32.dll` shim.
+  - Crypto is **OpenSSL 1.0.0 (29 Mar 2010)** statically linked
+    (`Blowfish part of OpenSSL 1.0.0` string at .rdata RVA 0x4048).
+    Blowfish is the per-channel cipher; OpenSSL's full crypto suite
+    (RSA / AES / SHA1/256/512 / X.509) is also present for the
+    SqexId auth flow.
+  - 343 `Component::GAM::CompileTimeParameter<id, &PARAMNAME_id>`
+    template instantiations recovered — that's the actor-property
+    serialization registry, IDs 100-345 + 579-595.
+- ✅ `tools/extract_net_vtables.py` walks the RTTI dump and emits
+  a per-class slot map at `build/wire/<binary>.net_handlers.md`.
+  For ffxivgame.exe: **576 net-relevant classes / 9,729 vtable
+  slots**, each linked to the per-function `asm/<rva>_*.s` file —
+  this is the Phase 3 work pool. Notable entries:
+  - `LobbyCryptEngine` — 9 slots (the cipher API surface)
+  - `MyGameLoginCallback` — 22 slots (login state machine)
+  - `SqexIdAuthentication` — 1 slot
+  - Three `Application::Network::*ProtoChannel` classes
+  - `Sqex::Socket::RUDP2`, `RUDPSocket`, `PollerWinsock`,
+    `PollerImpl`
+  - Three `*ProtoChannel::ClientPacketBuilder` instances
+  - `Sqex::Crypt::{Cert, Crc32, ShuffleString, SimpleString,
+    CryptInterface}` — SE's higher-level crypto shims
+- ✅ Cross-referenced with `garlemald-server`'s existing wire layer
+  (`common/src/{packet,subpacket,blowfish}.rs`,
+  `map-server/src/packets/opcodes.rs`) — the Rust impl already
+  models the BasePacketHeader correctly, the opcodes registry is
+  comprehensive, and Blowfish key schedule matches OpenSSL bf_init.
+- ⏸ **Functional decomp (no MSVC needed) — pending PRs**:
+  1. Map every Project Meteor `OP_*` constant to its handler
+     vtable slot via `LobbyProtoUp` / `ZoneProtoUp` / `ChatProtoUp`
+     union members. Validation: every name in
+     `garlemald-server/map-server/src/packets/opcodes.rs` should
+     land in one of those unions.
+  2. Resolve the 343 `PARAMNAME_*` indirections to actual property
+     strings (via `.rdata` cross-references) → produces the wire
+     ID → `playerWork.*` mapping.
+  3. Decompile `LobbyCryptEngine`'s 9 slots and the
+     `*ProtoChannel::Recv`/`Send` paths into C++ headers under
+     `include/net/`.
+- **Exit criterion (unchanged)**: `garlemald-server` can replace
+  its hand-written packet structs with `#include`-able C++ from
   `meteor-decomp/include/net/`, and round-trips a capture session.
+- **Matching upgrade path**: when Phase 2 unblocks (VS 2005 SP1
+  procurement), revisit each functional `.cpp` in `src/ffxivgame/net/`
+  and re-derive matching codegen via `make rosetta`-style iteration.
+  The functional source we ship now is the starting C, not the final.
 
 ### Phase 4 — Sqpack / ZiPatch (matching target)
 - Decompile `Sqpack::Hash` — single-function landmark, easy to
