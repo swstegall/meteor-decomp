@@ -90,45 +90,32 @@
 // Iteration history:
 //
 //   #1 [PARTIAL — first 85 bytes match exactly; 9-byte tail divergence]
-//      Class definition with virtual destructors on both PackRead and
-//      ChunkRead. MSVC compiled this as the "complete object destructor"
-//      (D1 variant) — it emits the same body as the original through the
-//      sub-object destructor call (offset 0x52), then inserts the
-//      parent-class destructor call (`MOV ECX, ESI; MOV [ESP+0x18], -1;
-//      CALL ChunkReadUInt::~ChunkReadUInt`, 15 bytes) before tearing down
-//      the SEH frame. The original instead just writes the parent vtable
-//      and returns — which is the D0 ("base destructor") variant. So:
+//      Class definition with `virtual ~ChunkReadUInt();` (declared but
+//      not defined). MSVC treats this as an external function and emits
+//      a `CALL ChunkReadUInt::~ChunkReadUInt` (15 B with the surrounding
+//      `MOV ECX, ESI; MOV [ESP+0x18], -1`) at the tail of PackRead's
+//      destructor — the D1 ("complete object destructor") variant. The
+//      original is the D0 ("base destructor") variant which just swaps
+//      the parent vtable and returns.
 //
-//        ORIG bytes 86..91 (6 B):  c7 06 c8 31 f9 00         vtable swap
-//        MINE bytes 86..100 (15 B): 8b ce + MOV [ESP+18],-1 + CALL parent
-//        MINE diverges by +9 bytes from there.
+//   #2 [✅ GREEN — 110/110 bytes match modulo 6 reloc fields]
+//      Defining ChunkReadUInt's destructor inline-empty
+//      (`virtual ~ChunkReadUInt() {}`) lets MSVC see the parent body is
+//      trivial under /O2 and elide the CALL entirely — falling through
+//      to a plain vtable-swap-and-return that matches the D0 variant
+//      bit-for-bit. Verified 2026-05-02 via a symbol-aware diff; the
+//      6 reloc-wildcarded ranges line up at offsets 0x03, 0x12, 0x2b,
+//      0x3e, 0x52, 0x57 (SEH handler / security cookie / PackRead
+//      vtable / operator delete / SubObjAt1c::~SubObjAt1c / ChunkRead
+//      vtable).
 //
-//      Body up through the m_subobj destructor call is byte-identical
-//      modulo the 6 reloc-wildcarded fields (SEH handler addr, security
-//      cookie addr, vtable addr, operator delete target, sub-object
-//      destructor target — `objdiff`'s reloc-aware diff sees that as a
-//      pass).
-//
-//   Next steps (round #2):
-//      The fix needs to produce the D0-only variant. MSVC normally only
-//      exposes D1/D2 to user code — D0 is implicit. Three options:
-//        (a) Write the destructor as `__declspec(naked)` and emit the
-//            bytes by hand. Loses the C++ structure but matches.
-//        (b) Make the parent's destructor non-virtual and trivial (no
-//            heap, no other dtors), so MSVC inlines it as a no-op and
-//            doesn't emit a CALL. The vtable-swap-to-parent then becomes
-//            the only artifact, matching the original's 6-byte trailer.
-//            Risk: `ChunkRead<u32,u32>` actually IS virtual in the binary
-//            (vtable slot 0 = ~ChunkRead), so non-virtual is a lie.
-//        (c) Define ChunkRead with a virtual but trivial destructor and
-//            see if MSVC elides the CALL when the body is empty. Often
-//            MSVC keeps the CALL even for empty dtors at /O2; experiment.
-//
-//      Trying option (c) first — least invasive.
-//
-// The destructor body is small but the codegen sensitivity to virtual-
-// destructor variants will likely take 3-5 iterations to land GREEN.
-// See PLAN.md §4 for the broader Phase 4 context.
+// Note: this .cpp produces multiple `.text` sections (one for PackRead's
+// destructor, one for ChunkReadUInt's inline-empty destructor, plus the
+// scalar deleting destructor wrapper). `tools/compare.py` currently
+// picks the FIRST .text section, which is the wrong one here. Use the
+// symbol-aware diff in `tools/verify_packread.py` (or move PackRead's
+// destructor to its own translation unit when matching this file via
+// the standard rosetta workflow).
 
 // Forward decls for the targets the destructor calls.
 extern "C" void __cdecl operator_delete(void *);
@@ -138,9 +125,13 @@ public:
     ~SubObjAt1c();
 };
 
+// Iteration #2: define ChunkReadUInt's destructor inline-empty so MSVC
+// can see it's trivial and elide the parent CALL from PackRead's D1.
+// (Round #1 used `virtual ~ChunkReadUInt();` — declared but not defined,
+//  which forced MSVC to emit an external CALL.)
 class ChunkReadUInt {
 public:
-    virtual ~ChunkReadUInt();
+    virtual ~ChunkReadUInt() {}
 private:
     char base_state[0x18];
 };

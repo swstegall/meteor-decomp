@@ -26550,5 +26550,13 @@
     "old_size": 71,
     "new_size": 72,
     "reason": "RET (c3)"
+  },
+  {
+    "rva": 9201264,
+    "rva_hex": "0x008c6670",
+    "name": "FUN_00cc6670",
+    "old_size": 107,
+    "new_size": 110,
+    "reason": "Sqex::Data::PackRead::~PackRead — Ghidra under-counted; true end at `83 c4 10 c3` followed by `cc cc` INT3 padding"
   }
 ]
