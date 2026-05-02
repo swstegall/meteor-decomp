@@ -167,6 +167,11 @@ public:
 
     void PostInit();
 
+    // FUNCTION: ffxivgame 0x00942890 — PackRead::Rewind (18 B)
+    // Resets m_cursor to m_data_start, clears m_field18, tail-jumps
+    // to ProcessChunk. No direct xrefs — likely called via fn-ptr.
+    void Rewind();
+
     // FUNCTION: ffxivgame 0x009428b0 — PackRead::ReadNext
     // 27 B; returns bool. Called from FUN_00cc6700 in a loop.
     bool ReadNext();
@@ -305,6 +310,25 @@ PackRead::PackRead(const void *data, unsigned size)
       m_field7c(0)
 {
     PostInit();
+}
+
+// FUNCTION: ffxivgame 0x00942890 — PackRead::Rewind (18 B)
+//
+// Original bytes:
+//   00942890: 8b 41 04 89 41 0c c7 41 18 00 00 00 00 e9 ?? ?? ?? ??
+//
+//   MOV  EAX, [ECX+4]              ; EAX = this->m_data_start
+//   MOV  [ECX+0xc], EAX            ; this->m_cursor = m_data_start
+//   MOV  DWORD PTR [ECX+0x18], 0   ; this->m_field18 = 0
+//   JMP  PackRead::ProcessChunk    ; tail-jmp to re-process first chunk
+//
+// No direct xrefs in this build — likely called via a function pointer
+// or dead. The shape is canonical for "rewind cursor, clear state,
+// re-process initial chunk" which suggests a `Rewind()` API.
+void PackRead::Rewind() {
+    m_cursor = m_data_start;
+    m_field18 = 0;
+    ProcessChunk();    // tail-call
 }
 
 // FUNCTION: ffxivgame 0x009428b0 — PackRead::ReadNext (27 B)
