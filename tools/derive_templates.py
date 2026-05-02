@@ -477,31 +477,66 @@ def try_adjustor_thunk_sub_imm32(body: bytes, va: int, n: int) -> tuple[str, str
 
 def try_chained_ptr_getter(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 8b 41 NN 8b 40 MM c3 — MOV EAX,[ECX+NN]; MOV EAX,[EAX+MM]; RET
-    if (len(body) == 7 and body[0] == 0x8b and body[1] == 0x41 and body[3] == 0x8b
+    # Both NN and MM are *signed* int8 displacements as encoded.
+    if not (len(body) == 7 and body[0] == 0x8b and body[1] == 0x41 and body[3] == 0x8b
             and body[4] == 0x40 and body[6] == 0xc3):
-        outer_off = body[2]
-        inner_off = body[5]
-        if outer_off == 0 or outer_off % 4 != 0 or inner_off % 4 != 0:
-            return None
-        outer_pad = _padding_for_offset(outer_off, "int")
-        # Inner class layout
-        if inner_off == 0:
-            inner_decl = "class Inner {\npublic:\n    int *field;\n};"
-        elif inner_off % 4 == 0:
-            n_pad = inner_off // 4
-            inner_decl = f"class Inner {{\n    int padding[{n_pad}];\npublic:\n    int *field;\n}};"
-        else:
-            return None
-        src = (
-            _header(va, f"chained ptr getter (this->[+0x{outer_off:x}]->field+0x{inner_off:x})",
-                    f"8b 41 {outer_off:02x} 8b 40 {inner_off:02x} c3", n)
-            + f"\n{inner_decl}\n\nclass Outer {{\n"
-            + (f"    {outer_pad}\n" if outer_pad else "")
-            + f"    Inner *inner;\npublic:\n    int *get_inner_field();\n}};\n\n"
-              f"int *Outer::get_inner_field() {{ return inner->field; }}\n"
-        )
-        return (src, f"chained ptr @ 0x{outer_off:x}/0x{inner_off:x}")
-    return None
+        return None
+
+    raw_outer = body[2]
+    raw_inner = body[5]
+    outer_signed = raw_outer - 256 if raw_outer >= 0x80 else raw_outer
+    inner_signed = raw_inner - 256 if raw_inner >= 0x80 else raw_inner
+
+    # Negative or non-multiple-of-4 offsets can't be expressed cleanly as
+    # C++ field accesses without forcing the compiler to a 32-bit disp32
+    # (which inflates 7 bytes → 10). Fall back to naked inline asm: byte-
+    # exact regardless of sign, at the cost of less readable source.
+    has_negative = outer_signed < 0 or inner_signed < 0
+    misaligned = (outer_signed % 4 != 0) or (inner_signed % 4 != 0)
+    if has_negative or misaligned:
+        return _chained_ptr_naked(body, va, n, outer_signed, inner_signed)
+
+    outer_off = outer_signed
+    inner_off = inner_signed
+    if outer_off == 0:
+        return None
+    outer_pad = _padding_for_offset(outer_off, "int")
+    if inner_off == 0:
+        inner_decl = "class Inner {\npublic:\n    int *field;\n};"
+    else:
+        n_pad = inner_off // 4
+        inner_decl = f"class Inner {{\n    int padding[{n_pad}];\npublic:\n    int *field;\n}};"
+    src = (
+        _header(va, f"chained ptr getter (this->[+0x{outer_off:x}]->field+0x{inner_off:x})",
+                f"8b 41 {raw_outer:02x} 8b 40 {raw_inner:02x} c3", n)
+        + f"\n{inner_decl}\n\nclass Outer {{\n"
+        + (f"    {outer_pad}\n" if outer_pad else "")
+        + f"    Inner *inner;\npublic:\n    int *get_inner_field();\n}};\n\n"
+          f"int *Outer::get_inner_field() {{ return inner->field; }}\n"
+    )
+    return (src, f"chained ptr @ 0x{outer_off:x}/0x{inner_off:x}")
+
+
+def _chained_ptr_naked(body: bytes, va: int, n: int, outer: int, inner: int) -> tuple[str, str]:
+    raw_outer = body[2]
+    raw_inner = body[5]
+    outer_sign = "-" if outer < 0 else "+"
+    inner_sign = "-" if inner < 0 else "+"
+    outer_mag = abs(outer)
+    inner_mag = abs(inner)
+    src = (
+        _header(va, f"chained ptr getter (signed-disp; naked asm) "
+                    f"this->[ECX{outer_sign}0x{outer_mag:x}]->field+0x{inner_mag:x}",
+                f"8b 41 {raw_outer:02x} 8b 40 {raw_inner:02x} c3", n)
+        + "\nextern \"C\" __declspec(naked) int *chained_ptr_getter() {\n"
+          "    __asm {\n"
+        + f"        mov eax, [ecx {outer_sign} {outer_mag}]\n"
+        + f"        mov eax, [eax {inner_sign} {inner_mag}]\n"
+          "        ret\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, f"chained ptr (naked) @ {outer_sign}0x{outer_mag:x}/{inner_sign}0x{inner_mag:x}")
 
 
 # Order matters: most specific first.
