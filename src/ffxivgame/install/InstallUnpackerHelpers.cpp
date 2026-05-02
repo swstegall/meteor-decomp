@@ -12,6 +12,8 @@
 // non-virtual member function called from the slot-2 unpack loop
 // (FUN_00cc6700, see docs/install-unpacker.md). Match attempts here.
 
+#include "../../../include/install/ResourceQueue.h"
+
 extern "C" __declspec(dllimport) long __stdcall InterlockedExchange(long *target, long value);
 extern "C" __declspec(dllimport) int __stdcall SwitchToThread();
 extern "C" __declspec(dllimport) long __stdcall InterlockedIncrement(long *target);
@@ -100,29 +102,25 @@ struct chunk_entry {
 //   POP  ESI
 //   RET  4
 //
-// Iteration #1 attempt: requires modeling the parent class's +0x38
-// sub-object. For now use a stand-in class shape with the predicate as
-// an external function.
-
-class WaitablePredicate {
-public:
-    char TryReady(int *p);   // = FUN_008edbf0 @ 0x004edbf0
-};
+// The parent class's +0x38 sub-object is now modeled as
+// `ResourceQueue` (see include/install/ResourceQueue.h). FUN_008edbf0
+// — the function this loop spins on — is its `TryEnqueue` member,
+// matched in src/ffxivgame/install/ResourceQueue.cpp.
 
 class InstallUnpacker {
 public:
     void WaitForReady(int handle);
 private:
     char m_pad_00[0x38];
-    WaitablePredicate m_resource;   // +0x38
+    ResourceQueue m_resource;   // +0x38
 };
 
 void InstallUnpacker::WaitForReady(int handle) {
     InterlockedExchange((long *)(handle + 4), 1);
-    if (!m_resource.TryReady(&handle)) {
+    if (!m_resource.TryEnqueue(&handle)) {
         do {
             SwitchToThread();
-        } while (!m_resource.TryReady(&handle));
+        } while (!m_resource.TryEnqueue(&handle));
     }
 }
 
@@ -238,11 +236,17 @@ int ChunkSource::AcquireChunk(int *out_data) {
 
     long cursor = InterlockedExchangeAdd(&m_cursor, 0);
     int byte_off = cursor * 0xc;
-    long entry_state = InterlockedExchangeAdd(
-        (long *)((char *)m_entries + byte_off), 0);
+    // Hoist the entry-state slot address — same trick used in
+    // ResourceQueue::TryEnqueue to keep MSVC's reg allocator from
+    // emitting `PUSH 0; ADD EAX, EBX; PUSH EAX` (orig has the swap).
+    long *entry_slot = (long *)((char *)m_entries + byte_off);
+    long entry_state = InterlockedExchangeAdd(entry_slot, 0);
     if (entry_state == 3) {
         long next = cursor + 1;
-        if (m_entry_count <= (int)next) next = 0;
+        // `next >= m_entry_count` keeps `next` on the LHS so MSVC
+        // emits `CMP EAX, [ESI+0x5c]; JL +2; XOR EAX, EAX` rather than
+        // the byte-swapped `CMP mem, reg; JG`.
+        if ((int)next >= m_entry_count) next = 0;
         long swapped = InterlockedCompareExchange(&m_cursor, next, cursor);
         if (swapped == cursor) {
             InterlockedExchange((long *)((char *)m_entries + byte_off), 4);
