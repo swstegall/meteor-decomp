@@ -1540,6 +1540,191 @@ def try_seh_catch_arg_call_9b(body: bytes, va: int, n: int) -> tuple[str, str] |
     return None
 
 
+def try_thiscall_via_member_jmp_8b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 8B `8b 49 NN e9 RR RR RR RR` — MOV ECX, [ECX+disp8]; JMP rel32.
+    # `__thiscall` adjustor that re-bases `this` to a member field at
+    # offset NN, then tail-jumps to a method on that member. Common in
+    # delegate-style "forward to member" wrappers (e.g. m_pImpl pattern).
+    if len(body) == 8 and body[0:2] == b"\x8b\x49" and body[3] == 0xe9:
+        disp = body[2]
+        if disp == 0:
+            # disp=0 should encode as `8b 09` (no disp byte) — different
+            # 7-byte cluster. Bail to be safe.
+            return None
+        src = (
+            _header(va, f"thiscall member-delegate (MOV ECX, [ECX+0x{disp:x}]; JMP)",
+                    f"8b 49 {disp:02x} e9 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void thunk_thiscall_member() {\n"
+              "    __asm {\n"
+            + f"        mov ecx, [ecx + {disp}]\n"
+              "        jmp target\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"thiscall-via-member [+0x{disp:x}]")
+    return None
+
+
+def try_seh_push_local_disp32_call_12b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 12B `8b 85 NN NN NN NN 50 e8 RR RR RR RR` — MOV EAX,[EBP+disp32];
+    # PUSH EAX; CALL rel32. SEH unwind helper that pushes a frame-local
+    # destructor-target pointer and tail-calls into a cleanup routine
+    # (no RET — the unwinder handles return).
+    #
+    # The 6-byte MOV form is forced when displacement is outside the
+    # disp8 signed range (-128..+127). Skip when it WOULD fit in disp8:
+    # MSVC would emit the 9-byte `8b 45 NN 50 e8 RR RR RR RR` form
+    # instead (already handled by try_push_load_call).
+    if (len(body) == 12 and body[0:2] == b"\x8b\x85" and body[6] == 0x50
+            and body[7] == 0xe8):
+        disp_u = int.from_bytes(body[2:6], "little", signed=False)
+        disp_s = int.from_bytes(body[2:6], "little", signed=True)
+        if -128 <= disp_s <= 127:
+            return None
+        sign = "-" if disp_s < 0 else "+"
+        mag = abs(disp_s)
+        src = (
+            _header(va, f"SEH unwind helper (MOV EAX, [EBP{sign}0x{mag:x}]; PUSH EAX; CALL — disp32)",
+                    f"8b 85 NN NN NN NN 50 e8 RR RR RR RR  (disp={sign}0x{mag:x})", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void seh_push_local_disp32() {\n"
+              "    __asm {\n"
+            + f"        mov eax, [ebp {sign} {mag}]\n"
+              "        push eax\n"
+              "        call target\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"seh-push-local disp32 [EBP{sign}0x{mag:x}]")
+    return None
+
+
+def try_global_ptr_getter_ret4_8b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 8B `a1 GG GG GG GG c2 04 00` — MOV EAX, [global]; RET 4.
+    # __thiscall getter that ignores `this` (passed in ECX) and returns
+    # a global. The RET 4 pops a stale stack arg — likely the original
+    # source signature was `T C::get(int) const` returning a global.
+    if (len(body) == 8 and body[0] == 0xa1
+            and body[5:8] == b"\xc2\x04\x00"):
+        # Address bytes 1..5 are absolute and would be a relocation in
+        # the cluster_relocs view. Cluster identity is on the rest.
+        src = (
+            _header(va, "global pointer getter (RET 4)",
+                    "a1 GG GG GG GG c2 04 00", n)
+            + "\nextern \"C\" int the_global;\n\n"
+              "extern \"C\" __declspec(naked) void global_getter_ret4() {\n"
+              "    __asm {\n"
+              "        mov eax, dword ptr [the_global]\n"
+              "        ret 4\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "global getter (ret 4)")
+    return None
+
+
+def try_clear_global_dword_zero_11b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 11B `c7 05 GG GG GG GG 00 00 00 00 c3` — MOV [global], 0; RET.
+    # Plain dword-write-to-zero setter (no read-modify-write — distinct
+    # from try_clear_flag_in_global which AND-masks bits).
+    if (len(body) == 11 and body[0:2] == b"\xc7\x05"
+            and body[6:11] == b"\x00\x00\x00\x00\xc3"):
+        src = (
+            _header(va, "clear global dword (MOV [global], 0; RET)",
+                    "c7 05 GG GG GG GG 00 00 00 00 c3", n)
+            + "\nextern \"C\" int the_global;\n\n"
+              "extern \"C\" __declspec(naked) void clear_global_dword() {\n"
+              "    __asm {\n"
+              "        mov dword ptr [the_global], 0\n"
+              "        ret\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "clear global dword")
+    return None
+
+
+def try_push_ebp_arg1_call_pop_ret_10b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 10B `ff 75 08 e8 RR RR RR RR 59 c3` —
+    #   PUSH [EBP+8]; CALL rel32; POP ECX; RET.
+    # Single-arg cdecl wrapper: forwards arg1 from the EBP-frame to a
+    # cdecl callee, pops the pushed arg via POP ECX, and returns.
+    if (len(body) == 10 and body[0:3] == b"\xff\x75\x08"
+            and body[3] == 0xe8 and body[8:10] == b"\x59\xc3"):
+        src = (
+            _header(va, "single-arg cdecl wrapper (PUSH [EBP+8]; CALL; POP ECX; RET)",
+                    "ff 75 08 e8 RR RR RR RR 59 c3", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void wrapper_1arg_ebp() {\n"
+              "    __asm {\n"
+              "        push [ebp + 8]\n"
+              "        call target\n"
+              "        pop ecx\n"
+              "        ret\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "1arg-wrapper [EBP+8]+pop-ret")
+    return None
+
+
+def try_push_esp_arg1_call_pop_ret4_14b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 14B `8b 44 24 04 50 e8 RR RR RR RR 59 c2 04 00` —
+    #   MOV EAX, [ESP+4]; PUSH EAX; CALL rel32; POP ECX; RET 4.
+    # __stdcall single-arg wrapper that forwards its arg to a cdecl
+    # callee, pops the pushed arg, and returns 4 (per __stdcall).
+    if (len(body) == 14 and body[0:4] == b"\x8b\x44\x24\x04"
+            and body[4] == 0x50 and body[5] == 0xe8
+            and body[10:14] == b"\x59\xc2\x04\x00"):
+        src = (
+            _header(va, "stdcall→cdecl 1-arg wrapper (MOV EAX,[ESP+4]; PUSH; CALL; POP ECX; RET 4)",
+                    "8b 44 24 04 50 e8 RR RR RR RR 59 c2 04 00", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void __stdcall wrapper_stdcall_to_cdecl_1arg(int) {\n"
+              "    __asm {\n"
+              "        mov eax, [esp + 4]\n"
+              "        push eax\n"
+              "        call target\n"
+              "        pop ecx\n"
+              "        ret 4\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "stdcall→cdecl 1arg wrapper")
+    return None
+
+
+def try_global_eq_arg_setcc_15b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 15B `a1 GG GG GG GG 3b 44 24 04 0f 94 c0 c2 04 00` —
+    #   MOV EAX, [global]; CMP EAX, [ESP+4]; SETE AL; RET 4.
+    # __stdcall predicate that compares a global pointer to an arg.
+    # Returns AL = (the_global == arg). Note: high 24 bits of EAX
+    # are NOT cleared (would need MOVZX before SETE), but the source
+    # pattern in the binary doesn't clear them either — typical MSVC
+    # 2005 output for `bool C::is_the_global(void *p)`.
+    if (len(body) == 15 and body[0] == 0xa1
+            and body[5:9] == b"\x3b\x44\x24\x04"
+            and body[9:12] == b"\x0f\x94\xc0"
+            and body[12:15] == b"\xc2\x04\x00"):
+        src = (
+            _header(va, "global == arg predicate (MOV EAX,[global]; CMP EAX,[ESP+4]; SETE AL; RET 4)",
+                    "a1 GG GG GG GG 3b 44 24 04 0f 94 c0 c2 04 00", n)
+            + "\nextern \"C\" void *the_global;\n\n"
+              "extern \"C\" unsigned char __stdcall is_global(void *p);\n"
+              "extern \"C\" __declspec(naked) unsigned char __stdcall is_global(void *p) {\n"
+              "    __asm {\n"
+              "        mov eax, dword ptr [the_global]\n"
+              "        cmp eax, [esp + 4]\n"
+              "        sete al\n"
+              "        ret 4\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "global==arg SETE pred")
+    return None
+
+
 def try_2arg_passthrough_wrapper_21b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 21B `__stdcall` 2-arg passthrough wrapper:
     #   8b 44 24 08              MOV EAX, [ESP+8]    (arg2)
@@ -1582,6 +1767,13 @@ DERIVERS[_late_idx:_late_idx] = [
     try_adjustor_thunk_add_imm8,
     try_seh_catch_arg_call_9b,
     try_2arg_passthrough_wrapper_21b,
+    try_thiscall_via_member_jmp_8b,
+    try_seh_push_local_disp32_call_12b,
+    try_global_ptr_getter_ret4_8b,
+    try_clear_global_dword_zero_11b,
+    try_push_ebp_arg1_call_pop_ret_10b,
+    try_push_esp_arg1_call_pop_ret4_14b,
+    try_global_eq_arg_setcc_15b,
 ]
 
 
