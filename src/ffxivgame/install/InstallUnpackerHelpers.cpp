@@ -16,15 +16,16 @@ extern "C" __declspec(dllimport) long __stdcall InterlockedExchange(long *target
 extern "C" __declspec(dllimport) int __stdcall SwitchToThread();
 extern "C" __declspec(dllimport) long __stdcall InterlockedIncrement(long *target);
 extern "C" __declspec(dllimport) long __stdcall InterlockedExchangeAdd(long *target, long add);
+extern "C" __declspec(dllimport) long __stdcall InterlockedCompareExchange(long *target, long exch, long cmp);
 
-// Each entry in ChunkSource::m_entries is 12 bytes:
-//   +0x00 long released;   (atomically set to 1 when chunk consumed)
-//   +0x04 int  unknown_4;
-//   +0x08 int  handle;     (matched against the arg in ReleaseChunk)
+// Each entry in ChunkSource::m_entries is 12 bytes. State machine:
+//   1 = released (just freed by consumer)
+//   3 = available (producer filled, ready for consumer)
+//   4 = claimed (consumer grabbed it, processing in flight)
 struct chunk_entry {
-    long released;
-    int  unknown_4;
-    int  handle;
+    long state;     // +0x00 — atomic state: 1/3/4
+    int  data;      // +0x04 — written to *out_param by AcquireChunk
+    int  handle;    // +0x08 — returned by AcquireChunk, matched by ReleaseChunk
 };
 
 // FUNCTION: ffxivgame 0x00cc6620 — wait-for-resource-ready spin (71 B)
@@ -156,14 +157,17 @@ void InstallUnpacker::WaitForReady(int handle) {
 
 class ChunkSource {
 public:
+    int  AcquireChunk(int *out_data);
     void ReleaseChunk(int handle);
 private:
-    char m_pad[0x50];
+    char m_pad_00[0x38];
+    long m_cursor;            // +0x38 — atomic round-robin index
+    char m_pad_3c[0x14];
     long m_total;             // +0x50
     long m_released_count;    // +0x54
     chunk_entry *m_entries;   // +0x58
     int  m_entry_count;       // +0x5c
-    long m_state;             // +0x60
+    long m_state;             // +0x60 — 0=initial, 3=dispatching, 4=done
 };
 
 void ChunkSource::ReleaseChunk(int handle) {
@@ -186,4 +190,57 @@ void ChunkSource::ReleaseChunk(int handle) {
             }
         }
     }
+}
+
+// FUNCTION: ffxivgame 0x008c5db0 — ChunkSource::AcquireChunk (144 B)
+//
+// Counterpart to ReleaseChunk. Atomically claims the next available
+// entry from the round-robin cursor and returns its handle. Returns 0
+// if no entry available (state==0/4 or cursor entry not in state 3).
+//
+// Recovered from Ghidra GUI 2026-05-02:
+//   undefined4 __thiscall FUN_00cc5db0(int param_1, undefined4 *param_2) {
+//     LVar2 = InterlockedExchangeAdd((LONG *)(param_1 + 0x60), 0);
+//     if (LVar2 == 0 || LVar2 == 4) return 0;
+//     LVar2 = InterlockedExchangeAdd((LONG *)(param_1 + 0x38), 0);   // cursor
+//     iVar1 = LVar2 * 0xc;                                            // byte offset
+//     LVar3 = InterlockedExchangeAdd((LONG *)(*(int *)(param_1 + 0x58) + iVar1), 0);
+//     if (LVar3 == 3) {
+//       Exchange = LVar2 + 1;
+//       if (*(int *)(param_1 + 0x5c) <= Exchange) Exchange = 0;       // wrap
+//       LVar3 = InterlockedCompareExchange((LONG *)(param_1 + 0x38), Exchange, LVar2);
+//       if (LVar3 == LVar2) {                                         // CAS won
+//         InterlockedExchange((LONG *)(*(int *)(param_1 + 0x58) + iVar1), 4);
+//         *param_2 = *(undefined4 *)(iVar1 + 4 + *(int *)(param_1 + 0x58));
+//         return *(undefined4 *)(iVar1 + 8 + *(int *)(param_1 + 0x58));
+//       }
+//     }
+//     return 0;
+//   }
+//
+// State machine summary:
+//   - ChunkSource.m_state: 0=initial, [1,2,3]=active, 4=all-done
+//   - chunk_entry.state: 1=released, 3=available, 4=claimed
+// AcquireChunk is the atomic state-3-to-state-4 transition with
+// round-robin cursor advance via CAS.
+
+int ChunkSource::AcquireChunk(int *out_data) {
+    long state = InterlockedExchangeAdd(&m_state, 0);
+    if (state == 0 || state == 4) return 0;
+
+    long cursor = InterlockedExchangeAdd(&m_cursor, 0);
+    int byte_off = cursor * 0xc;
+    long entry_state = InterlockedExchangeAdd(
+        (long *)((char *)m_entries + byte_off), 0);
+    if (entry_state == 3) {
+        long next = cursor + 1;
+        if (m_entry_count <= (int)next) next = 0;
+        long swapped = InterlockedCompareExchange(&m_cursor, next, cursor);
+        if (swapped == cursor) {
+            InterlockedExchange((long *)((char *)m_entries + byte_off), 4);
+            *out_data = *(int *)((char *)m_entries + byte_off + 4);
+            return *(int *)((char *)m_entries + byte_off + 8);
+        }
+    }
+    return 0;
 }
