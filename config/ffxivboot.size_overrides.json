@@ -29,7 +29,7 @@
     "name": "FUN_00404310",
     "old_size": 70,
     "new_size": 74,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5ec2 \u2026 terminator)"
   },
   {
     "rva": 17415,
@@ -38,14 +38,6 @@
     "old_size": 102,
     "new_size": 105,
     "reason": "RET imm16 (08 00)"
-  },
-  {
-    "rva": 17680,
-    "rva_hex": "0x00004510",
-    "name": "FUN_00404510",
-    "old_size": 184,
-    "new_size": 188,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 23392,
@@ -69,15 +61,7 @@
     "name": "FUN_0040c5e0",
     "old_size": 672,
     "new_size": 674,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 53792,
-    "rva_hex": "0x0000d220",
-    "name": "FUN_0040d220",
-    "old_size": 76,
-    "new_size": 78,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5dc3 \u2026 terminator)"
   },
   {
     "rva": 54032,
@@ -93,15 +77,7 @@
     "name": "FUN_0040f030",
     "old_size": 36,
     "new_size": 39,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 61680,
-    "rva_hex": "0x0000f0f0",
-    "name": "FUN_0040f0f0",
-    "old_size": 90,
-    "new_size": 93,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 62816,
@@ -157,7 +133,7 @@
     "name": "FUN_00410820",
     "old_size": 177,
     "new_size": 183,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 69056,
@@ -173,15 +149,7 @@
     "name": "FUN_00410f20",
     "old_size": 36,
     "new_size": 39,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 69600,
-    "rva_hex": "0x00010fe0",
-    "name": "FUN_00410fe0",
-    "old_size": 90,
-    "new_size": 93,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 71440,
@@ -189,7 +157,7 @@
     "name": "FUN_00411710",
     "old_size": 59,
     "new_size": 64,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 73664,
@@ -197,15 +165,7 @@
     "name": "FUN_00411fc0",
     "old_size": 36,
     "new_size": 39,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 73856,
-    "rva_hex": "0x00012080",
-    "name": "FUN_00412080",
-    "old_size": 90,
-    "new_size": 93,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 77600,
@@ -213,15 +173,7 @@
     "name": "FUN_00412f20",
     "old_size": 36,
     "new_size": 39,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 77792,
-    "rva_hex": "0x00012fe0",
-    "name": "FUN_00412fe0",
-    "old_size": 90,
-    "new_size": 93,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 83408,
@@ -320,14 +272,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 131472,
-    "rva_hex": "0x00020190",
-    "name": "FUN_00420190",
-    "old_size": 1951,
-    "new_size": 1957,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 133824,
     "rva_hex": "0x00020ac0",
     "name": "FUN_00420ac0",
@@ -376,14 +320,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 143152,
-    "rva_hex": "0x00022f30",
-    "name": "FUN_00422f30",
-    "old_size": 67,
-    "new_size": 70,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 147360,
     "rva_hex": "0x00023fa0",
     "name": "FUN_00423fa0",
@@ -400,52 +336,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 163056,
-    "rva_hex": "0x00027cf0",
-    "name": "FUN_00427cf0",
-    "old_size": 899,
-    "new_size": 905,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 173520,
-    "rva_hex": "0x0002a5d0",
-    "name": "FUN_0042a5d0",
-    "old_size": 1626,
-    "new_size": 1632,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 196160,
-    "rva_hex": "0x0002fe40",
-    "name": "FUN_0042fe40",
-    "old_size": 448,
-    "new_size": 455,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 205584,
-    "rva_hex": "0x00032310",
-    "name": "FUN_00432310",
-    "old_size": 198,
-    "new_size": 204,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 205792,
     "rva_hex": "0x000323e0",
     "name": "FUN_004323e0",
     "old_size": 696,
     "new_size": 702,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 219824,
-    "rva_hex": "0x00035ab0",
-    "name": "FUN_00435ab0",
-    "old_size": 201,
-    "new_size": 207,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 223824,
@@ -469,15 +365,7 @@
     "name": "FUN_00438fe0",
     "old_size": 62,
     "new_size": 65,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 233840,
-    "rva_hex": "0x00039170",
-    "name": "FUN_00439170",
-    "old_size": 209,
-    "new_size": 215,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 234272,
@@ -493,15 +381,7 @@
     "name": "FUN_004399b0",
     "old_size": 71,
     "new_size": 74,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 236032,
-    "rva_hex": "0x00039a00",
-    "name": "FUN_00439a00",
-    "old_size": 231,
-    "new_size": 237,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 236928,
@@ -510,14 +390,6 @@
     "old_size": 288,
     "new_size": 291,
     "reason": "RET imm16 (0c 00)"
-  },
-  {
-    "rva": 237232,
-    "rva_hex": "0x00039eb0",
-    "name": "FUN_00439eb0",
-    "old_size": 224,
-    "new_size": 227,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 245184,
@@ -752,14 +624,6 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
-    "rva": 307616,
-    "rva_hex": "0x0004b1a0",
-    "name": "FUN_0044b1a0",
-    "old_size": 324,
-    "new_size": 333,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 311184,
     "rva_hex": "0x0004bf90",
     "name": "FUN_0044bf90",
@@ -798,14 +662,6 @@
     "old_size": 64,
     "new_size": 65,
     "reason": "RET (c3)"
-  },
-  {
-    "rva": 326000,
-    "rva_hex": "0x0004f970",
-    "name": "FUN_0044f970",
-    "old_size": 113,
-    "new_size": 120,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 330160,
@@ -864,28 +720,12 @@
     "reason": "RET (c3)"
   },
   {
-    "rva": 378528,
-    "rva_hex": "0x0005c6a0",
-    "name": "FUN_0045c6a0",
-    "old_size": 160,
-    "new_size": 163,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 383472,
-    "rva_hex": "0x0005d9f0",
-    "name": "FUN_0045d9f0",
-    "old_size": 278,
-    "new_size": 281,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 391808,
     "rva_hex": "0x0005fa80",
     "name": "FUN_0045fa80",
     "old_size": 76,
     "new_size": 79,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5b \u2026 terminator)"
   },
   {
     "rva": 432176,
@@ -893,15 +733,7 @@
     "name": "FUN_00469830",
     "old_size": 69,
     "new_size": 72,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 440144,
-    "rva_hex": "0x0006b750",
-    "name": "FUN_0046b750",
-    "old_size": 120,
-    "new_size": 123,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 441200,
@@ -912,28 +744,12 @@
     "reason": "RET (c3)"
   },
   {
-    "rva": 442656,
-    "rva_hex": "0x0006c120",
-    "name": "FUN_0046c120",
-    "old_size": 188,
-    "new_size": 194,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 474752,
     "rva_hex": "0x00073e80",
     "name": "FUN_00473e80",
     "old_size": 83,
     "new_size": 86,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 482032,
-    "rva_hex": "0x00075af0",
-    "name": "FUN_00475af0",
-    "old_size": 16,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 513104,
@@ -944,14 +760,6 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
-    "rva": 515328,
-    "rva_hex": "0x0007dd00",
-    "name": "FUN_0047dd00",
-    "old_size": 362,
-    "new_size": 370,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 530496,
     "rva_hex": "0x00081840",
     "name": "FUN_00481840",
@@ -960,52 +768,12 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
-    "rva": 553408,
-    "rva_hex": "0x000871c0",
-    "name": "FUN_004871c0",
-    "old_size": 534,
-    "new_size": 541,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 573776,
     "rva_hex": "0x0008c150",
     "name": "FUN_0048c150",
     "old_size": 1492,
     "new_size": 1498,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 597744,
-    "rva_hex": "0x00091ef0",
-    "name": "FUN_00491ef0",
-    "old_size": 2564,
-    "new_size": 2569,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 630800,
-    "rva_hex": "0x0009a010",
-    "name": "FUN_0049a010",
-    "old_size": 280,
-    "new_size": 287,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 636448,
-    "rva_hex": "0x0009b620",
-    "name": "FUN_0049b620",
-    "old_size": 73,
-    "new_size": 79,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 651968,
-    "rva_hex": "0x0009f2c0",
-    "name": "FUN_0049f2c0",
-    "old_size": 985,
-    "new_size": 991,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 681728,
@@ -1013,7 +781,7 @@
     "name": "FUN_004a6700",
     "old_size": 1058,
     "new_size": 1066,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5b \u2026 terminator)"
   },
   {
     "rva": 704512,
@@ -1062,22 +830,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 724672,
-    "rva_hex": "0x000b0ec0",
-    "name": "FUN_004b0ec0",
-    "old_size": 166,
-    "new_size": 172,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 736192,
-    "rva_hex": "0x000b3bc0",
-    "name": "FUN_004b3bc0",
-    "old_size": 293,
-    "new_size": 296,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 738656,
@@ -1142,14 +894,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 747344,
-    "rva_hex": "0x000b6750",
-    "name": "FUN_004b6750",
-    "old_size": 731,
-    "new_size": 737,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 749280,
@@ -1237,7 +981,7 @@
     "name": "FUN_004b8920",
     "old_size": 37,
     "new_size": 40,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 759296,
@@ -1246,14 +990,6 @@
     "old_size": 185,
     "new_size": 188,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 769328,
-    "rva_hex": "0x000bbd30",
-    "name": "FUN_004bbd30",
-    "old_size": 1382,
-    "new_size": 1388,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 776640,
@@ -1429,7 +1165,7 @@
     "name": "FUN_004c6070",
     "old_size": 82,
     "new_size": 84,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5ec3 \u2026 terminator)"
   },
   {
     "rva": 811216,
@@ -1632,28 +1368,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 846928,
-    "rva_hex": "0x000cec50",
-    "name": "FUN_004cec50",
-    "old_size": 193,
-    "new_size": 199,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 847344,
     "rva_hex": "0x000cedf0",
     "name": "FUN_004cedf0",
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 847776,
-    "rva_hex": "0x000cefa0",
-    "name": "FUN_004cefa0",
-    "old_size": 688,
-    "new_size": 700,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 852784,
@@ -1702,14 +1422,6 @@
     "old_size": 211,
     "new_size": 214,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 933552,
-    "rva_hex": "0x000e3eb0",
-    "name": "FUN_004e3eb0",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 934000,
@@ -1776,22 +1488,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 942656,
-    "rva_hex": "0x000e6240",
-    "name": "FUN_004e6240",
-    "old_size": 113,
-    "new_size": 116,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 942784,
-    "rva_hex": "0x000e62c0",
-    "name": "FUN_004e62c0",
-    "old_size": 113,
-    "new_size": 116,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 942960,
     "rva_hex": "0x000e6370",
     "name": "FUN_004e6370",
@@ -1838,14 +1534,6 @@
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 959040,
-    "rva_hex": "0x000ea240",
-    "name": "FUN_004ea240",
-    "old_size": 256,
-    "new_size": 262,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 973680,
@@ -1974,14 +1662,6 @@
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 1008176,
-    "rva_hex": "0x000f6230",
-    "name": "FUN_004f6230",
-    "old_size": 189,
-    "new_size": 192,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 1009344,
@@ -2128,22 +1808,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 1023312,
-    "rva_hex": "0x000f9d50",
-    "name": "FUN_004f9d50",
-    "old_size": 196,
-    "new_size": 205,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 1023520,
-    "rva_hex": "0x000f9e20",
-    "name": "FUN_004f9e20",
-    "old_size": 196,
-    "new_size": 205,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 1026304,
     "rva_hex": "0x000fa900",
     "name": "FUN_004fa900",
@@ -2165,7 +1829,7 @@
     "name": "FUN_004fb3c0",
     "old_size": 65,
     "new_size": 68,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 1031056,
@@ -2190,14 +1854,6 @@
     "old_size": 56,
     "new_size": 59,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 1038480,
-    "rva_hex": "0x000fd890",
-    "name": "FUN_004fd890",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 1038752,
@@ -2264,14 +1920,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 1063680,
-    "rva_hex": "0x00103b00",
-    "name": "FUN_00503b00",
-    "old_size": 308,
-    "new_size": 314,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 1065072,
     "rva_hex": "0x00104070",
     "name": "FUN_00504070",
@@ -2326,14 +1974,6 @@
     "old_size": 198,
     "new_size": 201,
     "reason": "RET imm16 (08 00)"
-  },
-  {
-    "rva": 1074192,
-    "rva_hex": "0x00106410",
-    "name": "FUN_00506410",
-    "old_size": 305,
-    "new_size": 308,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 1075312,
@@ -2605,7 +2245,7 @@
     "name": "FUN_005126a0",
     "old_size": 115,
     "new_size": 118,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 1124432,
@@ -3032,20 +2672,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 1230336,
-    "rva_hex": "0x0012c600",
-    "name": "FUN_0052c600",
-    "old_size": 170,
-    "new_size": 178,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 1230656,
     "rva_hex": "0x0012c740",
     "name": "FUN_0052c740",
     "old_size": 88,
     "new_size": 92,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 1235904,
@@ -3142,22 +2774,6 @@
     "old_size": 40,
     "new_size": 43,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 1266640,
-    "rva_hex": "0x001353d0",
-    "name": "FUN_005353d0",
-    "old_size": 181,
-    "new_size": 185,
-    "reason": "epilogue continuation (b001 \u2026 terminator)"
-  },
-  {
-    "rva": 1266832,
-    "rva_hex": "0x00135490",
-    "name": "FUN_00535490",
-    "old_size": 181,
-    "new_size": 185,
-    "reason": "epilogue continuation (b001 \u2026 terminator)"
   },
   {
     "rva": 1267632,
@@ -3320,14 +2936,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 1325840,
-    "rva_hex": "0x00143b10",
-    "name": "FUN_00543b10",
-    "old_size": 264,
-    "new_size": 271,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 1327728,
     "rva_hex": "0x00144270",
     "name": "FUN_00544270",
@@ -3344,36 +2952,12 @@
     "reason": "RET imm16 (10 00)"
   },
   {
-    "rva": 1334768,
-    "rva_hex": "0x00145df0",
-    "name": "FUN_00545df0",
-    "old_size": 401,
-    "new_size": 408,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 1336928,
-    "rva_hex": "0x00146660",
-    "name": "FUN_00546660",
-    "old_size": 349,
-    "new_size": 352,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 1354160,
     "rva_hex": "0x0014a9b0",
     "name": "FUN_0054a9b0",
     "old_size": 64,
     "new_size": 68,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 1372032,
-    "rva_hex": "0x0014ef80",
-    "name": "FUN_0054ef80",
-    "old_size": 915,
-    "new_size": 928,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 1408592,
@@ -3390,14 +2974,6 @@
     "old_size": 337,
     "new_size": 340,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 1418736,
-    "rva_hex": "0x0015a5f0",
-    "name": "FUN_0055a5f0",
-    "old_size": 591,
-    "new_size": 598,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 1419728,
@@ -3496,28 +3072,12 @@
     "reason": "RET imm16 (14 00)"
   },
   {
-    "rva": 1438928,
-    "rva_hex": "0x0015f4d0",
-    "name": "FUN_0055f4d0",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 1440624,
     "rva_hex": "0x0015fb70",
     "name": "FUN_0055fb70",
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 1445584,
-    "rva_hex": "0x00160ed0",
-    "name": "FUN_00560ed0",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 1445760,
@@ -3573,7 +3133,7 @@
     "name": "FUN_00562d80",
     "old_size": 314,
     "new_size": 322,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 1454800,
@@ -3686,30 +3246,6 @@
     "old_size": 263,
     "new_size": 266,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 1480592,
-    "rva_hex": "0x00169790",
-    "name": "FUN_00569790",
-    "old_size": 146,
-    "new_size": 153,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 1480752,
-    "rva_hex": "0x00169830",
-    "name": "FUN_00569830",
-    "old_size": 146,
-    "new_size": 153,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 1480912,
-    "rva_hex": "0x001698d0",
-    "name": "FUN_005698d0",
-    "old_size": 146,
-    "new_size": 153,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 1485728,
@@ -3960,14 +3496,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 1547328,
-    "rva_hex": "0x00179c40",
-    "name": "FUN_00579c40",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 1547440,
     "rva_hex": "0x00179cb0",
     "name": "FUN_00579cb0",
@@ -4088,14 +3616,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 1572032,
-    "rva_hex": "0x0017fcc0",
-    "name": "FUN_0057fcc0",
-    "old_size": 267,
-    "new_size": 277,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 1572352,
     "rva_hex": "0x0017fe00",
     "name": "FUN_0057fe00",
@@ -4158,14 +3678,6 @@
     "old_size": 40,
     "new_size": 43,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 1576272,
-    "rva_hex": "0x00180d50",
-    "name": "FUN_00580d50",
-    "old_size": 470,
-    "new_size": 476,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 1577504,
@@ -4416,14 +3928,6 @@
     "reason": "epilogue continuation (8bc6 \u2026 terminator)"
   },
   {
-    "rva": 1664128,
-    "rva_hex": "0x00196480",
-    "name": "FUN_00596480",
-    "old_size": 78,
-    "new_size": 81,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 1664288,
     "rva_hex": "0x00196520",
     "name": "FUN_00596520",
@@ -4445,7 +3949,7 @@
     "name": "FUN_005975a0",
     "old_size": 134,
     "new_size": 140,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 1670288,
@@ -4768,30 +4272,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 1779024,
-    "rva_hex": "0x001b2550",
-    "name": "FUN_005b2550",
-    "old_size": 183,
-    "new_size": 192,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 1788816,
-    "rva_hex": "0x001b4b90",
-    "name": "FUN_005b4b90",
-    "old_size": 237,
-    "new_size": 244,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 1789072,
-    "rva_hex": "0x001b4c90",
-    "name": "FUN_005b4c90",
-    "old_size": 237,
-    "new_size": 244,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 1793904,
     "rva_hex": "0x001b5f70",
     "name": "FUN_005b5f70",
@@ -4816,14 +4296,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 1808656,
-    "rva_hex": "0x001b9910",
-    "name": "FUN_005b9910",
-    "old_size": 277,
-    "new_size": 282,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 1814960,
     "rva_hex": "0x001bb1b0",
     "name": "FUN_005bb1b0",
@@ -4838,14 +4310,6 @@
     "old_size": 52,
     "new_size": 58,
     "reason": "epilogue continuation (8bc6 \u2026 terminator)"
-  },
-  {
-    "rva": 1816464,
-    "rva_hex": "0x001bb790",
-    "name": "FUN_005bb790",
-    "old_size": 142,
-    "new_size": 148,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 1817584,
@@ -4902,14 +4366,6 @@
     "old_size": 62,
     "new_size": 68,
     "reason": "epilogue continuation (8bc6 \u2026 terminator)"
-  },
-  {
-    "rva": 1823088,
-    "rva_hex": "0x001bd170",
-    "name": "FUN_005bd170",
-    "old_size": 165,
-    "new_size": 176,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 1824528,
@@ -4984,14 +4440,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 1882048,
-    "rva_hex": "0x001cb7c0",
-    "name": "FUN_005cb7c0",
-    "old_size": 73,
-    "new_size": 86,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
     "rva": 1884208,
     "rva_hex": "0x001cc030",
     "name": "FUN_005cc030",
@@ -5005,7 +4453,7 @@
     "name": "FUN_005ccbc0",
     "old_size": 1162,
     "new_size": 1178,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 1894256,
@@ -5030,14 +4478,6 @@
     "old_size": 53,
     "new_size": 69,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 1922976,
-    "rva_hex": "0x001d57a0",
-    "name": "FUN_005d57a0",
-    "old_size": 489,
-    "new_size": 495,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 1924672,
@@ -5160,14 +4600,6 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 1982672,
-    "rva_hex": "0x001e40d0",
-    "name": "FUN_005e40d0",
-    "old_size": 177,
-    "new_size": 186,
-    "reason": "epilogue continuation (b001 \u2026 terminator)"
-  },
-  {
     "rva": 1986656,
     "rva_hex": "0x001e5060",
     "name": "FUN_005e5060",
@@ -5192,14 +4624,6 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 1996784,
-    "rva_hex": "0x001e77f0",
-    "name": "FUN_005e77f0",
-    "old_size": 283,
-    "new_size": 289,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 2000112,
     "rva_hex": "0x001e84f0",
     "name": "FUN_005e84f0",
@@ -5222,14 +4646,6 @@
     "old_size": 1171,
     "new_size": 1174,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 2017296,
-    "rva_hex": "0x001ec810",
-    "name": "FUN_005ec810",
-    "old_size": 324,
-    "new_size": 330,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 2022800,
@@ -5278,14 +4694,6 @@
     "old_size": 36,
     "new_size": 52,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 2051936,
-    "rva_hex": "0x001f4f60",
-    "name": "FUN_005f4f60",
-    "old_size": 307,
-    "new_size": 318,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 2052464,
@@ -5400,22 +4808,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 2146016,
-    "rva_hex": "0x0020bee0",
-    "name": "FUN_0060bee0",
-    "old_size": 320,
-    "new_size": 325,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 2150976,
-    "rva_hex": "0x0020d240",
-    "name": "FUN_0060d240",
-    "old_size": 150,
-    "new_size": 156,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 2152080,
     "rva_hex": "0x0020d690",
     "name": "FUN_0060d690",
@@ -5429,7 +4821,7 @@
     "name": "FUN_0060d940",
     "old_size": 56,
     "new_size": 59,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 2159824,
@@ -5453,7 +4845,7 @@
     "name": "FUN_00612430",
     "old_size": 545,
     "new_size": 551,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 2177232,
@@ -5512,14 +4904,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 2203040,
-    "rva_hex": "0x00219da0",
-    "name": "FUN_00619da0",
-    "old_size": 307,
-    "new_size": 318,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 2203840,
     "rva_hex": "0x0021a0c0",
     "name": "FUN_0061a0c0",
@@ -5574,14 +4958,6 @@
     "old_size": 106,
     "new_size": 109,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 2223376,
-    "rva_hex": "0x0021ed10",
-    "name": "FUN_0061ed10",
-    "old_size": 255,
-    "new_size": 265,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 2224976,
@@ -5701,7 +5077,7 @@
     "name": "FUN_00627270",
     "old_size": 138,
     "new_size": 144,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 2257872,
@@ -5720,28 +5096,12 @@
     "reason": "RET imm16 (10 00)"
   },
   {
-    "rva": 2270672,
-    "rva_hex": "0x0022a5d0",
-    "name": "FUN_0062a5d0",
-    "old_size": 568,
-    "new_size": 571,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 2271248,
     "rva_hex": "0x0022a810",
     "name": "FUN_0062a810",
     "old_size": 447,
     "new_size": 450,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 2285808,
-    "rva_hex": "0x0022e0f0",
-    "name": "FUN_0062e0f0",
-    "old_size": 115,
-    "new_size": 118,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 2287136,
@@ -5752,36 +5112,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 2290240,
-    "rva_hex": "0x0022f240",
-    "name": "FUN_0062f240",
-    "old_size": 150,
-    "new_size": 155,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 2294880,
     "rva_hex": "0x00230460",
     "name": "FUN_00630460",
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 2296448,
-    "rva_hex": "0x00230a80",
-    "name": "FUN_00630a80",
-    "old_size": 585,
-    "new_size": 592,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 2298720,
-    "rva_hex": "0x00231360",
-    "name": "FUN_00631360",
-    "old_size": 150,
-    "new_size": 153,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 2306768,
@@ -5840,14 +5176,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 2317728,
-    "rva_hex": "0x00235da0",
-    "name": "FUN_00635da0",
-    "old_size": 105,
-    "new_size": 108,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 2325360,
     "rva_hex": "0x00237b70",
     "name": "FUN_00637b70",
@@ -5877,7 +5205,7 @@
     "name": "FUN_0063b370",
     "old_size": 467,
     "new_size": 471,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
+    "reason": "epilogue continuation (5dc2 \u2026 terminator)"
   },
   {
     "rva": 2343088,
@@ -5886,14 +5214,6 @@
     "old_size": 87,
     "new_size": 90,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 2347808,
-    "rva_hex": "0x0023d320",
-    "name": "FUN_0063d320",
-    "old_size": 73,
-    "new_size": 86,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 2350688,
@@ -5909,7 +5229,7 @@
     "name": "FUN_0063ea40",
     "old_size": 389,
     "new_size": 393,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
+    "reason": "epilogue continuation (5dc2 \u2026 terminator)"
   },
   {
     "rva": 2356048,
@@ -5958,22 +5278,6 @@
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 2366624,
-    "rva_hex": "0x00241ca0",
-    "name": "FUN_00641ca0",
-    "old_size": 286,
-    "new_size": 294,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 2367168,
-    "rva_hex": "0x00241ec0",
-    "name": "FUN_00641ec0",
-    "old_size": 149,
-    "new_size": 156,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 2378528,
@@ -6077,7 +5381,7 @@
     "name": "FUN_0064fc90",
     "old_size": 149,
     "new_size": 155,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 2425920,
@@ -6110,14 +5414,6 @@
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 2436944,
-    "rva_hex": "0x00252f50",
-    "name": "FUN_00652f50",
-    "old_size": 349,
-    "new_size": 355,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 2438640,
@@ -6357,7 +5653,7 @@
     "name": "FUN_0065f250",
     "old_size": 67,
     "new_size": 73,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 2487216,
@@ -6520,14 +5816,6 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 2562912,
-    "rva_hex": "0x00271b60",
-    "name": "FUN_00671b60",
-    "old_size": 60,
-    "new_size": 63,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 2563680,
     "rva_hex": "0x00271e60",
     "name": "FUN_00671e60",
@@ -6549,7 +5837,7 @@
     "name": "FUN_00672da0",
     "old_size": 103,
     "new_size": 109,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 2577632,
@@ -6566,14 +5854,6 @@
     "old_size": 604,
     "new_size": 610,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 2579424,
-    "rva_hex": "0x00275be0",
-    "name": "FUN_00675be0",
-    "old_size": 582,
-    "new_size": 591,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 2580240,
@@ -6598,14 +5878,6 @@
     "old_size": 191,
     "new_size": 194,
     "reason": "RET imm16 (08 00)"
-  },
-  {
-    "rva": 2582016,
-    "rva_hex": "0x00276600",
-    "name": "FUN_00676600",
-    "old_size": 873,
-    "new_size": 886,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 2583216,
@@ -6656,14 +5928,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 2594048,
-    "rva_hex": "0x00279500",
-    "name": "FUN_00679500",
-    "old_size": 478,
-    "new_size": 485,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 2594656,
     "rva_hex": "0x00279760",
     "name": "FUN_00679760",
@@ -6694,14 +5958,6 @@
     "old_size": 38,
     "new_size": 56,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 2600384,
-    "rva_hex": "0x0027adc0",
-    "name": "FUN_0067adc0",
-    "old_size": 60,
-    "new_size": 63,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 2601808,
@@ -7128,14 +6384,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 2674032,
-    "rva_hex": "0x0028cd70",
-    "name": "FUN_0068cd70",
-    "old_size": 60,
-    "new_size": 63,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 2675056,
     "rva_hex": "0x0028d170",
     "name": "FUN_0068d170",
@@ -7213,7 +6461,7 @@
     "name": "FUN_00691ab0",
     "old_size": 145,
     "new_size": 152,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 2693968,
@@ -7221,7 +6469,7 @@
     "name": "FUN_00691b50",
     "old_size": 150,
     "new_size": 157,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 2695408,
@@ -7510,14 +6758,6 @@
     "old_size": 272,
     "new_size": 275,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 2780912,
-    "rva_hex": "0x002a6ef0",
-    "name": "FUN_006a6ef0",
-    "old_size": 496,
-    "new_size": 505,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 2781424,
@@ -7904,14 +7144,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 2871472,
-    "rva_hex": "0x002bd0b0",
-    "name": "FUN_006bd0b0",
-    "old_size": 49,
-    "new_size": 52,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 2873680,
     "rva_hex": "0x002bd950",
     "name": "FUN_006bd950",
@@ -7976,22 +7208,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 2885216,
-    "rva_hex": "0x002c0660",
-    "name": "FUN_006c0660",
-    "old_size": 88,
-    "new_size": 91,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 2888000,
-    "rva_hex": "0x002c1140",
-    "name": "FUN_006c1140",
-    "old_size": 155,
-    "new_size": 158,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 2894560,
     "rva_hex": "0x002c2ae0",
     "name": "FUN_006c2ae0",
@@ -8045,7 +7261,7 @@
     "name": "FUN_006c55c0",
     "old_size": 859,
     "new_size": 870,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 2906512,
@@ -8094,14 +7310,6 @@
     "old_size": 43,
     "new_size": 46,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 2912656,
-    "rva_hex": "0x002c7190",
-    "name": "FUN_006c7190",
-    "old_size": 67,
-    "new_size": 70,
-    "reason": "epilogue continuation (b001 \u2026 terminator)"
   },
   {
     "rva": 2917424,
@@ -8520,14 +7728,6 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
-    "rva": 3015264,
-    "rva_hex": "0x002e0260",
-    "name": "FUN_006e0260",
-    "old_size": 107,
-    "new_size": 117,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 3017664,
     "rva_hex": "0x002e0bc0",
     "name": "FUN_006e0bc0",
@@ -8584,14 +7784,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 3036320,
-    "rva_hex": "0x002e54a0",
-    "name": "FUN_006e54a0",
-    "old_size": 299,
-    "new_size": 305,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 3039040,
     "rva_hex": "0x002e5f40",
     "name": "FUN_006e5f40",
@@ -8605,15 +7797,7 @@
     "name": "FUN_006e5f70",
     "old_size": 56,
     "new_size": 59,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 3040704,
-    "rva_hex": "0x002e65c0",
-    "name": "FUN_006e65c0",
-    "old_size": 60,
-    "new_size": 63,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3042656,
@@ -8678,14 +7862,6 @@
     "old_size": 437,
     "new_size": 440,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 3055664,
-    "rva_hex": "0x002ea030",
-    "name": "FUN_006ea030",
-    "old_size": 581,
-    "new_size": 587,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 3057072,
@@ -8760,28 +7936,12 @@
     "reason": "RET imm16 (0c 00)"
   },
   {
-    "rva": 3073632,
-    "rva_hex": "0x002ee660",
-    "name": "FUN_006ee660",
-    "old_size": 206,
-    "new_size": 212,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 3074880,
-    "rva_hex": "0x002eeb40",
-    "name": "FUN_006eeb40",
-    "old_size": 38,
-    "new_size": 48,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
     "rva": 3074928,
     "rva_hex": "0x002eeb70",
     "name": "FUN_006eeb70",
     "old_size": 163,
     "new_size": 173,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3077328,
@@ -8806,14 +7966,6 @@
     "old_size": 931,
     "new_size": 934,
     "reason": "RET imm16 (10 00)"
-  },
-  {
-    "rva": 3091616,
-    "rva_hex": "0x002f2ca0",
-    "name": "FUN_006f2ca0",
-    "old_size": 67,
-    "new_size": 80,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 3091904,
@@ -8846,14 +7998,6 @@
     "old_size": 936,
     "new_size": 939,
     "reason": "RET imm16 (08 00)"
-  },
-  {
-    "rva": 3098544,
-    "rva_hex": "0x002f47b0",
-    "name": "FUN_006f47b0",
-    "old_size": 65,
-    "new_size": 71,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 3113440,
@@ -8976,28 +8120,12 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 3174448,
-    "rva_hex": "0x00307030",
-    "name": "FUN_00707030",
-    "old_size": 295,
-    "new_size": 304,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 3175200,
     "rva_hex": "0x00307320",
     "name": "FUN_00707320",
     "old_size": 33,
     "new_size": 36,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 3178256,
-    "rva_hex": "0x00307f10",
-    "name": "FUN_00707f10",
-    "old_size": 402,
-    "new_size": 408,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 3181968,
@@ -9168,20 +8296,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 3239696,
-    "rva_hex": "0x00316f10",
-    "name": "FUN_00716f10",
-    "old_size": 237,
-    "new_size": 243,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 3241952,
     "rva_hex": "0x003177e0",
     "name": "FUN_007177e0",
     "old_size": 171,
     "new_size": 177,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3244880,
@@ -9278,14 +8398,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 3254736,
-    "rva_hex": "0x0031a9d0",
-    "name": "FUN_0071a9d0",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 3255072,
@@ -9560,22 +8672,6 @@
     "reason": "RET imm16 (0c 00)"
   },
   {
-    "rva": 3296480,
-    "rva_hex": "0x00324ce0",
-    "name": "FUN_00724ce0",
-    "old_size": 151,
-    "new_size": 154,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 3297968,
-    "rva_hex": "0x003252b0",
-    "name": "FUN_007252b0",
-    "old_size": 60,
-    "new_size": 63,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 3300624,
     "rva_hex": "0x00325d10",
     "name": "FUN_00725d10",
@@ -9606,14 +8702,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 3303248,
-    "rva_hex": "0x00326750",
-    "name": "FUN_00726750",
-    "old_size": 121,
-    "new_size": 127,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 3304144,
@@ -9654,14 +8742,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 3307216,
-    "rva_hex": "0x003276d0",
-    "name": "FUN_007276d0",
-    "old_size": 121,
-    "new_size": 127,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 3307536,
@@ -9741,7 +8821,7 @@
     "name": "FUN_0072b9c0",
     "old_size": 139,
     "new_size": 146,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3324512,
@@ -9749,7 +8829,7 @@
     "name": "FUN_0072ba60",
     "old_size": 139,
     "new_size": 146,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3325376,
@@ -9784,14 +8864,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 3329744,
-    "rva_hex": "0x0032ced0",
-    "name": "FUN_0072ced0",
-    "old_size": 148,
-    "new_size": 154,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 3331040,
     "rva_hex": "0x0032d3e0",
     "name": "FUN_0072d3e0",
@@ -9821,7 +8893,7 @@
     "name": "FUN_0072d500",
     "old_size": 86,
     "new_size": 92,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3331424,
@@ -9984,14 +9056,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 3348208,
-    "rva_hex": "0x003316f0",
-    "name": "FUN_007316f0",
-    "old_size": 473,
-    "new_size": 479,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 3348720,
     "rva_hex": "0x003318f0",
     "name": "FUN_007318f0",
@@ -10030,14 +9094,6 @@
     "old_size": 690,
     "new_size": 693,
     "reason": "RET imm16 (08 00)"
-  },
-  {
-    "rva": 3355776,
-    "rva_hex": "0x00333480",
-    "name": "FUN_00733480",
-    "old_size": 704,
-    "new_size": 714,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 3356496,
@@ -10213,7 +9269,7 @@
     "name": "FUN_00741d10",
     "old_size": 153,
     "new_size": 159,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3415856,
@@ -10325,7 +9381,7 @@
     "name": "FUN_00746170",
     "old_size": 87,
     "new_size": 90,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5b5e \u2026 terminator)"
   },
   {
     "rva": 3434128,
@@ -10405,7 +9461,7 @@
     "name": "FUN_00749ec0",
     "old_size": 56,
     "new_size": 59,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5b5e \u2026 terminator)"
   },
   {
     "rva": 3452896,
@@ -10445,7 +9501,7 @@
     "name": "FUN_0074c0e0",
     "old_size": 39,
     "new_size": 42,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3457296,
@@ -10453,7 +9509,7 @@
     "name": "FUN_0074c110",
     "old_size": 32,
     "new_size": 35,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3459024,
@@ -10613,7 +9669,7 @@
     "name": "FUN_00756000",
     "old_size": 143,
     "new_size": 149,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3499360,
@@ -10717,7 +9773,7 @@
     "name": "FUN_0075c780",
     "old_size": 34,
     "new_size": 37,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3524896,
@@ -10848,14 +9904,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 3546256,
-    "rva_hex": "0x00361c90",
-    "name": "FUN_00761c90",
-    "old_size": 1120,
-    "new_size": 1127,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 3547504,
     "rva_hex": "0x00362170",
     "name": "FUN_00762170",
@@ -10877,7 +9925,7 @@
     "name": "FUN_007623a0",
     "old_size": 190,
     "new_size": 199,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3548896,
@@ -10901,7 +9949,7 @@
     "name": "FUN_00762dd0",
     "old_size": 680,
     "new_size": 690,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3552064,
@@ -10958,14 +10006,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 3575728,
-    "rva_hex": "0x00368fb0",
-    "name": "FUN_00768fb0",
-    "old_size": 65,
-    "new_size": 71,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 3578384,
@@ -11069,7 +10109,7 @@
     "name": "FUN_00775480",
     "old_size": 141,
     "new_size": 147,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3628032,
@@ -11464,22 +10504,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 3694224,
-    "rva_hex": "0x00385e90",
-    "name": "FUN_00785e90",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 3695776,
-    "rva_hex": "0x003864a0",
-    "name": "FUN_007864a0",
-    "old_size": 178,
-    "new_size": 181,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 3696576,
     "rva_hex": "0x003867c0",
     "name": "FUN_007867c0",
@@ -11606,14 +10630,6 @@
     "old_size": 309,
     "new_size": 316,
     "reason": "epilogue continuation (32c0 \u2026 terminator)"
-  },
-  {
-    "rva": 3756567,
-    "rva_hex": "0x00395217",
-    "name": "Catch_All@00795217",
-    "old_size": 58,
-    "new_size": 64,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
   },
   {
     "rva": 3763568,
@@ -11750,22 +10766,6 @@
     "old_size": 51,
     "new_size": 54,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 3797184,
-    "rva_hex": "0x0039f0c0",
-    "name": "FUN_0079f0c0",
-    "old_size": 64,
-    "new_size": 67,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 3798560,
-    "rva_hex": "0x0039f620",
-    "name": "FUN_0079f620",
-    "old_size": 60,
-    "new_size": 63,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 3799888,
@@ -12016,14 +11016,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 3861728,
-    "rva_hex": "0x003aece0",
-    "name": "FUN_007aece0",
-    "old_size": 118,
-    "new_size": 124,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 3890656,
     "rva_hex": "0x003b5de0",
     "name": "FUN_007b5de0",
@@ -12032,28 +11024,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 3911392,
-    "rva_hex": "0x003baee0",
-    "name": "FUN_007baee0",
-    "old_size": 261,
-    "new_size": 273,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 3917280,
-    "rva_hex": "0x003bc5e0",
-    "name": "FUN_007bc5e0",
-    "old_size": 1218,
-    "new_size": 1225,
-    "reason": "epilogue continuation (b001 \u2026 terminator)"
-  },
-  {
     "rva": 3919200,
     "rva_hex": "0x003bcd60",
     "name": "FUN_007bcd60",
     "old_size": 3720,
     "new_size": 3722,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
+    "reason": "epilogue continuation (5dc3 \u2026 terminator)"
   },
   {
     "rva": 3927728,
@@ -12069,15 +11045,7 @@
     "name": "FUN_007c2cf0",
     "old_size": 1380,
     "new_size": 1387,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 3947904,
-    "rva_hex": "0x003c3d80",
-    "name": "FUN_007c3d80",
-    "old_size": 1045,
-    "new_size": 1057,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 3955376,
@@ -12088,20 +11056,12 @@
     "reason": "RET (c3)"
   },
   {
-    "rva": 3977728,
-    "rva_hex": "0x003cb200",
-    "name": "FUN_007cb200",
-    "old_size": 558,
-    "new_size": 565,
-    "reason": "epilogue continuation (b001 \u2026 terminator)"
-  },
-  {
     "rva": 3994848,
     "rva_hex": "0x003cf4e0",
     "name": "FUN_007cf4e0",
     "old_size": 1747,
     "new_size": 1749,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
+    "reason": "epilogue continuation (5dc3 \u2026 terminator)"
   },
   {
     "rva": 4030128,
@@ -12120,36 +11080,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 4070352,
-    "rva_hex": "0x003e1bd0",
-    "name": "FUN_007e1bd0",
-    "old_size": 670,
-    "new_size": 678,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 4109776,
-    "rva_hex": "0x003eb5d0",
-    "name": "FUN_007eb5d0",
-    "old_size": 558,
-    "new_size": 564,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 4116256,
     "rva_hex": "0x003ecf20",
     "name": "FUN_007ecf20",
     "old_size": 1196,
     "new_size": 1198,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 4117552,
-    "rva_hex": "0x003ed430",
-    "name": "FUN_007ed430",
-    "old_size": 636,
-    "new_size": 652,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5dc3 \u2026 terminator)"
   },
   {
     "rva": 4119488,
@@ -12182,14 +11118,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 4136448,
-    "rva_hex": "0x003f1e00",
-    "name": "FUN_007f1e00",
-    "old_size": 270,
-    "new_size": 276,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 4137584,
@@ -12288,36 +11216,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 4174800,
-    "rva_hex": "0x003fb3d0",
-    "name": "FUN_007fb3d0",
-    "old_size": 528,
-    "new_size": 536,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 4175648,
     "rva_hex": "0x003fb720",
     "name": "FUN_007fb720",
     "old_size": 174,
     "new_size": 177,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 4179264,
-    "rva_hex": "0x003fc540",
-    "name": "FUN_007fc540",
-    "old_size": 649,
-    "new_size": 658,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 4179936,
-    "rva_hex": "0x003fc7e0",
-    "name": "FUN_007fc7e0",
-    "old_size": 525,
-    "new_size": 534,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 4188544,
@@ -12334,14 +11238,6 @@
     "old_size": 68,
     "new_size": 74,
     "reason": "epilogue continuation (8bc6 \u2026 terminator)"
-  },
-  {
-    "rva": 4195456,
-    "rva_hex": "0x00400480",
-    "name": "FUN_00800480",
-    "old_size": 189,
-    "new_size": 192,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 4196768,
@@ -12456,20 +11352,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 4213056,
-    "rva_hex": "0x00404940",
-    "name": "FUN_00804940",
-    "old_size": 255,
-    "new_size": 261,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 4226864,
     "rva_hex": "0x00407f30",
     "name": "FUN_00807f30",
     "old_size": 61,
     "new_size": 64,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 4227088,
@@ -12592,14 +11480,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 4259200,
-    "rva_hex": "0x0040fd80",
-    "name": "FUN_0080fd80",
-    "old_size": 286,
-    "new_size": 292,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 4260480,
     "rva_hex": "0x00410280",
     "name": "FUN_00810280",
@@ -12678,14 +11558,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 4292640,
-    "rva_hex": "0x00418020",
-    "name": "FUN_00818020",
-    "old_size": 367,
-    "new_size": 373,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 4294720,
@@ -12784,14 +11656,6 @@
     "reason": "RET imm16 (0c 00)"
   },
   {
-    "rva": 4308016,
-    "rva_hex": "0x0041bc30",
-    "name": "FUN_0081bc30",
-    "old_size": 65,
-    "new_size": 71,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 4310496,
     "rva_hex": "0x0041c5e0",
     "name": "FUN_0081c5e0",
@@ -12806,14 +11670,6 @@
     "old_size": 36,
     "new_size": 52,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 4312496,
-    "rva_hex": "0x0041cdb0",
-    "name": "FUN_0081cdb0",
-    "old_size": 174,
-    "new_size": 185,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 4312992,
@@ -12853,7 +11709,7 @@
     "name": "FUN_00822c10",
     "old_size": 134,
     "new_size": 140,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 4341568,
@@ -12997,7 +11853,7 @@
     "name": "FUN_0082ba00",
     "old_size": 56,
     "new_size": 59,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 4373472,
@@ -13464,14 +12320,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 4410960,
-    "rva_hex": "0x00434e50",
-    "name": "FUN_00834e50",
-    "old_size": 1015,
-    "new_size": 1023,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 4422032,
     "rva_hex": "0x00437990",
     "name": "FUN_00837990",
@@ -13494,22 +12342,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 4423792,
-    "rva_hex": "0x00438070",
-    "name": "FUN_00838070",
-    "old_size": 67,
-    "new_size": 80,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 4425088,
-    "rva_hex": "0x00438580",
-    "name": "FUN_00838580",
-    "old_size": 538,
-    "new_size": 544,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 4426832,
@@ -13744,14 +12576,6 @@
     "reason": "RET imm16 (14 00)"
   },
   {
-    "rva": 4512688,
-    "rva_hex": "0x0044dbb0",
-    "name": "FUN_0084dbb0",
-    "old_size": 183,
-    "new_size": 189,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 4513760,
     "rva_hex": "0x0044dfe0",
     "name": "FUN_0084dfe0",
@@ -13766,14 +12590,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 4515408,
-    "rva_hex": "0x0044e650",
-    "name": "FUN_0084e650",
-    "old_size": 292,
-    "new_size": 299,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 4516304,
@@ -13798,14 +12614,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 4519472,
-    "rva_hex": "0x0044f630",
-    "name": "FUN_0084f630",
-    "old_size": 292,
-    "new_size": 299,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 4520784,
@@ -13976,14 +12784,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 4551376,
-    "rva_hex": "0x004572d0",
-    "name": "FUN_008572d0",
-    "old_size": 445,
-    "new_size": 452,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 4554928,
     "rva_hex": "0x004580b0",
     "name": "FUN_008580b0",
@@ -13998,14 +12798,6 @@
     "old_size": 63,
     "new_size": 66,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 4557312,
-    "rva_hex": "0x00458a00",
-    "name": "FUN_00858a00",
-    "old_size": 948,
-    "new_size": 957,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 4559312,
@@ -14408,14 +13200,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 4607344,
-    "rva_hex": "0x00464d70",
-    "name": "FUN_00864d70",
-    "old_size": 65,
-    "new_size": 71,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 4607744,
     "rva_hex": "0x00464f00",
     "name": "FUN_00864f00",
@@ -14430,14 +13214,6 @@
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 4608576,
-    "rva_hex": "0x00465240",
-    "name": "FUN_00865240",
-    "old_size": 175,
-    "new_size": 178,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 4609792,
@@ -14534,14 +13310,6 @@
     "old_size": 62,
     "new_size": 68,
     "reason": "epilogue continuation (8bc6 \u2026 terminator)"
-  },
-  {
-    "rva": 4634064,
-    "rva_hex": "0x0046b5d0",
-    "name": "FUN_0086b5d0",
-    "old_size": 237,
-    "new_size": 242,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 4634560,
@@ -14670,14 +13438,6 @@
     "old_size": 36,
     "new_size": 52,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 4670464,
-    "rva_hex": "0x00474400",
-    "name": "FUN_00874400",
-    "old_size": 60,
-    "new_size": 63,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 4672912,
@@ -14934,14 +13694,6 @@
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 4741056,
-    "rva_hex": "0x004857c0",
-    "name": "FUN_008857c0",
-    "old_size": 178,
-    "new_size": 181,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 4741376,
@@ -15232,14 +13984,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 4774544,
-    "rva_hex": "0x0048da90",
-    "name": "FUN_0088da90",
-    "old_size": 404,
-    "new_size": 413,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 4775808,
     "rva_hex": "0x0048df80",
     "name": "FUN_0088df80",
@@ -15397,7 +14141,7 @@
     "name": "FUN_00891fd0",
     "old_size": 373,
     "new_size": 382,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 4795744,
@@ -15829,7 +14573,7 @@
     "name": "FUN_0089c0c0",
     "old_size": 90,
     "new_size": 93,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5b5e \u2026 terminator)"
   },
   {
     "rva": 4833568,
@@ -15837,7 +14581,7 @@
     "name": "FUN_0089c120",
     "old_size": 56,
     "new_size": 59,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5b5e \u2026 terminator)"
   },
   {
     "rva": 4835936,
@@ -15869,7 +14613,7 @@
     "name": "FUN_0089cf80",
     "old_size": 43,
     "new_size": 46,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 4838496,
@@ -15877,7 +14621,7 @@
     "name": "FUN_0089d460",
     "old_size": 130,
     "new_size": 136,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 4848192,
@@ -15917,7 +14661,7 @@
     "name": "FUN_008a2970",
     "old_size": 58,
     "new_size": 61,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5b \u2026 terminator)"
   },
   {
     "rva": 4862480,
@@ -15965,7 +14709,7 @@
     "name": "FUN_008a8340",
     "old_size": 143,
     "new_size": 149,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 4883840,
@@ -16040,36 +14784,12 @@
     "reason": "RET imm16 (0c 00)"
   },
   {
-    "rva": 4893568,
-    "rva_hex": "0x004aab80",
-    "name": "FUN_008aab80",
-    "old_size": 60,
-    "new_size": 63,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 4893632,
     "rva_hex": "0x004aabc0",
     "name": "FUN_008aabc0",
     "old_size": 62,
     "new_size": 65,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 4893712,
-    "rva_hex": "0x004aac10",
-    "name": "FUN_008aac10",
-    "old_size": 71,
-    "new_size": 74,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 4893824,
-    "rva_hex": "0x004aac80",
-    "name": "FUN_008aac80",
-    "old_size": 60,
-    "new_size": 63,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 4894608,
@@ -16160,14 +14880,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 4931792,
-    "rva_hex": "0x004b40d0",
-    "name": "FUN_008b40d0",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 4931968,
     "rva_hex": "0x004b4180",
     "name": "FUN_008b4180",
@@ -16248,28 +14960,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 4947488,
-    "rva_hex": "0x004b7e20",
-    "name": "FUN_008b7e20",
-    "old_size": 50,
-    "new_size": 53,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 4948272,
     "rva_hex": "0x004b8130",
     "name": "FUN_008b8130",
     "old_size": 492,
     "new_size": 495,
     "reason": "RET imm16 (14 00)"
-  },
-  {
-    "rva": 4949904,
-    "rva_hex": "0x004b8790",
-    "name": "FUN_008b8790",
-    "old_size": 60,
-    "new_size": 63,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 4950064,
@@ -16296,36 +14992,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 4952784,
-    "rva_hex": "0x004b92d0",
-    "name": "FUN_008b92d0",
-    "old_size": 658,
-    "new_size": 665,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 4954032,
-    "rva_hex": "0x004b97b0",
-    "name": "FUN_008b97b0",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 4954144,
     "rva_hex": "0x004b9820",
     "name": "FUN_008b9820",
     "old_size": 17,
     "new_size": 29,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 4954176,
-    "rva_hex": "0x004b9840",
-    "name": "FUN_008b9840",
-    "old_size": 234,
-    "new_size": 241,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 4954432,
@@ -16344,14 +15016,6 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
-    "rva": 4958992,
-    "rva_hex": "0x004bab10",
-    "name": "FUN_008bab10",
-    "old_size": 275,
-    "new_size": 282,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 4959280,
     "rva_hex": "0x004bac30",
     "name": "FUN_008bac30",
@@ -16366,14 +15030,6 @@
     "old_size": 633,
     "new_size": 636,
     "reason": "RET imm16 (08 00)"
-  },
-  {
-    "rva": 4963776,
-    "rva_hex": "0x004bbdc0",
-    "name": "FUN_008bbdc0",
-    "old_size": 234,
-    "new_size": 241,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 4964032,
@@ -16405,15 +15061,7 @@
     "name": "FUN_008be0a0",
     "old_size": 121,
     "new_size": 127,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 4972832,
-    "rva_hex": "0x004be120",
-    "name": "FUN_008be120",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 4973072,
@@ -16597,7 +15245,7 @@
     "name": "FUN_008cd550",
     "old_size": 134,
     "new_size": 140,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 5037376,
@@ -16712,20 +15360,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 5061344,
-    "rva_hex": "0x004d3ae0",
-    "name": "FUN_008d3ae0",
-    "old_size": 87,
-    "new_size": 94,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 5061440,
     "rva_hex": "0x004d3b40",
     "name": "FUN_008d3b40",
     "old_size": 44,
     "new_size": 47,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 5061664,
@@ -16784,22 +15424,6 @@
     "reason": "RET imm16 (14 00)"
   },
   {
-    "rva": 5092576,
-    "rva_hex": "0x004db4e0",
-    "name": "FUN_008db4e0",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 5093024,
-    "rva_hex": "0x004db6a0",
-    "name": "FUN_008db6a0",
-    "old_size": 193,
-    "new_size": 199,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 5095344,
     "rva_hex": "0x004dbfb0",
     "name": "FUN_008dbfb0",
@@ -16848,14 +15472,6 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
-    "rva": 5103600,
-    "rva_hex": "0x004ddff0",
-    "name": "FUN_008ddff0",
-    "old_size": 187,
-    "new_size": 192,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 5107888,
     "rva_hex": "0x004df0b0",
     "name": "FUN_008df0b0",
@@ -16894,14 +15510,6 @@
     "old_size": 120,
     "new_size": 135,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 5115968,
-    "rva_hex": "0x004e1040",
-    "name": "FUN_008e1040",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 5119152,
@@ -16992,14 +15600,6 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
-    "rva": 5149552,
-    "rva_hex": "0x004e9370",
-    "name": "FUN_008e9370",
-    "old_size": 246,
-    "new_size": 253,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 5155504,
     "rva_hex": "0x004eaab0",
     "name": "FUN_008eaab0",
@@ -17013,7 +15613,7 @@
     "name": "FUN_008eacc0",
     "old_size": 147,
     "new_size": 153,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 5161776,
@@ -17112,22 +15712,6 @@
     "reason": "RET imm16 (1c 00)"
   },
   {
-    "rva": 5184384,
-    "rva_hex": "0x004f1b80",
-    "name": "FUN_008f1b80",
-    "old_size": 239,
-    "new_size": 245,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 5185024,
-    "rva_hex": "0x004f1e00",
-    "name": "FUN_008f1e00",
-    "old_size": 517,
-    "new_size": 526,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 5185840,
     "rva_hex": "0x004f2130",
     "name": "FUN_008f2130",
@@ -17166,22 +15750,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 5193104,
-    "rva_hex": "0x004f3d90",
-    "name": "FUN_008f3d90",
-    "old_size": 50,
-    "new_size": 53,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 5193168,
-    "rva_hex": "0x004f3dd0",
-    "name": "FUN_008f3dd0",
-    "old_size": 50,
-    "new_size": 53,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 5193616,
@@ -17318,14 +15886,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 5236560,
-    "rva_hex": "0x004fe750",
-    "name": "FUN_008fe750",
-    "old_size": 193,
-    "new_size": 199,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 5238832,
@@ -17544,36 +16104,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 5256064,
-    "rva_hex": "0x00503380",
-    "name": "FUN_00903380",
-    "old_size": 57,
-    "new_size": 60,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 5257686,
-    "rva_hex": "0x005039d6",
-    "name": "FUN_009039d6",
-    "old_size": 56,
-    "new_size": 67,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 5258419,
     "rva_hex": "0x00503cb3",
     "name": "FUN_00903cb3",
     "old_size": 61,
     "new_size": 62,
     "reason": "RET (c3)"
-  },
-  {
-    "rva": 5261865,
-    "rva_hex": "0x00504a29",
-    "name": "_JumpToContinuation",
-    "old_size": 43,
-    "new_size": 48,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 5263268,
@@ -17589,15 +16125,7 @@
     "name": "__strcats",
     "old_size": 59,
     "new_size": 62,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 5270390,
-    "rva_hex": "0x00506b76",
-    "name": "__expandlocale",
-    "old_size": 457,
-    "new_size": 468,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5f5b \u2026 terminator)"
   },
   {
     "rva": 5276941,
@@ -17608,20 +16136,12 @@
     "reason": "RET (c3)"
   },
   {
-    "rva": 5278896,
-    "rva_hex": "0x00508cb0",
-    "name": "shortsort",
-    "old_size": 132,
-    "new_size": 135,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 5280957,
     "rva_hex": "0x005094bd",
     "name": "FUN_009094bd",
     "old_size": 110,
     "new_size": 114,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 5282669,
@@ -17630,14 +16150,6 @@
     "old_size": 290,
     "new_size": 291,
     "reason": "RET (c3)"
-  },
-  {
-    "rva": 5289499,
-    "rva_hex": "0x0050b61b",
-    "name": "_strerror",
-    "old_size": 100,
-    "new_size": 103,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 5297030,
@@ -17664,14 +16176,6 @@
     "reason": "epilogue continuation (33c0 \u2026 terminator)"
   },
   {
-    "rva": 5316148,
-    "rva_hex": "0x00511e34",
-    "name": "__cftoe2_l",
-    "old_size": 362,
-    "new_size": 365,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 5324419,
     "rva_hex": "0x00513e83",
     "name": "___heap_select",
@@ -17680,20 +16184,12 @@
     "reason": "RET (c3)"
   },
   {
-    "rva": 5326049,
-    "rva_hex": "0x005144e1",
-    "name": "FUN_009144e1",
-    "old_size": 111,
-    "new_size": 115,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 5332082,
     "rva_hex": "0x00515c72",
     "name": "___get_qualified_locale",
     "old_size": 478,
     "new_size": 483,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 5338325,
@@ -17702,14 +16198,6 @@
     "old_size": 439,
     "new_size": 440,
     "reason": "RET (c3)"
-  },
-  {
-    "rva": 5340529,
-    "rva_hex": "0x00517d71",
-    "name": "FUN_00917d71",
-    "old_size": 304,
-    "new_size": 309,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 5347920,
@@ -17728,14 +16216,6 @@
     "reason": "RET (c3)"
   },
   {
-    "rva": 5362093,
-    "rva_hex": "0x0051d1ad",
-    "name": "cvtdate",
-    "old_size": 498,
-    "new_size": 501,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 5383304,
     "rva_hex": "0x00522488",
     "name": "___set_fpsr_sse2",
@@ -17744,84 +16224,12 @@
     "reason": "RET (c3)"
   },
   {
-    "rva": 5419665,
-    "rva_hex": "0x0052b291",
-    "name": "FUN_0092b291",
-    "old_size": 891,
-    "new_size": 905,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 5433597,
-    "rva_hex": "0x0052e8fd",
-    "name": "__strdup",
-    "old_size": 77,
-    "new_size": 80,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 5444960,
     "rva_hex": "0x00531560",
     "name": "FUN_00931560",
     "old_size": 482,
     "new_size": 483,
     "reason": "RET (c3)"
-  },
-  {
-    "rva": 5449232,
-    "rva_hex": "0x00532610",
-    "name": "FUN_00932610",
-    "old_size": 318,
-    "new_size": 324,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 5452832,
-    "rva_hex": "0x00533420",
-    "name": "FUN_00933420",
-    "old_size": 140,
-    "new_size": 143,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 5468224,
-    "rva_hex": "0x00537040",
-    "name": "FUN_00937040",
-    "old_size": 438,
-    "new_size": 441,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 5470992,
-    "rva_hex": "0x00537b10",
-    "name": "FUN_00937b10",
-    "old_size": 375,
-    "new_size": 378,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 5507952,
-    "rva_hex": "0x00540b70",
-    "name": "FUN_00940b70",
-    "old_size": 282,
-    "new_size": 289,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 5509232,
-    "rva_hex": "0x00541070",
-    "name": "FUN_00941070",
-    "old_size": 461,
-    "new_size": 468,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 5516256,
-    "rva_hex": "0x00542be0",
-    "name": "FUN_00942be0",
-    "old_size": 516,
-    "new_size": 522,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 5526576,
@@ -17840,20 +16248,12 @@
     "reason": "epilogue continuation (8bc6 \u2026 terminator)"
   },
   {
-    "rva": 5528528,
-    "rva_hex": "0x00545bd0",
-    "name": "FUN_00945bd0",
-    "old_size": 625,
-    "new_size": 631,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 5540592,
     "rva_hex": "0x00548af0",
     "name": "FUN_00948af0",
     "old_size": 117,
     "new_size": 124,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 5549120,
@@ -17920,14 +16320,6 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
-    "rva": 5558800,
-    "rva_hex": "0x0054d210",
-    "name": "FUN_0094d210",
-    "old_size": 218,
-    "new_size": 224,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 5586288,
     "rva_hex": "0x00553d70",
     "name": "FUN_00953d70",
@@ -17966,14 +16358,6 @@
     "old_size": 144,
     "new_size": 147,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 5627344,
-    "rva_hex": "0x0055ddd0",
-    "name": "FUN_0095ddd0",
-    "old_size": 4816,
-    "new_size": 4824,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 5642768,
@@ -18101,7 +16485,7 @@
     "name": "FUN_00973ae0",
     "old_size": 37,
     "new_size": 40,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 5716752,
@@ -18109,7 +16493,7 @@
     "name": "FUN_00973b10",
     "old_size": 37,
     "new_size": 40,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 5725600,
@@ -18152,14 +16536,6 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 5744736,
-    "rva_hex": "0x0057a860",
-    "name": "FUN_0097a860",
-    "old_size": 187,
-    "new_size": 194,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 5748112,
     "rva_hex": "0x0057b590",
     "name": "FUN_0097b590",
@@ -18174,14 +16550,6 @@
     "old_size": 910,
     "new_size": 913,
     "reason": "RET imm16 (14 00)"
-  },
-  {
-    "rva": 5766384,
-    "rva_hex": "0x0057fcf0",
-    "name": "FUN_0097fcf0",
-    "old_size": 638,
-    "new_size": 645,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 5768176,
@@ -18205,15 +16573,7 @@
     "name": "FUN_009880a0",
     "old_size": 165,
     "new_size": 171,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 5801744,
-    "rva_hex": "0x00588710",
-    "name": "FUN_00988710",
-    "old_size": 180,
-    "new_size": 188,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 5804256,
@@ -18277,7 +16637,7 @@
     "name": "FUN_0098f0e0",
     "old_size": 79,
     "new_size": 82,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 5845680,
@@ -18294,14 +16654,6 @@
     "old_size": 29,
     "new_size": 41,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 5882336,
-    "rva_hex": "0x0059c1e0",
-    "name": "FUN_0099c1e0",
-    "old_size": 453,
-    "new_size": 459,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 5890160,
@@ -18344,14 +16696,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 5905840,
-    "rva_hex": "0x005a1db0",
-    "name": "FUN_009a1db0",
-    "old_size": 219,
-    "new_size": 225,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 5923696,
     "rva_hex": "0x005a6370",
     "name": "FUN_009a6370",
@@ -18389,7 +16733,7 @@
     "name": "FUN_009aaa70",
     "old_size": 32,
     "new_size": 35,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 5974400,
@@ -18549,7 +16893,7 @@
     "name": "FUN_009c04f0",
     "old_size": 117,
     "new_size": 120,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 6032688,
@@ -18574,14 +16918,6 @@
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 6035888,
-    "rva_hex": "0x005c19b0",
-    "name": "FUN_009c19b0",
-    "old_size": 204,
-    "new_size": 211,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 6046624,
@@ -18717,15 +17053,7 @@
     "name": "FUN_009ce430",
     "old_size": 326,
     "new_size": 333,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 6093024,
-    "rva_hex": "0x005cf8e0",
-    "name": "FUN_009cf8e0",
-    "old_size": 226,
-    "new_size": 233,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 6093744,
@@ -18893,15 +17221,7 @@
     "name": "FUN_009e43a0",
     "old_size": 311,
     "new_size": 317,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 6178176,
-    "rva_hex": "0x005e4580",
-    "name": "FUN_009e4580",
-    "old_size": 92,
-    "new_size": 98,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 6179088,
@@ -18910,14 +17230,6 @@
     "old_size": 77,
     "new_size": 80,
     "reason": "RET imm16 (08 00)"
-  },
-  {
-    "rva": 6185216,
-    "rva_hex": "0x005e6100",
-    "name": "FUN_009e6100",
-    "old_size": 218,
-    "new_size": 221,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 6188816,
@@ -18941,7 +17253,7 @@
     "name": "FUN_009e9d10",
     "old_size": 110,
     "new_size": 113,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5b5e \u2026 terminator)"
   },
   {
     "rva": 6206080,
@@ -18992,22 +17304,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 6222512,
-    "rva_hex": "0x005ef2b0",
-    "name": "FUN_009ef2b0",
-    "old_size": 191,
-    "new_size": 197,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 6223312,
-    "rva_hex": "0x005ef5d0",
-    "name": "FUN_009ef5d0",
-    "old_size": 191,
-    "new_size": 197,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 6226640,
     "rva_hex": "0x005f02d0",
     "name": "FUN_009f02d0",
@@ -19030,14 +17326,6 @@
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 6242192,
-    "rva_hex": "0x005f3f90",
-    "name": "FUN_009f3f90",
-    "old_size": 125,
-    "new_size": 130,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 6242336,
@@ -19118,14 +17406,6 @@
     "old_size": 67,
     "new_size": 70,
     "reason": "RET imm16 (08 00)"
-  },
-  {
-    "rva": 6338384,
-    "rva_hex": "0x0060b750",
-    "name": "FUN_00a0b750",
-    "old_size": 146,
-    "new_size": 153,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 6340144,
@@ -19277,7 +17557,7 @@
     "name": "FUN_00a22ff0",
     "old_size": 61,
     "new_size": 64,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 6438016,
@@ -19293,7 +17573,7 @@
     "name": "FUN_00a24330",
     "old_size": 61,
     "new_size": 64,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 6439792,
@@ -19301,7 +17581,7 @@
     "name": "FUN_00a24370",
     "old_size": 61,
     "new_size": 64,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 6442368,
@@ -19317,7 +17597,7 @@
     "name": "FUN_00a25770",
     "old_size": 61,
     "new_size": 64,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 6446016,
@@ -19368,14 +17648,6 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 6482464,
-    "rva_hex": "0x0062ea20",
-    "name": "FUN_00a2ea20",
-    "old_size": 115,
-    "new_size": 122,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 6482816,
     "rva_hex": "0x0062eb80",
     "name": "FUN_00a2eb80",
@@ -19392,14 +17664,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 6485648,
-    "rva_hex": "0x0062f690",
-    "name": "FUN_00a2f690",
-    "old_size": 415,
-    "new_size": 421,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 6486496,
     "rva_hex": "0x0062f9e0",
     "name": "FUN_00a2f9e0",
@@ -19413,7 +17677,7 @@
     "name": "FUN_00a31610",
     "old_size": 107,
     "new_size": 110,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 6494016,
@@ -19421,7 +17685,7 @@
     "name": "FUN_00a31740",
     "old_size": 107,
     "new_size": 110,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 6498032,
@@ -19437,7 +17701,7 @@
     "name": "FUN_00a37b40",
     "old_size": 102,
     "new_size": 105,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 6525584,
@@ -19446,14 +17710,6 @@
     "old_size": 949,
     "new_size": 952,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 6535136,
-    "rva_hex": "0x0063b7e0",
-    "name": "FUN_00a3b7e0",
-    "old_size": 394,
-    "new_size": 401,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 6562192,
@@ -19470,30 +17726,6 @@
     "old_size": 440,
     "new_size": 443,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 6646992,
-    "rva_hex": "0x00656cd0",
-    "name": "FUN_00a56cd0",
-    "old_size": 63,
-    "new_size": 66,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 6648064,
-    "rva_hex": "0x00657100",
-    "name": "FUN_00a57100",
-    "old_size": 103,
-    "new_size": 110,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 6648304,
-    "rva_hex": "0x006571f0",
-    "name": "FUN_00a571f0",
-    "old_size": 116,
-    "new_size": 123,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 6652880,
@@ -19536,28 +17768,12 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
-    "rva": 6689120,
-    "rva_hex": "0x00661160",
-    "name": "FUN_00a61160",
-    "old_size": 2775,
-    "new_size": 2781,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 6693808,
     "rva_hex": "0x006623b0",
     "name": "FUN_00a623b0",
     "old_size": 3133,
     "new_size": 3140,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 6700624,
-    "rva_hex": "0x00663e50",
-    "name": "FUN_00a63e50",
-    "old_size": 198,
-    "new_size": 206,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 6714224,
@@ -19574,22 +17790,6 @@
     "old_size": 503,
     "new_size": 504,
     "reason": "RET (c3)"
-  },
-  {
-    "rva": 6735328,
-    "rva_hex": "0x0066c5e0",
-    "name": "FUN_00a6c5e0",
-    "old_size": 709,
-    "new_size": 716,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 6764176,
-    "rva_hex": "0x00673690",
-    "name": "FUN_00a73690",
-    "old_size": 5304,
-    "new_size": 5312,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 6769488,
@@ -19624,28 +17824,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 6784528,
-    "rva_hex": "0x00678610",
-    "name": "FUN_00a78610",
-    "old_size": 2214,
-    "new_size": 2221,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 6806496,
     "rva_hex": "0x0067dbe0",
     "name": "FUN_00a7dbe0",
     "old_size": 1086,
     "new_size": 1087,
     "reason": "RET (c3)"
-  },
-  {
-    "rva": 6840832,
-    "rva_hex": "0x00686200",
-    "name": "FUN_00a86200",
-    "old_size": 125,
-    "new_size": 131,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 6841984,
@@ -19662,14 +17846,6 @@
     "old_size": 189,
     "new_size": 192,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 6857840,
-    "rva_hex": "0x0068a470",
-    "name": "FUN_00a8a470",
-    "old_size": 1165,
-    "new_size": 1172,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 6859216,
@@ -19704,20 +17880,12 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 6917136,
-    "rva_hex": "0x00698c10",
-    "name": "FUN_00a98c10",
-    "old_size": 1608,
-    "new_size": 1616,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 6982992,
     "rva_hex": "0x006a8d50",
     "name": "FUN_00aa8d50",
     "old_size": 35,
     "new_size": 38,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 6997744,
@@ -19726,14 +17894,6 @@
     "old_size": 614,
     "new_size": 617,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 7011104,
-    "rva_hex": "0x006afb20",
-    "name": "FUN_00aafb20",
-    "old_size": 119,
-    "new_size": 126,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 7011456,
@@ -19752,14 +17912,6 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 7061680,
-    "rva_hex": "0x006bc0b0",
-    "name": "FUN_00abc0b0",
-    "old_size": 135,
-    "new_size": 141,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 7062016,
     "rva_hex": "0x006bc200",
     "name": "FUN_00abc200",
@@ -19768,20 +17920,12 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
-    "rva": 7079840,
-    "rva_hex": "0x006c07a0",
-    "name": "FUN_00ac07a0",
-    "old_size": 125,
-    "new_size": 131,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 7084416,
     "rva_hex": "0x006c1980",
     "name": "FUN_00ac1980",
     "old_size": 580,
     "new_size": 588,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7089280,
@@ -19790,30 +17934,6 @@
     "old_size": 147,
     "new_size": 153,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 7090688,
-    "rva_hex": "0x006c3200",
-    "name": "FUN_00ac3200",
-    "old_size": 317,
-    "new_size": 323,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 7106656,
-    "rva_hex": "0x006c7060",
-    "name": "FUN_00ac7060",
-    "old_size": 160,
-    "new_size": 166,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 7109104,
-    "rva_hex": "0x006c79f0",
-    "name": "FUN_00ac79f0",
-    "old_size": 745,
-    "new_size": 748,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 7153936,
@@ -19952,28 +18072,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 7209392,
-    "rva_hex": "0x006e01b0",
-    "name": "FUN_00ae01b0",
-    "old_size": 64,
-    "new_size": 67,
-    "reason": "epilogue continuation (b001 \u2026 terminator)"
-  },
-  {
     "rva": 7216272,
     "rva_hex": "0x006e1c90",
     "name": "FUN_00ae1c90",
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 7252256,
-    "rva_hex": "0x006ea920",
-    "name": "FUN_00aea920",
-    "old_size": 208,
-    "new_size": 211,
-    "reason": "epilogue continuation (b001 \u2026 terminator)"
   },
   {
     "rva": 7255328,
@@ -19989,15 +18093,7 @@
     "name": "FUN_00aecee0",
     "old_size": 55,
     "new_size": 58,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 7266288,
-    "rva_hex": "0x006edff0",
-    "name": "FUN_00aedff0",
-    "old_size": 544,
-    "new_size": 556,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5b \u2026 terminator)"
   },
   {
     "rva": 7268752,
@@ -20133,7 +18229,7 @@
     "name": "FUN_00aff400",
     "old_size": 71,
     "new_size": 74,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7337504,
@@ -20141,7 +18237,7 @@
     "name": "FUN_00aff620",
     "old_size": 71,
     "new_size": 74,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7343472,
@@ -20181,7 +18277,7 @@
     "name": "FUN_00b054f0",
     "old_size": 340,
     "new_size": 347,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7368528,
@@ -20216,14 +18312,6 @@
     "reason": "RET imm16 (0c 00)"
   },
   {
-    "rva": 7394368,
-    "rva_hex": "0x0070d440",
-    "name": "FUN_00b0d440",
-    "old_size": 108,
-    "new_size": 111,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 7409088,
     "rva_hex": "0x00710dc0",
     "name": "FUN_00b10dc0",
@@ -20240,28 +18328,12 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 7412896,
-    "rva_hex": "0x00711ca0",
-    "name": "FUN_00b11ca0",
-    "old_size": 685,
-    "new_size": 693,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 7414240,
-    "rva_hex": "0x007121e0",
-    "name": "FUN_00b121e0",
-    "old_size": 1246,
-    "new_size": 1251,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 7420144,
     "rva_hex": "0x007138f0",
     "name": "FUN_00b138f0",
     "old_size": 443,
     "new_size": 447,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
+    "reason": "epilogue continuation (5dc2 \u2026 terminator)"
   },
   {
     "rva": 7436480,
@@ -20389,7 +18461,7 @@
     "name": "FUN_00b236e0",
     "old_size": 1125,
     "new_size": 1129,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
+    "reason": "epilogue continuation (5dc2 \u2026 terminator)"
   },
   {
     "rva": 7491808,
@@ -20424,14 +18496,6 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 7500544,
-    "rva_hex": "0x00727300",
-    "name": "FUN_00b27300",
-    "old_size": 143,
-    "new_size": 146,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 7501760,
     "rva_hex": "0x007277c0",
     "name": "FUN_00b277c0",
@@ -20445,7 +18509,7 @@
     "name": "FUN_00b2b120",
     "old_size": 396,
     "new_size": 404,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7518848,
@@ -20453,7 +18517,7 @@
     "name": "FUN_00b2ba80",
     "old_size": 396,
     "new_size": 404,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7553696,
@@ -20504,14 +18568,6 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
-    "rva": 7559344,
-    "rva_hex": "0x007358b0",
-    "name": "FUN_00b358b0",
-    "old_size": 948,
-    "new_size": 954,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 7561696,
     "rva_hex": "0x007361e0",
     "name": "FUN_00b361e0",
@@ -20549,15 +18605,7 @@
     "name": "FUN_00b3bcf0",
     "old_size": 2311,
     "new_size": 2318,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 7590368,
-    "rva_hex": "0x0073d1e0",
-    "name": "FUN_00b3d1e0",
-    "old_size": 3468,
-    "new_size": 3474,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7607280,
@@ -20565,23 +18613,7 @@
     "name": "FUN_00b413f0",
     "old_size": 234,
     "new_size": 242,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 7608736,
-    "rva_hex": "0x007419a0",
-    "name": "FUN_00b419a0",
-    "old_size": 276,
-    "new_size": 282,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 7609936,
-    "rva_hex": "0x00741e50",
-    "name": "FUN_00b41e50",
-    "old_size": 194,
-    "new_size": 202,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7610144,
@@ -20589,7 +18621,7 @@
     "name": "FUN_00b41f20",
     "old_size": 221,
     "new_size": 229,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7610768,
@@ -20597,7 +18629,7 @@
     "name": "FUN_00b42190",
     "old_size": 266,
     "new_size": 274,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7616704,
@@ -20606,14 +18638,6 @@
     "old_size": 355,
     "new_size": 361,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 7620080,
-    "rva_hex": "0x007445f0",
-    "name": "FUN_00b445f0",
-    "old_size": 267,
-    "new_size": 275,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 7620368,
@@ -20630,14 +18654,6 @@
     "old_size": 349,
     "new_size": 355,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 7621072,
-    "rva_hex": "0x007449d0",
-    "name": "FUN_00b449d0",
-    "old_size": 401,
-    "new_size": 408,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 7623008,
@@ -20664,20 +18680,12 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 7643280,
-    "rva_hex": "0x0074a090",
-    "name": "FUN_00b4a090",
-    "old_size": 135,
-    "new_size": 138,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 7645696,
     "rva_hex": "0x0074aa00",
     "name": "FUN_00b4aa00",
     "old_size": 47,
     "new_size": 50,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7646304,
@@ -20685,7 +18693,7 @@
     "name": "FUN_00b4ac60",
     "old_size": 126,
     "new_size": 129,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7647392,
@@ -20693,7 +18701,7 @@
     "name": "FUN_00b4b0a0",
     "old_size": 38,
     "new_size": 41,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7647440,
@@ -20752,22 +18760,6 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 7697856,
-    "rva_hex": "0x007575c0",
-    "name": "FUN_00b575c0",
-    "old_size": 116,
-    "new_size": 122,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 7698336,
-    "rva_hex": "0x007577a0",
-    "name": "FUN_00b577a0",
-    "old_size": 243,
-    "new_size": 250,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 7698592,
     "rva_hex": "0x007578a0",
     "name": "FUN_00b578a0",
@@ -20784,28 +18776,12 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
-    "rva": 7704192,
-    "rva_hex": "0x00758e80",
-    "name": "FUN_00b58e80",
-    "old_size": 643,
-    "new_size": 650,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 7705728,
     "rva_hex": "0x00759480",
     "name": "FUN_00b59480",
     "old_size": 1251,
     "new_size": 1266,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 7708176,
-    "rva_hex": "0x00759e10",
-    "name": "FUN_00b59e10",
-    "old_size": 778,
-    "new_size": 785,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7710320,
@@ -20838,22 +18814,6 @@
     "old_size": 508,
     "new_size": 514,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 7720928,
-    "rva_hex": "0x0075cfe0",
-    "name": "FUN_00b5cfe0",
-    "old_size": 422,
-    "new_size": 431,
-    "reason": "epilogue continuation (b001 \u2026 terminator)"
-  },
-  {
-    "rva": 7739408,
-    "rva_hex": "0x00761810",
-    "name": "FUN_00b61810",
-    "old_size": 1447,
-    "new_size": 1454,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 7750272,
@@ -20901,15 +18861,7 @@
     "name": "FUN_00b6d460",
     "old_size": 126,
     "new_size": 129,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 7796176,
-    "rva_hex": "0x0076f5d0",
-    "name": "FUN_00b6f5d0",
-    "old_size": 541,
-    "new_size": 547,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7801216,
@@ -20920,36 +18872,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 7804224,
-    "rva_hex": "0x00771540",
-    "name": "FUN_00b71540",
-    "old_size": 134,
-    "new_size": 137,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 7810592,
-    "rva_hex": "0x00772e20",
-    "name": "FUN_00b72e20",
-    "old_size": 448,
-    "new_size": 454,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 7811248,
-    "rva_hex": "0x007730b0",
-    "name": "FUN_00b730b0",
-    "old_size": 275,
-    "new_size": 278,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 7823344,
     "rva_hex": "0x00775ff0",
     "name": "FUN_00b75ff0",
     "old_size": 5598,
     "new_size": 5605,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7832688,
@@ -20957,7 +18885,7 @@
     "name": "FUN_00b78470",
     "old_size": 94,
     "new_size": 97,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7836176,
@@ -20966,14 +18894,6 @@
     "old_size": 52,
     "new_size": 55,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 7837728,
-    "rva_hex": "0x00779820",
-    "name": "FUN_00b79820",
-    "old_size": 247,
-    "new_size": 254,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 7843232,
@@ -21008,14 +18928,6 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 7857856,
-    "rva_hex": "0x0077e6c0",
-    "name": "FUN_00b7e6c0",
-    "old_size": 1027,
-    "new_size": 1034,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 7876912,
     "rva_hex": "0x00783130",
     "name": "FUN_00b83130",
@@ -21037,23 +18949,7 @@
     "name": "FUN_00b83930",
     "old_size": 512,
     "new_size": 521,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 7879872,
-    "rva_hex": "0x00783cc0",
-    "name": "FUN_00b83cc0",
-    "old_size": 1710,
-    "new_size": 1717,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 7881888,
-    "rva_hex": "0x007844a0",
-    "name": "FUN_00b844a0",
-    "old_size": 186,
-    "new_size": 194,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5b5e \u2026 terminator)"
   },
   {
     "rva": 7883632,
@@ -21096,22 +18992,6 @@
     "reason": "RET (c3)"
   },
   {
-    "rva": 7953024,
-    "rva_hex": "0x00795a80",
-    "name": "FUN_00b95a80",
-    "old_size": 485,
-    "new_size": 491,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 7954032,
-    "rva_hex": "0x00795e70",
-    "name": "FUN_00b95e70",
-    "old_size": 603,
-    "new_size": 611,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 7955248,
     "rva_hex": "0x00796330",
     "name": "FUN_00b96330",
@@ -21144,20 +19024,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 7958080,
-    "rva_hex": "0x00796e40",
-    "name": "FUN_00b96e40",
-    "old_size": 1143,
-    "new_size": 1157,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 7963616,
     "rva_hex": "0x007983e0",
     "name": "FUN_00b983e0",
     "old_size": 2678,
     "new_size": 2686,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 7970720,
@@ -21184,28 +19056,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 8002000,
-    "rva_hex": "0x007a19d0",
-    "name": "FUN_00ba19d0",
-    "old_size": 385,
-    "new_size": 392,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 8003248,
     "rva_hex": "0x007a1eb0",
     "name": "FUN_00ba1eb0",
     "old_size": 419,
     "new_size": 425,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
-  },
-  {
-    "rva": 8011344,
-    "rva_hex": "0x007a3e50",
-    "name": "FUN_00ba3e50",
-    "old_size": 7734,
-    "new_size": 7741,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 8019088,
@@ -21288,14 +19144,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 8112192,
-    "rva_hex": "0x007bc840",
-    "name": "FUN_00bbc840",
-    "old_size": 630,
-    "new_size": 637,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 8121808,
     "rva_hex": "0x007bedd0",
     "name": "FUN_00bbedd0",
@@ -21344,14 +19192,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 8195472,
-    "rva_hex": "0x007d0d90",
-    "name": "FUN_00bd0d90",
-    "old_size": 419,
-    "new_size": 425,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 8201504,
     "rva_hex": "0x007d2520",
     "name": "FUN_00bd2520",
@@ -21397,7 +19237,7 @@
     "name": "FUN_00bd4220",
     "old_size": 90,
     "new_size": 93,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5b5e \u2026 terminator)"
   },
   {
     "rva": 8209024,
@@ -21405,31 +19245,7 @@
     "name": "FUN_00bd4280",
     "old_size": 56,
     "new_size": 59,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 8211552,
-    "rva_hex": "0x007d4c60",
-    "name": "FUN_00bd4c60",
-    "old_size": 96,
-    "new_size": 102,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 8211664,
-    "rva_hex": "0x007d4cd0",
-    "name": "FUN_00bd4cd0",
-    "old_size": 96,
-    "new_size": 102,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 8224400,
-    "rva_hex": "0x007d7e90",
-    "name": "FUN_00bd7e90",
-    "old_size": 112,
-    "new_size": 118,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
+    "reason": "epilogue continuation (5b5e \u2026 terminator)"
   },
   {
     "rva": 8236000,
@@ -21526,14 +19342,6 @@
     "old_size": 33,
     "new_size": 36,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 8243392,
-    "rva_hex": "0x007dc8c0",
-    "name": "FUN_00bdc8c0",
-    "old_size": 423,
-    "new_size": 430,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 8243840,
@@ -21672,14 +19480,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 8275584,
-    "rva_hex": "0x007e4680",
-    "name": "FUN_00be4680",
-    "old_size": 168,
-    "new_size": 174,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 8275760,
     "rva_hex": "0x007e4730",
     "name": "FUN_00be4730",
@@ -21717,7 +19517,7 @@
     "name": "FUN_00be7330",
     "old_size": 108,
     "new_size": 112,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5ec2 \u2026 terminator)"
   },
   {
     "rva": 8287152,
@@ -21758,14 +19558,6 @@
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 8299056,
-    "rva_hex": "0x007ea230",
-    "name": "FUN_00bea230",
-    "old_size": 78,
-    "new_size": 81,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 8299152,
@@ -21896,22 +19688,6 @@
     "reason": "RET imm16 (10 00)"
   },
   {
-    "rva": 8318288,
-    "rva_hex": "0x007eed50",
-    "name": "FUN_00beed50",
-    "old_size": 738,
-    "new_size": 750,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 8320496,
-    "rva_hex": "0x007ef5f0",
-    "name": "FUN_00bef5f0",
-    "old_size": 237,
-    "new_size": 240,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 8321968,
     "rva_hex": "0x007efbb0",
     "name": "FUN_00befbb0",
@@ -21925,7 +19701,7 @@
     "name": "FUN_00bf04c0",
     "old_size": 33,
     "new_size": 38,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 8324432,
@@ -21934,14 +19710,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 8324832,
-    "rva_hex": "0x007f06e0",
-    "name": "FUN_00bf06e0",
-    "old_size": 167,
-    "new_size": 170,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 8325120,
@@ -21976,14 +19744,6 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 8343120,
-    "rva_hex": "0x007f4e50",
-    "name": "FUN_00bf4e50",
-    "old_size": 302,
-    "new_size": 309,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 8348080,
     "rva_hex": "0x007f61b0",
     "name": "FUN_00bf61b0",
@@ -21998,14 +19758,6 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
-  },
-  {
-    "rva": 8363088,
-    "rva_hex": "0x007f9c50",
-    "name": "FUN_00bf9c50",
-    "old_size": 95,
-    "new_size": 102,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 8363328,
@@ -22088,22 +19840,6 @@
     "reason": "RET imm16 (0c 00)"
   },
   {
-    "rva": 8394112,
-    "rva_hex": "0x00801580",
-    "name": "FUN_00c01580",
-    "old_size": 529,
-    "new_size": 535,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 8394896,
-    "rva_hex": "0x00801890",
-    "name": "FUN_00c01890",
-    "old_size": 1285,
-    "new_size": 1291,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
     "rva": 8406880,
     "rva_hex": "0x00804760",
     "name": "FUN_00c04760",
@@ -22134,14 +19870,6 @@
     "old_size": 305,
     "new_size": 306,
     "reason": "RET (c3)"
-  },
-  {
-    "rva": 8446048,
-    "rva_hex": "0x0080e060",
-    "name": "FUN_00c0e060",
-    "old_size": 1043,
-    "new_size": 1051,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 8451088,
@@ -22213,7 +19941,7 @@
     "name": "FUN_00c28a50",
     "old_size": 1480,
     "new_size": 1492,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 8561968,
@@ -22221,7 +19949,7 @@
     "name": "FUN_00c2a530",
     "old_size": 167,
     "new_size": 177,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 8576656,
@@ -22301,7 +20029,7 @@
     "name": "FUN_00c37c80",
     "old_size": 697,
     "new_size": 707,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 8618480,
@@ -22365,7 +20093,7 @@
     "name": "FUN_00c3d1d0",
     "old_size": 878,
     "new_size": 885,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 8640960,
@@ -22373,7 +20101,7 @@
     "name": "FUN_00c3d9c0",
     "old_size": 106,
     "new_size": 113,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 8647408,
@@ -22424,36 +20152,12 @@
     "reason": "RET imm16 (08 00)"
   },
   {
-    "rva": 8673664,
-    "rva_hex": "0x00845980",
-    "name": "FUN_00c45980",
-    "old_size": 69,
-    "new_size": 72,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 8683680,
-    "rva_hex": "0x008480a0",
-    "name": "FUN_00c480a0",
-    "old_size": 69,
-    "new_size": 72,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
     "rva": 8687184,
     "rva_hex": "0x00848e50",
     "name": "FUN_00c48e50",
     "old_size": 835,
     "new_size": 838,
     "reason": "RET imm16 (08 00)"
-  },
-  {
-    "rva": 8690480,
-    "rva_hex": "0x00849b30",
-    "name": "FUN_00c49b30",
-    "old_size": 610,
-    "new_size": 615,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 8691568,
@@ -22496,14 +20200,6 @@
     "reason": "RET imm16 (0c 00)"
   },
   {
-    "rva": 8721152,
-    "rva_hex": "0x00851300",
-    "name": "FUN_00c51300",
-    "old_size": 407,
-    "new_size": 414,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 8722464,
     "rva_hex": "0x00851820",
     "name": "FUN_00c51820",
@@ -22528,36 +20224,12 @@
     "reason": "RET imm16 (0c 00)"
   },
   {
-    "rva": 8762704,
-    "rva_hex": "0x0085b550",
-    "name": "FUN_00c5b550",
-    "old_size": 89,
-    "new_size": 95,
-    "reason": "epilogue continuation (b001 \u2026 terminator)"
-  },
-  {
-    "rva": 8766048,
-    "rva_hex": "0x0085c260",
-    "name": "FUN_00c5c260",
-    "old_size": 1491,
-    "new_size": 1498,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 8771184,
     "rva_hex": "0x0085d670",
     "name": "FUN_00c5d670",
     "old_size": 1090,
     "new_size": 1097,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 8786896,
-    "rva_hex": "0x008613d0",
-    "name": "FUN_00c613d0",
-    "old_size": 122,
-    "new_size": 129,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
+    "reason": "epilogue continuation (5f5e \u2026 terminator)"
   },
   {
     "rva": 8788400,
@@ -22574,2565 +20246,5 @@
     "old_size": 71,
     "new_size": 72,
     "reason": "RET (c3)"
-  },
-  {
-    "rva": 8843152,
-    "rva_hex": "0x0086ef90",
-    "name": "FUN_00c6ef90",
-    "old_size": 666,
-    "new_size": 670,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 9259815,
-    "rva_hex": "0x008d4b27",
-    "name": "Unwind@00cd4b27",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9259898,
-    "rva_hex": "0x008d4b7a",
-    "name": "Unwind@00cd4b7a",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260047,
-    "rva_hex": "0x008d4c0f",
-    "name": "Unwind@00cd4c0f",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260235,
-    "rva_hex": "0x008d4ccb",
-    "name": "Unwind@00cd4ccb",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260314,
-    "rva_hex": "0x008d4d1a",
-    "name": "Unwind@00cd4d1a",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260336,
-    "rva_hex": "0x008d4d30",
-    "name": "Unwind@00cd4d30",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260527,
-    "rva_hex": "0x008d4def",
-    "name": "Unwind@00cd4def",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260560,
-    "rva_hex": "0x008d4e10",
-    "name": "Unwind@00cd4e10",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260610,
-    "rva_hex": "0x008d4e42",
-    "name": "Unwind@00cd4e42",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260658,
-    "rva_hex": "0x008d4e72",
-    "name": "Unwind@00cd4e72",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260706,
-    "rva_hex": "0x008d4ea2",
-    "name": "Unwind@00cd4ea2",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260754,
-    "rva_hex": "0x008d4ed2",
-    "name": "Unwind@00cd4ed2",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260844,
-    "rva_hex": "0x008d4f2c",
-    "name": "Unwind@00cd4f2c",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260880,
-    "rva_hex": "0x008d4f50",
-    "name": "Unwind@00cd4f50",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9260992,
-    "rva_hex": "0x008d4fc0",
-    "name": "Unwind@00cd4fc0",
-    "old_size": 39,
-    "new_size": 50,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9261142,
-    "rva_hex": "0x008d5056",
-    "name": "Unwind@00cd5056",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9261168,
-    "rva_hex": "0x008d5070",
-    "name": "Unwind@00cd5070",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9261236,
-    "rva_hex": "0x008d50b4",
-    "name": "Unwind@00cd50b4",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9261448,
-    "rva_hex": "0x008d5188",
-    "name": "Unwind@00cd5188",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9262084,
-    "rva_hex": "0x008d5404",
-    "name": "Unwind@00cd5404",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9262259,
-    "rva_hex": "0x008d54b3",
-    "name": "Unwind@00cd54b3",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9262445,
-    "rva_hex": "0x008d556d",
-    "name": "Unwind@00cd556d",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9263332,
-    "rva_hex": "0x008d58e4",
-    "name": "Unwind@00cd58e4",
-    "old_size": 21,
-    "new_size": 32,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9263635,
-    "rva_hex": "0x008d5a13",
-    "name": "Unwind@00cd5a13",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9263977,
-    "rva_hex": "0x008d5b69",
-    "name": "Unwind@00cd5b69",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9264193,
-    "rva_hex": "0x008d5c41",
-    "name": "Unwind@00cd5c41",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9264224,
-    "rva_hex": "0x008d5c60",
-    "name": "Unwind@00cd5c60",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9264455,
-    "rva_hex": "0x008d5d47",
-    "name": "Unwind@00cd5d47",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9264532,
-    "rva_hex": "0x008d5d94",
-    "name": "Unwind@00cd5d94",
-    "old_size": 11,
-    "new_size": 16,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9264613,
-    "rva_hex": "0x008d5de5",
-    "name": "Unwind@00cd5de5",
-    "old_size": 8,
-    "new_size": 13,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9264725,
-    "rva_hex": "0x008d5e55",
-    "name": "Unwind@00cd5e55",
-    "old_size": 8,
-    "new_size": 13,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9264760,
-    "rva_hex": "0x008d5e78",
-    "name": "Unwind@00cd5e78",
-    "old_size": 8,
-    "new_size": 13,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265003,
-    "rva_hex": "0x008d5f6b",
-    "name": "Unwind@00cd5f6b",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265067,
-    "rva_hex": "0x008d5fab",
-    "name": "Unwind@00cd5fab",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265131,
-    "rva_hex": "0x008d5feb",
-    "name": "Unwind@00cd5feb",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265168,
-    "rva_hex": "0x008d6010",
-    "name": "Unwind@00cd6010",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265227,
-    "rva_hex": "0x008d604b",
-    "name": "Unwind@00cd604b",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265291,
-    "rva_hex": "0x008d608b",
-    "name": "Unwind@00cd608b",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265355,
-    "rva_hex": "0x008d60cb",
-    "name": "Unwind@00cd60cb",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265419,
-    "rva_hex": "0x008d610b",
-    "name": "Unwind@00cd610b",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265483,
-    "rva_hex": "0x008d614b",
-    "name": "Unwind@00cd614b",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265520,
-    "rva_hex": "0x008d6170",
-    "name": "Unwind@00cd6170",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265579,
-    "rva_hex": "0x008d61ab",
-    "name": "Unwind@00cd61ab",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265616,
-    "rva_hex": "0x008d61d0",
-    "name": "Unwind@00cd61d0",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265675,
-    "rva_hex": "0x008d620b",
-    "name": "Unwind@00cd620b",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265739,
-    "rva_hex": "0x008d624b",
-    "name": "Unwind@00cd624b",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9265906,
-    "rva_hex": "0x008d62f2",
-    "name": "Unwind@00cd62f2",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9266085,
-    "rva_hex": "0x008d63a5",
-    "name": "Unwind@00cd63a5",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9266170,
-    "rva_hex": "0x008d63fa",
-    "name": "Unwind@00cd63fa",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9266250,
-    "rva_hex": "0x008d644a",
-    "name": "Unwind@00cd644a",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9266421,
-    "rva_hex": "0x008d64f5",
-    "name": "Unwind@00cd64f5",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9266456,
-    "rva_hex": "0x008d6518",
-    "name": "Unwind@00cd6518",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9266977,
-    "rva_hex": "0x008d6721",
-    "name": "Unwind@00cd6721",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9267116,
-    "rva_hex": "0x008d67ac",
-    "name": "Unwind@00cd67ac",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9267301,
-    "rva_hex": "0x008d6865",
-    "name": "Unwind@00cd6865",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9267450,
-    "rva_hex": "0x008d68fa",
-    "name": "Unwind@00cd68fa",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9267625,
-    "rva_hex": "0x008d69a9",
-    "name": "Unwind@00cd69a9",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9267805,
-    "rva_hex": "0x008d6a5d",
-    "name": "Unwind@00cd6a5d",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9267959,
-    "rva_hex": "0x008d6af7",
-    "name": "Unwind@00cd6af7",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9268060,
-    "rva_hex": "0x008d6b5c",
-    "name": "Unwind@00cd6b5c",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9268154,
-    "rva_hex": "0x008d6bba",
-    "name": "Unwind@00cd6bba",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9268234,
-    "rva_hex": "0x008d6c0a",
-    "name": "Unwind@00cd6c0a",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9268332,
-    "rva_hex": "0x008d6c6c",
-    "name": "Unwind@00cd6c6c",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9268426,
-    "rva_hex": "0x008d6cca",
-    "name": "Unwind@00cd6cca",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9268556,
-    "rva_hex": "0x008d6d4c",
-    "name": "Unwind@00cd6d4c",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9268671,
-    "rva_hex": "0x008d6dbf",
-    "name": "Unwind@00cd6dbf",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9268853,
-    "rva_hex": "0x008d6e75",
-    "name": "Unwind@00cd6e75",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9269010,
-    "rva_hex": "0x008d6f12",
-    "name": "Unwind@00cd6f12",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9269126,
-    "rva_hex": "0x008d6f86",
-    "name": "Unwind@00cd6f86",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9269271,
-    "rva_hex": "0x008d7017",
-    "name": "Unwind@00cd7017",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9269422,
-    "rva_hex": "0x008d70ae",
-    "name": "Unwind@00cd70ae",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9269586,
-    "rva_hex": "0x008d7152",
-    "name": "Unwind@00cd7152",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9269674,
-    "rva_hex": "0x008d71aa",
-    "name": "Unwind@00cd71aa",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9269830,
-    "rva_hex": "0x008d7246",
-    "name": "Unwind@00cd7246",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9270146,
-    "rva_hex": "0x008d7382",
-    "name": "Unwind@00cd7382",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9270354,
-    "rva_hex": "0x008d7452",
-    "name": "Unwind@00cd7452",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9270449,
-    "rva_hex": "0x008d74b1",
-    "name": "Unwind@00cd74b1",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9270578,
-    "rva_hex": "0x008d7532",
-    "name": "Unwind@00cd7532",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9270765,
-    "rva_hex": "0x008d75ed",
-    "name": "Unwind@00cd75ed",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9270800,
-    "rva_hex": "0x008d7610",
-    "name": "Unwind@00cd7610",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9270868,
-    "rva_hex": "0x008d7654",
-    "name": "Unwind@00cd7654",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9270942,
-    "rva_hex": "0x008d769e",
-    "name": "Unwind@00cd769e",
-    "old_size": 23,
-    "new_size": 34,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9271071,
-    "rva_hex": "0x008d771f",
-    "name": "Unwind@00cd771f",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9271104,
-    "rva_hex": "0x008d7740",
-    "name": "Unwind@00cd7740",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9271173,
-    "rva_hex": "0x008d7785",
-    "name": "Unwind@00cd7785",
-    "old_size": 39,
-    "new_size": 50,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9271250,
-    "rva_hex": "0x008d77d2",
-    "name": "Unwind@00cd77d2",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9271280,
-    "rva_hex": "0x008d77f0",
-    "name": "Unwind@00cd77f0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9271330,
-    "rva_hex": "0x008d7822",
-    "name": "Unwind@00cd7822",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9271416,
-    "rva_hex": "0x008d7878",
-    "name": "Unwind@00cd7878",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9271448,
-    "rva_hex": "0x008d7898",
-    "name": "Unwind@00cd7898",
-    "old_size": 32,
-    "new_size": 43,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9271783,
-    "rva_hex": "0x008d79e7",
-    "name": "Unwind@00cd79e7",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9272219,
-    "rva_hex": "0x008d7b9b",
-    "name": "Unwind@00cd7b9b",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9272251,
-    "rva_hex": "0x008d7bbb",
-    "name": "Unwind@00cd7bbb",
-    "old_size": 25,
-    "new_size": 36,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9272401,
-    "rva_hex": "0x008d7c51",
-    "name": "Unwind@00cd7c51",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9272474,
-    "rva_hex": "0x008d7c9a",
-    "name": "Unwind@00cd7c9a",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9272496,
-    "rva_hex": "0x008d7cb0",
-    "name": "Unwind@00cd7cb0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9272546,
-    "rva_hex": "0x008d7ce2",
-    "name": "Unwind@00cd7ce2",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9272730,
-    "rva_hex": "0x008d7d9a",
-    "name": "Unwind@00cd7d9a",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9272786,
-    "rva_hex": "0x008d7dd2",
-    "name": "Unwind@00cd7dd2",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9272849,
-    "rva_hex": "0x008d7e11",
-    "name": "Unwind@00cd7e11",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9272953,
-    "rva_hex": "0x008d7e79",
-    "name": "Unwind@00cd7e79",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273041,
-    "rva_hex": "0x008d7ed1",
-    "name": "Unwind@00cd7ed1",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273072,
-    "rva_hex": "0x008d7ef0",
-    "name": "Unwind@00cd7ef0",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273118,
-    "rva_hex": "0x008d7f1e",
-    "name": "Unwind@00cd7f1e",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273166,
-    "rva_hex": "0x008d7f4e",
-    "name": "Unwind@00cd7f4e",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273200,
-    "rva_hex": "0x008d7f70",
-    "name": "Unwind@00cd7f70",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273408,
-    "rva_hex": "0x008d8040",
-    "name": "Unwind@00cd8040",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273448,
-    "rva_hex": "0x008d8068",
-    "name": "Unwind@00cd8068",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273472,
-    "rva_hex": "0x008d8080",
-    "name": "Unwind@00cd8080",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273504,
-    "rva_hex": "0x008d80a0",
-    "name": "Unwind@00cd80a0",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273536,
-    "rva_hex": "0x008d80c0",
-    "name": "Unwind@00cd80c0",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273568,
-    "rva_hex": "0x008d80e0",
-    "name": "Unwind@00cd80e0",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273600,
-    "rva_hex": "0x008d8100",
-    "name": "Unwind@00cd8100",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273649,
-    "rva_hex": "0x008d8131",
-    "name": "Unwind@00cd8131",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273680,
-    "rva_hex": "0x008d8150",
-    "name": "Unwind@00cd8150",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273712,
-    "rva_hex": "0x008d8170",
-    "name": "Unwind@00cd8170",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273744,
-    "rva_hex": "0x008d8190",
-    "name": "Unwind@00cd8190",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273776,
-    "rva_hex": "0x008d81b0",
-    "name": "Unwind@00cd81b0",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273808,
-    "rva_hex": "0x008d81d0",
-    "name": "Unwind@00cd81d0",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273924,
-    "rva_hex": "0x008d8244",
-    "name": "Unwind@00cd8244",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9273952,
-    "rva_hex": "0x008d8260",
-    "name": "Unwind@00cd8260",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274024,
-    "rva_hex": "0x008d82a8",
-    "name": "Unwind@00cd82a8",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274048,
-    "rva_hex": "0x008d82c0",
-    "name": "Unwind@00cd82c0",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274088,
-    "rva_hex": "0x008d82e8",
-    "name": "Unwind@00cd82e8",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274205,
-    "rva_hex": "0x008d835d",
-    "name": "Unwind@00cd835d",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274240,
-    "rva_hex": "0x008d8380",
-    "name": "Unwind@00cd8380",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274272,
-    "rva_hex": "0x008d83a0",
-    "name": "Unwind@00cd83a0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274437,
-    "rva_hex": "0x008d8445",
-    "name": "Unwind@00cd8445",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274464,
-    "rva_hex": "0x008d8460",
-    "name": "Unwind@00cd8460",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274496,
-    "rva_hex": "0x008d8480",
-    "name": "Unwind@00cd8480",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274645,
-    "rva_hex": "0x008d8515",
-    "name": "Unwind@00cd8515",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274680,
-    "rva_hex": "0x008d8538",
-    "name": "Unwind@00cd8538",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274704,
-    "rva_hex": "0x008d8550",
-    "name": "Unwind@00cd8550",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274736,
-    "rva_hex": "0x008d8570",
-    "name": "Unwind@00cd8570",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274826,
-    "rva_hex": "0x008d85ca",
-    "name": "Unwind@00cd85ca",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274848,
-    "rva_hex": "0x008d85e0",
-    "name": "Unwind@00cd85e0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274880,
-    "rva_hex": "0x008d8600",
-    "name": "Unwind@00cd8600",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274933,
-    "rva_hex": "0x008d8635",
-    "name": "Unwind@00cd8635",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9274960,
-    "rva_hex": "0x008d8650",
-    "name": "Unwind@00cd8650",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275003,
-    "rva_hex": "0x008d867b",
-    "name": "Unwind@00cd867b",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275052,
-    "rva_hex": "0x008d86ac",
-    "name": "Unwind@00cd86ac",
-    "old_size": 14,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275104,
-    "rva_hex": "0x008d86e0",
-    "name": "Unwind@00cd86e0",
-    "old_size": 14,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275156,
-    "rva_hex": "0x008d8714",
-    "name": "Unwind@00cd8714",
-    "old_size": 14,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275208,
-    "rva_hex": "0x008d8748",
-    "name": "Unwind@00cd8748",
-    "old_size": 14,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275232,
-    "rva_hex": "0x008d8760",
-    "name": "Unwind@00cd8760",
-    "old_size": 11,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275253,
-    "rva_hex": "0x008d8775",
-    "name": "Unwind@00cd8775",
-    "old_size": 11,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275274,
-    "rva_hex": "0x008d878a",
-    "name": "Unwind@00cd878a",
-    "old_size": 11,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275295,
-    "rva_hex": "0x008d879f",
-    "name": "Unwind@00cd879f",
-    "old_size": 11,
-    "new_size": 21,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275316,
-    "rva_hex": "0x008d87b4",
-    "name": "Unwind@00cd87b4",
-    "old_size": 11,
-    "new_size": 21,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275337,
-    "rva_hex": "0x008d87c9",
-    "name": "Unwind@00cd87c9",
-    "old_size": 11,
-    "new_size": 21,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275358,
-    "rva_hex": "0x008d87de",
-    "name": "Unwind@00cd87de",
-    "old_size": 11,
-    "new_size": 21,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275379,
-    "rva_hex": "0x008d87f3",
-    "name": "Unwind@00cd87f3",
-    "old_size": 11,
-    "new_size": 21,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275425,
-    "rva_hex": "0x008d8821",
-    "name": "Unwind@00cd8821",
-    "old_size": 11,
-    "new_size": 21,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275471,
-    "rva_hex": "0x008d884f",
-    "name": "Unwind@00cd884f",
-    "old_size": 8,
-    "new_size": 18,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275504,
-    "rva_hex": "0x008d8870",
-    "name": "Unwind@00cd8870",
-    "old_size": 10,
-    "new_size": 20,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275536,
-    "rva_hex": "0x008d8890",
-    "name": "Unwind@00cd8890",
-    "old_size": 8,
-    "new_size": 18,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275568,
-    "rva_hex": "0x008d88b0",
-    "name": "Unwind@00cd88b0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275600,
-    "rva_hex": "0x008d88d0",
-    "name": "Unwind@00cd88d0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275651,
-    "rva_hex": "0x008d8903",
-    "name": "Unwind@00cd8903",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275699,
-    "rva_hex": "0x008d8933",
-    "name": "Unwind@00cd8933",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275728,
-    "rva_hex": "0x008d8950",
-    "name": "Unwind@00cd8950",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275760,
-    "rva_hex": "0x008d8970",
-    "name": "Unwind@00cd8970",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275792,
-    "rva_hex": "0x008d8990",
-    "name": "Unwind@00cd8990",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275846,
-    "rva_hex": "0x008d89c6",
-    "name": "Unwind@00cd89c6",
-    "old_size": 10,
-    "new_size": 21,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275872,
-    "rva_hex": "0x008d89e0",
-    "name": "Unwind@00cd89e0",
-    "old_size": 10,
-    "new_size": 21,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9275904,
-    "rva_hex": "0x008d8a00",
-    "name": "Unwind@00cd8a00",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9276948,
-    "rva_hex": "0x008d8e14",
-    "name": "Unwind@00cd8e14",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9276976,
-    "rva_hex": "0x008d8e30",
-    "name": "Unwind@00cd8e30",
-    "old_size": 20,
-    "new_size": 31,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277008,
-    "rva_hex": "0x008d8e50",
-    "name": "Unwind@00cd8e50",
-    "old_size": 25,
-    "new_size": 36,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277056,
-    "rva_hex": "0x008d8e80",
-    "name": "Unwind@00cd8e80",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277088,
-    "rva_hex": "0x008d8ea0",
-    "name": "Unwind@00cd8ea0",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277120,
-    "rva_hex": "0x008d8ec0",
-    "name": "Unwind@00cd8ec0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277169,
-    "rva_hex": "0x008d8ef1",
-    "name": "Unwind@00cd8ef1",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277200,
-    "rva_hex": "0x008d8f10",
-    "name": "Unwind@00cd8f10",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277254,
-    "rva_hex": "0x008d8f46",
-    "name": "Unwind@00cd8f46",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277310,
-    "rva_hex": "0x008d8f7e",
-    "name": "Unwind@00cd8f7e",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277352,
-    "rva_hex": "0x008d8fa8",
-    "name": "Unwind@00cd8fa8",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277384,
-    "rva_hex": "0x008d8fc8",
-    "name": "Unwind@00cd8fc8",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277408,
-    "rva_hex": "0x008d8fe0",
-    "name": "Unwind@00cd8fe0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277457,
-    "rva_hex": "0x008d9011",
-    "name": "Unwind@00cd9011",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277505,
-    "rva_hex": "0x008d9041",
-    "name": "Unwind@00cd9041",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277544,
-    "rva_hex": "0x008d9068",
-    "name": "Unwind@00cd9068",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277568,
-    "rva_hex": "0x008d9080",
-    "name": "Unwind@00cd9080",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277600,
-    "rva_hex": "0x008d90a0",
-    "name": "Unwind@00cd90a0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277632,
-    "rva_hex": "0x008d90c0",
-    "name": "Unwind@00cd90c0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277664,
-    "rva_hex": "0x008d90e0",
-    "name": "Unwind@00cd90e0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277704,
-    "rva_hex": "0x008d9108",
-    "name": "Unwind@00cd9108",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277792,
-    "rva_hex": "0x008d9160",
-    "name": "Unwind@00cd9160",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9277876,
-    "rva_hex": "0x008d91b4",
-    "name": "Unwind@00cd91b4",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9278005,
-    "rva_hex": "0x008d9235",
-    "name": "Unwind@00cd9235",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9278040,
-    "rva_hex": "0x008d9258",
-    "name": "Unwind@00cd9258",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9278064,
-    "rva_hex": "0x008d9270",
-    "name": "Unwind@00cd9270",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9278269,
-    "rva_hex": "0x008d933d",
-    "name": "Unwind@00cd933d",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9278320,
-    "rva_hex": "0x008d9370",
-    "name": "Unwind@00cd9370",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9278458,
-    "rva_hex": "0x008d93fa",
-    "name": "Unwind@00cd93fa",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9278480,
-    "rva_hex": "0x008d9410",
-    "name": "Unwind@00cd9410",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9278512,
-    "rva_hex": "0x008d9430",
-    "name": "Unwind@00cd9430",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9278544,
-    "rva_hex": "0x008d9450",
-    "name": "Unwind@00cd9450",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9278750,
-    "rva_hex": "0x008d951e",
-    "name": "Unwind@00cd951e",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9279767,
-    "rva_hex": "0x008d9917",
-    "name": "Unwind@00cd9917",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9279904,
-    "rva_hex": "0x008d99a0",
-    "name": "Unwind@00cd99a0",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9279955,
-    "rva_hex": "0x008d99d3",
-    "name": "Unwind@00cd99d3",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9280202,
-    "rva_hex": "0x008d9aca",
-    "name": "Unwind@00cd9aca",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9280232,
-    "rva_hex": "0x008d9ae8",
-    "name": "Unwind@00cd9ae8",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9280264,
-    "rva_hex": "0x008d9b08",
-    "name": "Unwind@00cd9b08",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9280306,
-    "rva_hex": "0x008d9b32",
-    "name": "Unwind@00cd9b32",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9280336,
-    "rva_hex": "0x008d9b50",
-    "name": "Unwind@00cd9b50",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9280464,
-    "rva_hex": "0x008d9bd0",
-    "name": "Unwind@00cd9bd0",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9281205,
-    "rva_hex": "0x008d9eb5",
-    "name": "Unwind@00cd9eb5",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9281256,
-    "rva_hex": "0x008d9ee8",
-    "name": "Unwind@00cd9ee8",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9281304,
-    "rva_hex": "0x008d9f18",
-    "name": "Unwind@00cd9f18",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9281360,
-    "rva_hex": "0x008d9f50",
-    "name": "Unwind@00cd9f50",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9281424,
-    "rva_hex": "0x008d9f90",
-    "name": "Unwind@00cd9f90",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9281488,
-    "rva_hex": "0x008d9fd0",
-    "name": "Unwind@00cd9fd0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9281520,
-    "rva_hex": "0x008d9ff0",
-    "name": "Unwind@00cd9ff0",
-    "old_size": 19,
-    "new_size": 30,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9281579,
-    "rva_hex": "0x008da02b",
-    "name": "Unwind@00cda02b",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9281708,
-    "rva_hex": "0x008da0ac",
-    "name": "Unwind@00cda0ac",
-    "old_size": 22,
-    "new_size": 33,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9304587,
-    "rva_hex": "0x008dfa0b",
-    "name": "Unwind@00cdfa0b",
-    "old_size": 29,
-    "new_size": 40,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9304937,
-    "rva_hex": "0x008dfb69",
-    "name": "Unwind@00cdfb69",
-    "old_size": 32,
-    "new_size": 43,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9305088,
-    "rva_hex": "0x008dfc00",
-    "name": "Unwind@00cdfc00",
-    "old_size": 21,
-    "new_size": 32,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9305216,
-    "rva_hex": "0x008dfc80",
-    "name": "Unwind@00cdfc80",
-    "old_size": 21,
-    "new_size": 32,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9305344,
-    "rva_hex": "0x008dfd00",
-    "name": "Unwind@00cdfd00",
-    "old_size": 21,
-    "new_size": 32,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9305472,
-    "rva_hex": "0x008dfd80",
-    "name": "Unwind@00cdfd80",
-    "old_size": 21,
-    "new_size": 32,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9305600,
-    "rva_hex": "0x008dfe00",
-    "name": "Unwind@00cdfe00",
-    "old_size": 21,
-    "new_size": 32,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9305707,
-    "rva_hex": "0x008dfe6b",
-    "name": "Unwind@00cdfe6b",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9305856,
-    "rva_hex": "0x008dff00",
-    "name": "Unwind@00cdff00",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9306180,
-    "rva_hex": "0x008e0044",
-    "name": "Unwind@00ce0044",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9306208,
-    "rva_hex": "0x008e0060",
-    "name": "Unwind@00ce0060",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9306240,
-    "rva_hex": "0x008e0080",
-    "name": "Unwind@00ce0080",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9306272,
-    "rva_hex": "0x008e00a0",
-    "name": "Unwind@00ce00a0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9306402,
-    "rva_hex": "0x008e0122",
-    "name": "Unwind@00ce0122",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9306432,
-    "rva_hex": "0x008e0140",
-    "name": "Unwind@00ce0140",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9306482,
-    "rva_hex": "0x008e0172",
-    "name": "Unwind@00ce0172",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9306587,
-    "rva_hex": "0x008e01db",
-    "name": "Unwind@00ce01db",
-    "old_size": 29,
-    "new_size": 40,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9306762,
-    "rva_hex": "0x008e028a",
-    "name": "Unwind@00ce028a",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9306935,
-    "rva_hex": "0x008e0337",
-    "name": "Unwind@00ce0337",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9306986,
-    "rva_hex": "0x008e036a",
-    "name": "Unwind@00ce036a",
-    "old_size": 29,
-    "new_size": 40,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9307225,
-    "rva_hex": "0x008e0459",
-    "name": "Unwind@00ce0459",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9307369,
-    "rva_hex": "0x008e04e9",
-    "name": "Unwind@00ce04e9",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9307513,
-    "rva_hex": "0x008e0579",
-    "name": "Unwind@00ce0579",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9307657,
-    "rva_hex": "0x008e0609",
-    "name": "Unwind@00ce0609",
-    "old_size": 25,
-    "new_size": 36,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9307714,
-    "rva_hex": "0x008e0642",
-    "name": "Unwind@00ce0642",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9307744,
-    "rva_hex": "0x008e0660",
-    "name": "Unwind@00ce0660",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9307776,
-    "rva_hex": "0x008e0680",
-    "name": "Unwind@00ce0680",
-    "old_size": 19,
-    "new_size": 30,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9307939,
-    "rva_hex": "0x008e0723",
-    "name": "Unwind@00ce0723",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9308021,
-    "rva_hex": "0x008e0775",
-    "name": "Unwind@00ce0775",
-    "old_size": 25,
-    "new_size": 36,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9308373,
-    "rva_hex": "0x008e08d5",
-    "name": "Unwind@00ce08d5",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9308994,
-    "rva_hex": "0x008e0b42",
-    "name": "Unwind@00ce0b42",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9309136,
-    "rva_hex": "0x008e0bd0",
-    "name": "Unwind@00ce0bd0",
-    "old_size": 29,
-    "new_size": 40,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9309210,
-    "rva_hex": "0x008e0c1a",
-    "name": "Unwind@00ce0c1a",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9309232,
-    "rva_hex": "0x008e0c30",
-    "name": "Unwind@00ce0c30",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9309485,
-    "rva_hex": "0x008e0d2d",
-    "name": "Unwind@00ce0d2d",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9309890,
-    "rva_hex": "0x008e0ec2",
-    "name": "Unwind@00ce0ec2",
-    "old_size": 23,
-    "new_size": 34,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9309952,
-    "rva_hex": "0x008e0f00",
-    "name": "Unwind@00ce0f00",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9310122,
-    "rva_hex": "0x008e0faa",
-    "name": "Unwind@00ce0faa",
-    "old_size": 35,
-    "new_size": 46,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9310299,
-    "rva_hex": "0x008e105b",
-    "name": "Unwind@00ce105b",
-    "old_size": 32,
-    "new_size": 43,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9310381,
-    "rva_hex": "0x008e10ad",
-    "name": "Unwind@00ce10ad",
-    "old_size": 29,
-    "new_size": 40,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9310432,
-    "rva_hex": "0x008e10e0",
-    "name": "Unwind@00ce10e0",
-    "old_size": 29,
-    "new_size": 40,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9310769,
-    "rva_hex": "0x008e1231",
-    "name": "Unwind@00ce1231",
-    "old_size": 39,
-    "new_size": 50,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9310915,
-    "rva_hex": "0x008e12c3",
-    "name": "Unwind@00ce12c3",
-    "old_size": 29,
-    "new_size": 40,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9311211,
-    "rva_hex": "0x008e13eb",
-    "name": "Unwind@00ce13eb",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9311264,
-    "rva_hex": "0x008e1420",
-    "name": "Unwind@00ce1420",
-    "old_size": 23,
-    "new_size": 34,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9311330,
-    "rva_hex": "0x008e1462",
-    "name": "Unwind@00ce1462",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9311573,
-    "rva_hex": "0x008e1555",
-    "name": "Unwind@00ce1555",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9311792,
-    "rva_hex": "0x008e1630",
-    "name": "Unwind@00ce1630",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9312058,
-    "rva_hex": "0x008e173a",
-    "name": "Unwind@00ce173a",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9312096,
-    "rva_hex": "0x008e1760",
-    "name": "Unwind@00ce1760",
-    "old_size": 25,
-    "new_size": 36,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9312162,
-    "rva_hex": "0x008e17a2",
-    "name": "Unwind@00ce17a2",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9312300,
-    "rva_hex": "0x008e182c",
-    "name": "Unwind@00ce182c",
-    "old_size": 25,
-    "new_size": 36,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9312455,
-    "rva_hex": "0x008e18c7",
-    "name": "Unwind@00ce18c7",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9312496,
-    "rva_hex": "0x008e18f0",
-    "name": "Unwind@00ce18f0",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9312749,
-    "rva_hex": "0x008e19ed",
-    "name": "Unwind@00ce19ed",
-    "old_size": 39,
-    "new_size": 50,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9312906,
-    "rva_hex": "0x008e1a8a",
-    "name": "Unwind@00ce1a8a",
-    "old_size": 29,
-    "new_size": 40,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9312977,
-    "rva_hex": "0x008e1ad1",
-    "name": "Unwind@00ce1ad1",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9313024,
-    "rva_hex": "0x008e1b00",
-    "name": "Unwind@00ce1b00",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9313077,
-    "rva_hex": "0x008e1b35",
-    "name": "Unwind@00ce1b35",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9313122,
-    "rva_hex": "0x008e1b62",
-    "name": "Unwind@00ce1b62",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9313267,
-    "rva_hex": "0x008e1bf3",
-    "name": "Unwind@00ce1bf3",
-    "old_size": 23,
-    "new_size": 34,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9313366,
-    "rva_hex": "0x008e1c56",
-    "name": "Unwind@00ce1c56",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9313471,
-    "rva_hex": "0x008e1cbf",
-    "name": "Unwind@00ce1cbf",
-    "old_size": 29,
-    "new_size": 40,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9313537,
-    "rva_hex": "0x008e1d01",
-    "name": "Unwind@00ce1d01",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9313597,
-    "rva_hex": "0x008e1d3d",
-    "name": "Unwind@00ce1d3d",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9313718,
-    "rva_hex": "0x008e1db6",
-    "name": "Unwind@00ce1db6",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9313858,
-    "rva_hex": "0x008e1e42",
-    "name": "Unwind@00ce1e42",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9313888,
-    "rva_hex": "0x008e1e60",
-    "name": "Unwind@00ce1e60",
-    "old_size": 29,
-    "new_size": 40,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9314011,
-    "rva_hex": "0x008e1edb",
-    "name": "Unwind@00ce1edb",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9314050,
-    "rva_hex": "0x008e1f02",
-    "name": "Unwind@00ce1f02",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9314080,
-    "rva_hex": "0x008e1f20",
-    "name": "Unwind@00ce1f20",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9314112,
-    "rva_hex": "0x008e1f40",
-    "name": "Unwind@00ce1f40",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9314406,
-    "rva_hex": "0x008e2066",
-    "name": "Unwind@00ce2066",
-    "old_size": 25,
-    "new_size": 36,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9314591,
-    "rva_hex": "0x008e211f",
-    "name": "Unwind@00ce211f",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9314652,
-    "rva_hex": "0x008e215c",
-    "name": "Unwind@00ce215c",
-    "old_size": 28,
-    "new_size": 39,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9314704,
-    "rva_hex": "0x008e2190",
-    "name": "Unwind@00ce2190",
-    "old_size": 31,
-    "new_size": 42,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9314815,
-    "rva_hex": "0x008e21ff",
-    "name": "Unwind@00ce21ff",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9314885,
-    "rva_hex": "0x008e2245",
-    "name": "Unwind@00ce2245",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9314912,
-    "rva_hex": "0x008e2260",
-    "name": "Unwind@00ce2260",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9314993,
-    "rva_hex": "0x008e22b1",
-    "name": "Unwind@00ce22b1",
-    "old_size": 17,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9315042,
-    "rva_hex": "0x008e22e2",
-    "name": "Unwind@00ce22e2",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9315090,
-    "rva_hex": "0x008e2312",
-    "name": "Unwind@00ce2312",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9315174,
-    "rva_hex": "0x008e2366",
-    "name": "Unwind@00ce2366",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9315200,
-    "rva_hex": "0x008e2380",
-    "name": "Unwind@00ce2380",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9315274,
-    "rva_hex": "0x008e23ca",
-    "name": "Unwind@00ce23ca",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9315361,
-    "rva_hex": "0x008e2421",
-    "name": "Unwind@00ce2421",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9315512,
-    "rva_hex": "0x008e24b8",
-    "name": "Unwind@00ce24b8",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9315536,
-    "rva_hex": "0x008e24d0",
-    "name": "Unwind@00ce24d0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9315676,
-    "rva_hex": "0x008e255c",
-    "name": "Unwind@00ce255c",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9315696,
-    "rva_hex": "0x008e2570",
-    "name": "Unwind@00ce2570",
-    "old_size": 23,
-    "new_size": 34,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9315931,
-    "rva_hex": "0x008e265b",
-    "name": "Unwind@00ce265b",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9316224,
-    "rva_hex": "0x008e2780",
-    "name": "Unwind@00ce2780",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9316286,
-    "rva_hex": "0x008e27be",
-    "name": "Unwind@00ce27be",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9317194,
-    "rva_hex": "0x008e2b4a",
-    "name": "Unwind@00ce2b4a",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9317224,
-    "rva_hex": "0x008e2b68",
-    "name": "Unwind@00ce2b68",
-    "old_size": 11,
-    "new_size": 22,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9317491,
-    "rva_hex": "0x008e2c73",
-    "name": "Unwind@00ce2c73",
-    "old_size": 14,
-    "new_size": 25,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9317564,
-    "rva_hex": "0x008e2cbc",
-    "name": "Unwind@00ce2cbc",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9317768,
-    "rva_hex": "0x008e2d88",
-    "name": "Unwind@00ce2d88",
-    "old_size": 29,
-    "new_size": 40,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9317808,
-    "rva_hex": "0x008e2db0",
-    "name": "Unwind@00ce2db0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9317840,
-    "rva_hex": "0x008e2dd0",
-    "name": "Unwind@00ce2dd0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9318016,
-    "rva_hex": "0x008e2e80",
-    "name": "Unwind@00ce2e80",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 9318048,
-    "rva_hex": "0x008e2ea0",
-    "name": "Unwind@00ce2ea0",
-    "old_size": 8,
-    "new_size": 19,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
   }
 ]

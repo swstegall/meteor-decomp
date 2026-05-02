@@ -1,13 +1,5 @@
 [
   {
-    "rva": 4723,
-    "rva_hex": "0x00001273",
-    "name": "FUN_00401273",
-    "old_size": 40,
-    "new_size": 46,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
     "rva": 11067,
     "rva_hex": "0x00002b3b",
     "name": "FUN_00402b3b",
@@ -46,14 +38,6 @@
     "old_size": 28,
     "new_size": 37,
     "reason": "epilogue continuation (33c0 \u2026 terminator)"
-  },
-  {
-    "rva": 31158,
-    "rva_hex": "0x000079b6",
-    "name": "FUN_004079b6",
-    "old_size": 26,
-    "new_size": 32,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
   },
   {
     "rva": 33654,
@@ -102,22 +86,6 @@
     "old_size": 37,
     "new_size": 38,
     "reason": "RET (c3)"
-  },
-  {
-    "rva": 42698,
-    "rva_hex": "0x0000a6ca",
-    "name": "FUN_0040a6ca",
-    "old_size": 22,
-    "new_size": 28,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
-  },
-  {
-    "rva": 46886,
-    "rva_hex": "0x0000b726",
-    "name": "FUN_0040b726",
-    "old_size": 23,
-    "new_size": 29,
-    "reason": "epilogue continuation (b8 \u2026 terminator)"
   },
   {
     "rva": 48918,
@@ -264,36 +232,12 @@
     "reason": "RET imm16 (04 00)"
   },
   {
-    "rva": 206480,
-    "rva_hex": "0x00032690",
-    "name": "FUN_00432690",
-    "old_size": 113,
-    "new_size": 120,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
     "rva": 231968,
     "rva_hex": "0x00038a20",
     "name": "FUN_00438a20",
     "old_size": 625,
     "new_size": 628,
     "reason": "RET imm16 (0c 00)"
-  },
-  {
-    "rva": 233344,
-    "rva_hex": "0x00038f80",
-    "name": "FUN_00438f80",
-    "old_size": 529,
-    "new_size": 535,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
-  },
-  {
-    "rva": 234128,
-    "rva_hex": "0x00039290",
-    "name": "FUN_00439290",
-    "old_size": 1285,
-    "new_size": 1291,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 248587,
@@ -309,39 +253,7 @@
     "name": "__strcats",
     "old_size": 59,
     "new_size": 62,
-    "reason": "epilogue continuation (5f \u2026 terminator)"
-  },
-  {
-    "rva": 256880,
-    "rva_hex": "0x0003eb70",
-    "name": "__expandlocale",
-    "old_size": 457,
-    "new_size": 468,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 260793,
-    "rva_hex": "0x0003fab9",
-    "name": "_JumpToContinuation",
-    "old_size": 43,
-    "new_size": 48,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 270872,
-    "rva_hex": "0x00042218",
-    "name": "__getenv_s_helper",
-    "old_size": 144,
-    "new_size": 147,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 271019,
-    "rva_hex": "0x000422ab",
-    "name": "__dupenv_s_helper",
-    "old_size": 159,
-    "new_size": 162,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
+    "reason": "epilogue continuation (5f5b \u2026 terminator)"
   },
   {
     "rva": 281552,
@@ -368,14 +280,6 @@
     "reason": "epilogue continuation (33c0 \u2026 terminator)"
   },
   {
-    "rva": 334955,
-    "rva_hex": "0x00051c6b",
-    "name": "__cftoe2_l",
-    "old_size": 362,
-    "new_size": 365,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
     "rva": 365610,
     "rva_hex": "0x0005942a",
     "name": "operator=",
@@ -390,30 +294,6 @@
     "old_size": 13,
     "new_size": 27,
     "reason": "epilogue continuation (33c0 \u2026 terminator)"
-  },
-  {
-    "rva": 386255,
-    "rva_hex": "0x0005e4cf",
-    "name": "cvtdate",
-    "old_size": 498,
-    "new_size": 501,
-    "reason": "epilogue continuation (5b \u2026 terminator)"
-  },
-  {
-    "rva": 416229,
-    "rva_hex": "0x000659e5",
-    "name": "__set_controlfp",
-    "old_size": 108,
-    "new_size": 111,
-    "reason": "epilogue continuation (5e \u2026 terminator)"
-  },
-  {
-    "rva": 422841,
-    "rva_hex": "0x000673b9",
-    "name": "__strdup",
-    "old_size": 77,
-    "new_size": 80,
-    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 424148,

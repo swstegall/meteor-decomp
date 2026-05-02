@@ -80,19 +80,28 @@ def _read_pe_text(orig_pe: Path) -> tuple[bytes, int, int]:
 # Epilogue continuation prefixes — when these appear immediately
 # after the reported function end, the function probably extended
 # further before Ghidra's analysis truncated it.
+#
+# Note: keep this list TIGHT. Each prefix gets walked-through up to
+# `max_extend` bytes hunting for a terminator, so a permissive prefix
+# (like a bare `b8` MOV EAX, imm32 — extremely common as a standalone
+# instruction at function starts) will run through the next function
+# and extend across boundaries. The current set is restricted to
+# multi-byte sequences that are MUCH more likely to appear as
+# epilogue continuation than as standalone instructions.
 EPILOGUE_PREFIXES = [
-    bytes([0x83, 0xc4]),   # ADD ESP, imm8
-    bytes([0x8b, 0xc6]),   # MOV EAX, ESI
+    bytes([0x83, 0xc4]),   # ADD ESP, imm8 — cdecl caller cleanup
+    bytes([0x8b, 0xc6]),   # MOV EAX, ESI  — recover this for return
     bytes([0x8b, 0xc7]),   # MOV EAX, EDI
     bytes([0x8b, 0xc3]),   # MOV EAX, EBX
-    bytes([0x33, 0xc0]),   # XOR EAX, EAX
-    bytes([0x32, 0xc0]),   # XOR AL, AL
-    bytes([0xb0, 0x01]),   # MOV AL, 1
-    bytes([0xb8]),         # MOV EAX, imm32
-    bytes([0x5e]),         # POP ESI
-    bytes([0x5d]),         # POP EBP
-    bytes([0x5f]),         # POP EDI
-    bytes([0x5b]),         # POP EBX
+    bytes([0x33, 0xc0]),   # XOR EAX, EAX  — return 0 idiom
+    bytes([0x32, 0xc0]),   # XOR AL, AL    — return false idiom
+    bytes([0x5e, 0xc3]),   # POP ESI; RET  — full epilogue tail
+    bytes([0x5e, 0xc2]),   # POP ESI; RET imm16
+    bytes([0x5d, 0xc3]),   # POP EBP; RET
+    bytes([0x5d, 0xc2]),   # POP EBP; RET imm16
+    bytes([0x5f, 0x5e]),   # POP EDI; POP ESI — multi-pop epilogue
+    bytes([0x5b, 0x5e]),   # POP EBX; POP ESI
+    bytes([0x5f, 0x5b]),   # POP EDI; POP EBX
 ]
 
 TERMINATORS = {
