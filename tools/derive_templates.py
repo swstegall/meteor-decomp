@@ -1119,6 +1119,112 @@ def _chained_ptr_naked(body: bytes, va: int, n: int, outer: int, inner: int) -> 
     return (src, f"chained ptr (naked) @ {outer_sign}0x{outer_mag:x}/{inner_sign}0x{inner_mag:x}")
 
 
+def try_return_global_value_6b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 6B `a1 RR RR RR RR c3` — returns the *value* of a global int.
+    # Distinct from `b8 RR RR RR RR c3` (return-global-ADDR) handled by
+    # try_return_global_addr.
+    if len(body) == 6 and body[0] == 0xa1 and body[5] == 0xc3:
+        src = (
+            _header(va, "return global value (MOV EAX, [&global]; RET)",
+                    "a1 GG GG GG GG c3", n)
+            + "\nextern \"C\" int the_global;\n\n"
+              "extern \"C\" int get_global_value() { return the_global; }\n"
+        )
+        return (src, "return-global-val")
+    return None
+
+
+def try_store_arg_to_global_10b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 10B `8b 44 24 04 a3 RR RR RR RR c3` —
+    # MOV EAX, [ESP+4]; MOV [&global], EAX; RET.
+    # Pure setter for a global int.
+    expected = b"\x8b\x44\x24\x04\xa3"
+    if len(body) == 10 and body[0:5] == expected and body[9] == 0xc3:
+        src = (
+            _header(va, "set global value (from arg1)",
+                    "8b 44 24 04 a3 GG GG GG GG c3", n)
+            + "\nextern \"C\" int the_global;\n\n"
+              "extern \"C\" void set_global(int v) { the_global = v; }\n"
+        )
+        return (src, "set-global-val")
+    return None
+
+
+def try_import_thunk_jmp_m32(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 6B `ff 25 RR RR RR RR` — JMP DWORD PTR [imm32]. Import-table thunk
+    # that forwards to a DLL function via the IAT slot. Falls through
+    # (no RET — JMP is the terminator).
+    #
+    # Source must declare the target as a *function pointer variable*
+    # (not a function), otherwise MSVC compiles `jmp [target]` as
+    # `jmp NEAR target` (`e9 RR RR RR RR`, 5 bytes — relative jump to
+    # the function), which doesn't match the IAT-indirect 6-byte form.
+    # `jmp dword ptr [func_ptr]` correctly emits `ff 25 RR RR RR RR`.
+    if len(body) == 6 and body[0:2] == b"\xff\x25":
+        src = (
+            _header(va, "import thunk (JMP DWORD PTR [iat_slot])",
+                    "ff 25 GG GG GG GG", n)
+            + "\nextern \"C\" int (*target_iat_slot)();\n\n"
+              "extern \"C\" __declspec(naked) void import_thunk() {\n"
+              "    __asm {\n"
+              "        jmp dword ptr [target_iat_slot]\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "import-thunk JMP[iat]")
+    return None
+
+
+def try_load_this_jmp_indirect_7b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 7B `8b 09 e9 RR RR RR RR` — MOV ECX, [ECX]; JMP rel32.
+    # Loads `*this` into ECX (typically: turn `this` from a wrapper to
+    # the inner pointer at offset 0) and tail-calls another method.
+    # No RET; JMP is the terminator.
+    if len(body) == 7 and body[0:3] == b"\x8b\x09\xe9":
+        src = (
+            _header(va, "deref-this then JMP",
+                    "8b 09 e9 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void deref_then_jmp() {\n"
+              "    __asm {\n"
+              "        mov ecx, [ecx]\n"
+              "        jmp target\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "deref-this JMP")
+    return None
+
+
+def try_push_local_call_pop_11b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 11B `8b 45 NN 50 e8 RR RR RR RR 59 c3` —
+    # MOV EAX, [EBP+disp8]; PUSH EAX; CALL extern; POP ECX; RET.
+    # Variation of try_push_load_call but with a RET instead of fall-
+    # through. The POP ECX cleans up the pushed arg.
+    if (len(body) == 11 and body[0:2] == b"\x8b\x45" and body[3] == 0x50
+            and body[4] == 0xe8 and body[9] == 0x59 and body[10] == 0xc3):
+        disp_u = body[2]
+        disp_s = disp_u - 256 if disp_u >= 0x80 else disp_u
+        sign = "-" if disp_s < 0 else "+"
+        mag = abs(disp_s)
+        src = (
+            _header(va, f"push-local-call-pop ([EBP{sign}0x{mag:x}]; CALL; POP ECX; RET)",
+                    f"8b 45 {disp_u:02x} 50 e8 RR RR RR RR 59 c3", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void push_call_pop() {\n"
+              "    __asm {\n"
+            + f"        mov eax, [ebp {sign} {mag}]\n"
+              "        push eax\n"
+              "        call target\n"
+              "        pop ecx\n"
+              "        ret\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"push-call-pop EBP{sign}{mag}")
+    return None
+
+
 def try_no_reloc_emit_fallback(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     """Universal fallback for clusters with NO reloc bytes — just emit
     every byte via `_emit`. Only fires when no specific deriver above
@@ -1195,6 +1301,11 @@ DERIVERS = [
     try_arg_shuffler_41b,
     try_unwind_2arg_call_17b,
     try_vtbl_dispatch_25b,
+    try_return_global_value_6b,
+    try_store_arg_to_global_10b,
+    try_import_thunk_jmp_m32,
+    try_load_this_jmp_indirect_7b,
+    try_push_local_call_pop_11b,
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_jmp_thunk,
