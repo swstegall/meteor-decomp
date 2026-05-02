@@ -534,6 +534,122 @@ def try_push_load_call(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     return None
 
 
+def try_scalar_deleting_dtor_30b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # MSVC-emitted "scalar deleting destructor" — appears in every class
+    # vtable that has a virtual destructor. Shape (30 bytes):
+    #
+    #   56                    PUSH ESI                  (save ESI)
+    #   8b f1                 MOV ESI, ECX              (this → ESI)
+    #   e8 RR RR RR RR        CALL <real ~C()>          (reloc)
+    #   f6 44 24 08 01        TEST byte ptr [ESP+8], 1  (delete-flag arg)
+    #   74 09                 JZ +9                     (skip delete)
+    #   56                    PUSH ESI                  (push this)
+    #   e8 RR RR RR RR        CALL operator delete      (reloc)
+    #   83 c4 04              ADD ESP, 4                (clean up arg)
+    #   8b c6                 MOV EAX, ESI              (return this)
+    #   5e                    POP ESI
+    #   c2 04 00              RET 4                     (pop the flag arg)
+    expected = (
+        b"\x56\x8b\xf1\xe8" + b"\x00" * 4 +     # 0:PUSH ESI; MOV ESI,ECX; CALL ~C
+        b"\xf6\x44\x24\x08\x01\x74\x09\x56" +   # 8:TEST flag; JZ +9; PUSH ESI
+        b"\xe8" + b"\x00" * 4 +                 # 16:CALL operator delete
+        b"\x83\xc4\x04\x8b\xc6\x5e\xc2\x04\x00" # 21:ADD ESP,4; MOV EAX,ESI; POP ESI; RET 4
+    )
+    if len(body) != 30:
+        return None
+    # Match every byte except the two reloc rel32 fields.
+    fixed_mask = bytes(0xff for _ in expected)
+    fixed_mask = bytearray(fixed_mask)
+    fixed_mask[4:8] = b"\x00" * 4   # CALL ~C reloc
+    fixed_mask[17:21] = b"\x00" * 4 # CALL delete reloc
+    for i, m in enumerate(fixed_mask):
+        if m == 0:
+            continue
+        if body[i] != expected[i]:
+            return None
+    src = (
+        _header(va, "MSVC scalar deleting destructor (30B form)",
+                "56 8b f1 e8 RR RR RR RR f6 44 24 08 01 74 09 56 "
+                "e8 RR RR RR RR 83 c4 04 8b c6 5e c2 04 00", n)
+        + "\nextern \"C\" int real_dtor();\n"
+          "extern \"C\" int operator_delete();\n\n"
+          "extern \"C\" __declspec(naked) void scalar_deleting_dtor() {\n"
+          "    __asm {\n"
+          "        push esi\n"
+          "        mov esi, ecx\n"
+          "        call real_dtor\n"
+          "        test byte ptr [esp+8], 1\n"
+          "        jz no_delete\n"
+          "        push esi\n"
+          "        call operator_delete\n"
+          "        add esp, 4\n"
+          "    no_delete:\n"
+          "        mov eax, esi\n"
+          "        pop esi\n"
+          "        ret 4\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "scalar-deleting-dtor 30B")
+
+
+def try_scalar_deleting_dtor_32b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 32-byte variant with custom allocator: same shape as 30B but
+    # MOV ECX, <global allocator> before the delete call. Shape:
+    #
+    #   56 8b f1                                  PUSH ESI; MOV ESI, ECX
+    #   e8 RR RR RR RR                            CALL real ~C()
+    #   f6 44 24 08 01                            TEST flag
+    #   74 0b                                     JZ +11
+    #   56                                        PUSH ESI
+    #   b9 GG GG GG GG                            MOV ECX, &allocator
+    #   e8 RR RR RR RR                            CALL operator delete with alloc
+    #   8b c6 5e c2 04 00                         MOV EAX,ESI; POP ESI; RET 4
+    if len(body) != 32:
+        return None
+    expected_template = [
+        (0x56,), (0x8b,), (0xf1,),
+        (0xe8,), None, None, None, None,         # CALL ~C() opcode + 4-byte reloc
+        (0xf6,), (0x44,), (0x24,), (0x08,), (0x01,),
+        (0x74,), (0x0b,),
+        (0x56,),
+        (0xb9,), None, None, None, None,         # MOV ECX, alloc opcode + 4-byte reloc
+        (0xe8,), None, None, None, None,         # CALL delete opcode + 4-byte reloc
+        (0x8b,), (0xc6,), (0x5e,), (0xc2,), (0x04,), (0x00,),
+    ]
+    expected = b"\xe8" + b"\x00" * 4   # placeholder, not used directly
+    for i, exp in enumerate(expected_template):
+        if exp is None:
+            continue
+        if body[i] != exp[0]:
+            return None
+    src = (
+        _header(va, "MSVC scalar deleting destructor (32B form, custom allocator)",
+                "56 8b f1 e8 RR RR RR RR f6 44 24 08 01 74 0b 56 "
+                "b9 GG GG GG GG e8 RR RR RR RR 8b c6 5e c2 04 00", n)
+        + "\nextern \"C\" int real_dtor();\n"
+          "extern \"C\" int operator_delete_alloc();\n"
+          "extern \"C\" int the_allocator;\n\n"
+          "extern \"C\" __declspec(naked) void scalar_deleting_dtor_alloc() {\n"
+          "    __asm {\n"
+          "        push esi\n"
+          "        mov esi, ecx\n"
+          "        call real_dtor\n"
+          "        test byte ptr [esp+8], 1\n"
+          "        jz no_delete\n"
+          "        push esi\n"
+          "        mov ecx, offset the_allocator\n"
+          "        call operator_delete_alloc\n"
+          "    no_delete:\n"
+          "        mov eax, esi\n"
+          "        pop esi\n"
+          "        ret 4\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "scalar-deleting-dtor 32B alloc")
+
+
 def try_return_global_addr(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # b8 GG GG GG GG c3 (6 bytes)
     # MOV EAX, imm32; RET. Returns a constant 32-bit value — typically
@@ -720,6 +836,8 @@ DERIVERS = [
     try_clear_flag_in_global,
     try_push_load_call,
     try_return_global_addr,
+    try_scalar_deleting_dtor_30b,
+    try_scalar_deleting_dtor_32b,
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_jmp_thunk,
