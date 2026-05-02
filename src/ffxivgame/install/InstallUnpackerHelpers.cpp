@@ -177,14 +177,22 @@ private:
 };
 
 void ChunkSource::ReleaseChunk(int handle) {
+    int count = m_entry_count;
     int idx = 0;
-    if (m_entry_count > 0) {
-        int *p = (int *)((char *)m_entries + 8);   // points to entries[0].handle
-        while (*p != handle) {
-            idx = idx + 1;
-            p = p + 3;
-            if (m_entry_count <= idx) return;
-        }
+    if (count > 0) {
+        // Hoist `p = m_entries + 8` outside the loop test so MSVC has
+        // to keep the pointer live across iterations — without this,
+        // the optimizer rotates the loop and emits a direct
+        // `CMP [EDI+8], EBX` first-iteration peel before materialising
+        // ECX. Orig does LEA-then-CMP uniformly across all iterations.
+        int *p = (int *)((char *)m_entries + 8);
+        do {
+            if (*p == handle) goto found;
+            idx++;
+            p += 3;
+        } while (idx < count);
+        return;
+    found:
         InterlockedExchange((long *)((char *)m_entries + idx * 0xc), 1);
         InterlockedIncrement(&m_released_count);
         long state = InterlockedExchangeAdd(&m_state, 0);
