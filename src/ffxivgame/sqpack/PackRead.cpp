@@ -160,6 +160,14 @@ inline ChunkReadUInt::ChunkReadUInt(const void *data, unsigned size)
       m_field18(0)
 {}
 
+// ChunkReadUInt::ReadNextChunkHeader is declared in this TU (so PackRead's
+// inheritance is well-formed) but defined in a separate translation
+// unit (ChunkRead.cpp). Keeping the body out of PackRead.cpp prevents
+// MSVC under /O2 from observing that the callee preserves ECX and
+// optimising away the `MOV ESI, ECX` save in PackRead::ReadNext (which
+// would regress that match — orig has the save). See
+// docs/sqpack.md § "TU split rationale" for the recipe.
+
 class PackRead : public ChunkReadUInt {
 public:
     PackRead(const void *data, unsigned size);
