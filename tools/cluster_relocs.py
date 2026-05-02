@@ -125,40 +125,79 @@ def reloc_mask_for_body(body: bytes, image_base: int = 0x00400000) -> bytearray:
             return sib + 4  # disp32
         return 0
 
+    # Opcodes that take ModR/M + optional displacement only (no
+    # immediate). Their length is `1 + 1 + modrm_extra_len(modrm)`.
+    # When mod=00 r/m=101, the 4-byte disp32 is potentially address-y
+    # and gets reloc-marked.
+    ALU_RM_OPCODES = frozenset({
+        0x00, 0x01, 0x02, 0x03,  # ADD r/m, r / r, r/m
+        0x08, 0x09, 0x0a, 0x0b,  # OR
+        0x20, 0x21, 0x22, 0x23,  # AND
+        0x28, 0x29, 0x2a, 0x2b,  # SUB
+        0x30, 0x31, 0x32, 0x33,  # XOR
+        0x38, 0x39, 0x3a, 0x3b,  # CMP
+        0x84, 0x85,              # TEST r/m, r
+        0x86, 0x87,              # XCHG r/m, r
+    })
+
     while i < n:
         b = body[i]
-        # 83 modrm imm8 / 81 modrm imm32 / 80 modrm imm8 — ALU with
-        # immediate. The ModR/M byte can have values that match other
-        # opcodes (e.g. 0x83 0xe9 NN is `SUB ECX, imm8` but byte 1 = 0xe9
-        # would otherwise look like a JMP rel32 opcode). Recognise the
-        # full 3- or 6-byte form here so the linear walker doesn't get
-        # fooled.
-        if b == 0x83 and i + 3 <= n:
-            i += 3   # opcode + modrm + imm8 (no reloc — pure structural)
-            continue
-        if b == 0x81 and i + 6 <= n:
-            # imm32 form may be address-y → wildcard if so.
+        # ALU r/m forms (no immediate). Modrm-based length only.
+        if b in ALU_RM_OPCODES and i + 2 <= n:
             modrm = body[i + 1]
             mod = (modrm >> 6) & 0b11
             rm = modrm & 0b111
+            extra = modrm_extra_len(modrm, n - i - 2)
+            instr_len = 2 + extra
+            if i + instr_len > n:
+                i += 1
+                continue
             if mod == 0 and rm == 0b101:
-                # MOD=00, R/M=101 → disp32 absolute address ALU. reloc on +2.
+                # disp32 absolute → reloc-mark the 4-byte displacement.
                 for j in range(i + 2, i + 6):
                     mask[j] = 1
-                if i + 10 <= n and _looks_address_like(
-                    body[i + 6], body[i + 7], body[i + 8], body[i + 9], image_base
-                ):
-                    for j in range(i + 6, i + 10):
-                        mask[j] = 1
-                    i += 10
-                    continue
-                i += 10
-                continue
-            # Plain register form: 1 (op) + 1 (modrm) + 4 (imm32) = 6 B.
-            i += 6
+            i += instr_len
             continue
-        if b == 0x80 and i + 3 <= n:
-            i += 3
+        # 83 modrm imm8 / 81 modrm imm32 / 80 modrm imm8 — ALU with
+        # immediate. ModR/M length + 1-byte (0x80/0x83) or 4-byte (0x81)
+        # immediate. Mod=00 r/m=101 means disp32-absolute → reloc on
+        # the 4-byte displacement before the immediate.
+        if b in (0x80, 0x82, 0x83) and i + 2 <= n:
+            modrm = body[i + 1]
+            mod = (modrm >> 6) & 0b11
+            rm = modrm & 0b111
+            extra = modrm_extra_len(modrm, n - i - 2)
+            instr_len = 2 + extra + 1   # +1 for imm8
+            if i + instr_len > n:
+                i += 1
+                continue
+            if mod == 0 and rm == 0b101:
+                for j in range(i + 2, i + 6):
+                    mask[j] = 1
+            i += instr_len
+            continue
+        if b == 0x81 and i + 2 <= n:
+            modrm = body[i + 1]
+            mod = (modrm >> 6) & 0b11
+            rm = modrm & 0b111
+            extra = modrm_extra_len(modrm, n - i - 2)
+            instr_len = 2 + extra + 4   # +4 for imm32
+            if i + instr_len > n:
+                i += 1
+                continue
+            if mod == 0 and rm == 0b101:
+                # disp32 absolute → reloc on the 4-byte displacement.
+                for j in range(i + 2, i + 6):
+                    mask[j] = 1
+                # Trailing imm32 may also be address-y.
+                imm_off = i + 6
+                if imm_off + 4 <= n and _looks_address_like(
+                    body[imm_off], body[imm_off + 1],
+                    body[imm_off + 2], body[imm_off + 3], image_base,
+                ):
+                    for j in range(imm_off, imm_off + 4):
+                        mask[j] = 1
+            i += instr_len
             continue
         # E8 — CALL rel32 ; E9 — JMP rel32
         if b in (0xE8, 0xE9) and i + 5 <= n:
