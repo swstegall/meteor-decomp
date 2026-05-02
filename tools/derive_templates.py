@@ -534,6 +534,28 @@ def try_push_load_call(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     return None
 
 
+def try_catch_all_push_call_9b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 9B SEH Catch_All handler:
+    #   6a 00 6a 00 e8 RR RR RR RR
+    #   PUSH 0; PUSH 0; CALL rel32 — fall-through (no RET; unwinder
+    #   takes over after the called function returns).
+    if len(body) == 9 and body[0:4] == b"\x6a\x00\x6a\x00" and body[4] == 0xe8:
+        src = (
+            _header(va, "SEH Catch_All handler (PUSH 0; PUSH 0; CALL ...)",
+                    "6a 00 6a 00 e8 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void catch_all_handler() {\n"
+              "    __asm {\n"
+              "        push 0\n"
+              "        push 0\n"
+              "        call target\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "catch-all PUSH 0; PUSH 0; CALL")
+    return None
+
+
 def try_array_deleting_dtor_34b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 34B variant of scalar-deleting-dtor with NULL check + alloc-block
     # offset (used for arrays). Shape:
@@ -954,6 +976,7 @@ DERIVERS = [
     try_scalar_deleting_dtor_32b,
     try_array_deleting_dtor_34b,
     try_unwind_flag_check_jmp_25b,
+    try_catch_all_push_call_9b,
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_jmp_thunk,
