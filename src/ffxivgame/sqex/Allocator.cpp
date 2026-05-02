@@ -14,11 +14,15 @@
 // based). Recovered from Ghidra GUI decompilation 2026-05-02 (see
 // docs/ghidra-tasks.md for the handoff trail).
 
-// Win32 kernel32 imports — the "global function pointer" at
-// .data 0x00f3e1a4 is InterlockedExchangeAdd. Not a custom mutex.
+// Win32 kernel32 imports — recovered from Ghidra GUI 2026-05-02:
+//   IAT entry @ .data 0x00f3e1a4  →  InterlockedExchangeAdd
+//   IAT entry @ .data 0x00f3e148  →  InterlockedExchange
+//   IAT entry @ .data 0x00f3e2d4  →  SwitchToThread
 // __declspec(dllimport) makes MSVC emit `CALL [iat_entry]` instead
 // of a direct `CALL rel32`, matching orig's indirect-call style.
 extern "C" __declspec(dllimport) long __stdcall InterlockedExchangeAdd(long *target, long add);
+extern "C" __declspec(dllimport) long __stdcall InterlockedExchange(long *target, long value);
+extern "C" __declspec(dllimport) int __stdcall SwitchToThread();
 
 // CRT free at RVA 0x005d1be9.
 extern "C" void __cdecl free(void *p);
