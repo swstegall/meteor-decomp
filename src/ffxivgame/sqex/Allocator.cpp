@@ -27,11 +27,9 @@ extern "C" __declspec(dllimport) int __stdcall SwitchToThread();
 // CRT free at RVA 0x005d1be9.
 extern "C" void __cdecl free(void *p);
 
-// Per-size-class slab descriptor at .data 0x01266dc0 (16 entries × 8 B).
-// Ghidra named the address relative to a nearby RTTI typedesc — the
-// actual array starts at 0x01266dc0. Field at +0 is the capacity used
-// for the modulo + 2x-comparison; field at +4 is unknown (not used by
-// Utf8StringFree; possibly element-size for Utf8StringAlloc).
+// Per-size-class slab descriptor at .data 0x01266dc0 (Free path).
+// Each entry is 8 bytes; field 0 is capacity used by Utf8StringFree
+// for modulo + 2x-overflow comparison; field 1 may be size_threshold.
 struct SlabDescriptor {
     int capacity;        // +0x00
     int unknown_4;       // +0x04
@@ -46,6 +44,14 @@ extern "C" long g_slab_counters[];                // @ .data 0x0132cf1c
 // Each entry is `int *` pointing to a circular buffer of `int` slots,
 // with capacity == g_slab_descriptors[size_class].capacity.
 extern "C" int *g_freelist_buckets[];             // @ .data 0x0132cec8
+
+// Utf8StringAlloc uses a parallel set of arrays (Ghidra-confirmed):
+extern "C" int  g_alloc_size_thresholds[];        // @ .data 0x01266dc4 (int[i*2])
+extern "C" int  g_alloc_capacities[];             // @ .data 0x01266dc8 (int[i*2])
+extern "C" long g_alloc_producer[];               // @ .data 0x0132cf04 (long[i])
+extern "C" long g_alloc_consumer[];               // @ .data 0x0132cf20 (long[i])
+extern "C" int *g_alloc_freelists[];              // @ .data 0x0132cecc (int*[i])
+extern "C" void *malloc(unsigned n);              // CRT @ RVA 0x005d1b35
 
 // FUNCTION: ffxivgame 0x0004d350 — Sqex::Memory::SlabFree (105 B)
 //
@@ -94,4 +100,83 @@ extern "C" void Utf8StringFree(int data, int /*capacity*/, int /*alloc_class*/) 
         }
         g_freelist_buckets[size_class][counter % slab_cap] = data;
     }
+}
+
+// FUNCTION: ffxivgame 0x0004d500 — Sqex::Memory::SlabAlloc (225 B)
+//
+// Counterpart to Utf8StringFree. Looks up a size class by walking 7
+// thresholds; if the size fits and the cache is populated, pops a slab
+// from the free-list. Otherwise falls back to CRT malloc with a 4-byte
+// header storing (size_class=0, original_size).
+//
+// Ghidra-recovered semantics:
+//   void *Utf8StringAlloc(int size) {
+//     for (int sc = 0; sc < 7; sc++) {
+//       if (size <= g_alloc_size_thresholds[sc * 2]) {
+//         long produced = InterlockedExchangeAdd(&g_alloc_producer[sc], 0);
+//         long consumed = InterlockedExchangeAdd(&g_alloc_consumer[sc], 0);
+//         int cap = g_alloc_capacities[sc * 2];
+//         int prod_idx = produced % cap;
+//         int cons_idx = consumed % cap;
+//         int delta = (prod_idx < cons_idx) ? -prod_idx : (cap - prod_idx);
+//         if (delta + cons_idx >= 100) {
+//           // Cache populated — pop one.
+//           long my = InterlockedExchangeAdd(&g_alloc_producer[sc], 1);
+//           if (my == cap * 2) {
+//             InterlockedExchangeAdd(&g_alloc_producer[sc], -cap);
+//           }
+//           int *slab = g_alloc_freelists[sc] + (my % cap) * 4;
+//           int *resident = *(int **)slab;
+//           if (resident) return resident;
+//         }
+//         break;
+//       }
+//     }
+//     // Fallback: malloc with 4-byte header.
+//     unsigned *p = (unsigned *)malloc(size + 4);
+//     if (!p) return 0;
+//     *(unsigned char *)p = 0;       // size_class = 0 (CRT-owned marker)
+//     *p = (unsigned char)*p | (size << 8);  // upper 24 bits = size
+//     return p + 1;                  // skip header, return data ptr
+//   }
+
+extern "C" unsigned *Utf8StringAlloc(int size) {
+    int sc = 0;
+    do {
+        if (size <= g_alloc_size_thresholds[sc * 2]) {
+            long *producer = &g_alloc_producer[sc];
+            long produced = InterlockedExchangeAdd(producer, 0);
+            long consumed = InterlockedExchangeAdd(&g_alloc_consumer[sc], 0);
+            int cap = g_alloc_capacities[sc * 2];
+            int prod_idx = (int)(produced % cap);
+            int delta;
+            if (prod_idx < (int)(consumed % cap)) {
+                delta = -prod_idx;
+            } else {
+                delta = cap - prod_idx;
+            }
+            if (99 < delta + (int)(consumed % cap)) {
+                long my_idx = InterlockedExchangeAdd(producer, 1);
+                if (my_idx == g_alloc_capacities[sc * 2] * 2) {
+                    InterlockedExchangeAdd(producer, -g_alloc_capacities[sc * 2]);
+                }
+                unsigned *resident = *(unsigned **)(
+                    (char *)g_alloc_freelists[sc] +
+                    (my_idx % g_alloc_capacities[sc * 2]) * 4);
+                if (resident != 0) {
+                    return resident;
+                }
+            }
+            break;
+        }
+        sc = sc + 1;
+    } while (sc < 7);
+
+    unsigned *p = (unsigned *)malloc(size + 4);
+    if (p != 0) {
+        *(unsigned char *)p = 0;
+        *p = (unsigned)(unsigned char)*p | (unsigned)(size << 8);
+        return p + 1;
+    }
+    return 0;
 }
