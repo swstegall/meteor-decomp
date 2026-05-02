@@ -10,104 +10,144 @@
 //
 // Component::Install::InstallUnpacker::Unpack — slot-2 virtual method
 // (Thread::Run override). 490 B at RVA 0x008c6700. Worker entry point
-// for the chunk-extraction pipeline. See docs/install-unpacker.md for
-// the structural recon trail.
-//
-// Match strategy: this is a multi-iteration target. The body has a
-// large SEH frame (0xe0 byte locals + cookie save), 11 distinct call
-// targets (10 of them now matched), a stack-allocated Utf8String at
-// [ESP+0x9c] AND a stack-allocated PackRead at [ESP+0x24], an
-// EDI-hoisted InterlockedExchangeAdd, and 3 bail paths to teardown.
-// See the accompanying scaffolding below.
+// for the chunk-extraction pipeline. Translated from Ghidra decompile
+// 2026-05-02; iteration #1.
 
 #include "../../../include/sqex/Utf8String.h"
-#include "../../../include/install/ResourceQueue.h"
 
 extern "C" __declspec(dllimport) long __stdcall InterlockedExchangeAdd(long *target, long add);
 extern "C" __declspec(dllimport) void __stdcall Sleep(unsigned long ms);
 
-// Forward declarations of all 11 callees in offset order.
+extern "C" void __cdecl _invalid_parameter_noinfo(void);
+
+// Empty-string placeholder global at .rdata 0x01110698.
+extern void *PTR_01110698;
+
+// Forward declaration of two unmatched helpers. Their actual types
+// don't matter for byte matching — orig emits `e8 rel32` calls with
+// reloc-wildcarded targets. We just need symbols MSVC can resolve.
 //
-// Already matched / declared:
+// FUN_00047450 is __thiscall: takes (this, void *outbuf). We declare
+// it as a static member of a stub class to give it the __thiscall
+// convention without needing a "real" enclosing type.
+class SubObjAt1cStub {
+public:
+    void Process(void *outbuf);                 // FUN_00047450 (__thiscall)
+};
+extern "C" void __cdecl FUN_00cc6510(int p1, int *p2_out);
+
+// Already-matched callees that we call from Unpack. ChunkSource has
+// extra fields (m_field_60, m_field_2140) that Unpack reads via
+// `(*field_40)+offset` — exposed as public members.
 class ChunkSource {
 public:
     int  AcquireChunk(int *out_data);          // FUN_008c5db0
     void ReleaseChunk(int handle);             // FUN_008c5e40
+    char m_pad[0x60];
+    long m_field_60;                            // +0x60
+    char m_pad_64[0x2140 - 0x60 - 4];
+    long m_field_2140;                          // +0x2140
 };
 
-// PackRead has its own header in the sqpack tree; redeclare the
-// surface InstallUnpacker::Unpack uses.
+// Local PackRead. The matched class lives in src/ffxivgame/sqpack/
+// — we re-declare just the surface Unpack uses.
 class PackRead {
 public:
-    PackRead(const void *data, unsigned size); // FUN_00d42800
-    ~PackRead();                               // FUN_00cc6670
-    int ReadNext();                            // FUN_00d428b0
+    PackRead(unsigned data, unsigned size);    // FUN_00d42800
+    ~PackRead();                                // FUN_00cc6670
+    char ReadNext();                            // FUN_00d428b0
+private:
+    char m_padding[0x80];                       // approximate — only sizeof
+                                                // matters for the local
+                                                // stack alloc, not field
+                                                // layout from this TU
 };
-
-// Unmatched — declarations-only for the relocs.
-extern "C" void __cdecl FUN_00047450(void *p);     // "SubObjAt1c::Process"
-                                                    // (also called from
-                                                    // PackRead::ProcessChunk)
-class InstallUnpackerHelper {
-public:
-    void ConfigParser(int *out);  // FUN_00cc6510 — 343 B Utf8String
-                                  // config-line parser
-};
-
-extern "C" void __cdecl _invalid_parameter_noinfo(void);
 
 class InstallUnpackerOuter {
 public:
-    void Unpack();                                // FUN_00cc6700 — THIS
+    void Unpack();
+    void WaitForReady(int handle);              // FUN_008c6620
+
 private:
-    char m_pad_00[0x38];
-    ResourceQueue m_resource;                     // +0x38
-    char m_pad_after_rq[/* tbd */];
-    void *m_field_40;                             // ChunkSource ptr
-    char m_pad_44[0x60];                          // up to +0xa4
-    void *m_field_a4;                             // ConfigParser ptr
-    char m_field_a8[/* tbd */];                   // probed at start
-    /* ... more fields up to size derived from Unpack ... */
+    // Layout below is for THIS TU's view only. Other TUs (Resource
+    // Queue.cpp, InstallUnpackerHelpers.cpp) have their own layouts
+    // for the same physical bytes. Matching is byte-level — only
+    // the offsets need to align.
+    char m_pad_00[0x40];                         // 0x00..0x3f (covers
+                                                  // m_resource interior)
+    ChunkSource *m_field_40;                     // +0x40
+    InstallUnpackerOuter *m_field_44;            // +0x44 — peer pointer
+    char m_field_48[0x9c - 0x48];                // +0x48 — opaque sub-object
+    char *m_field_9c;                            // +0x9c
+    int  m_field_a0;                             // +0xa0
+    int  m_field_a4;                             // +0xa4
+    long m_field_a8;                             // +0xa8
 };
 
 // FUNCTION: ffxivgame 0x008c6700 — InstallUnpacker::Unpack (490 B)
 //
-// PENDING — needs Ghidra decompile to translate. Will be added in
-// a subsequent iteration once the structural decompile is on hand.
-//
-// Stack frame layout (recovered from byte-level analysis):
-//   SUB ESP, 0xe0    ; 224 bytes of locals
-//   PUSH EBX, EBP, ESI, EDI    ; 16 more bytes of saves
-//   PUSH cookie XOR             ; 4 more bytes
-//
-//   Local Utf8String at [ESP+0x9c] (after pushes)
-//   Local PackRead at [ESP+0x24]
-//   Local handle at [ESP+0x18] (out param of AcquireChunk)
-//   SEH state byte at [ESP+0xfc] (set 0x00 → 0x01 around PackRead ctor)
-//   Various locals at [ESP+0x90], [ESP+0x94], [ESP+0xa0]
-//
-// Bail paths to teardown:
-//   - [this+0x40].state == 4   (offset 0x4e jumps to 0x166)
-//   - [this+0xa8] != 0          (offset 0x62 jumps to 0x153)
-//   - AcquireChunk returns 0    (offset 0x79 jumps to 0x134)
-//
-// Inner loop (offset ~0xc8 to ~0x180):
-//   FUN_00047450(&[ESP+0x38])
-//   InstallUnpackerHelper::ConfigParser(&[ESI+0xa4])  → FUN_00cc6510
-//   InterlockedExchangeAdd on a counter
-//   _invalid_parameter_noinfo()  (size_check_cookie spillover)
-//   WaitForReady(&[ESI+0x38])
-//   InterlockedExchangeAdd
-//   Sleep(0)  (yield)
-//   InterlockedExchangeAdd
-//   PackRead::ReadNext()
-//   InterlockedExchangeAdd
-//   loop continuation check (offset 0x183 jumps back to 0xc4)
-//
-// Teardown:
-//   ReleaseChunk(handle)
-//   PackRead::~PackRead
-//   Utf8String::~Utf8String
-//   SEH unwind
-//   __security_check_cookie
-//   ADD ESP, 0xec; RET
+// PENDING (iteration #1) — translated literally from Ghidra
+// decompile 2026-05-02. Many open questions: reg allocation, SEH
+// state-byte placement, exact stack-frame layout. Expect
+// significant mismatches on the first pass — calibration target
+// is "compiles + has the right call sequence", not GREEN.
+
+void InstallUnpackerOuter::Unpack() {
+    long state = InterlockedExchangeAdd(&m_field_40->m_field_60, 0);
+    if (state == 4) return;
+    long bail_flag = InterlockedExchangeAdd(&m_field_a8, 0);
+    if (bail_flag != 0) return;
+
+    int chunk_data;
+    int chunk_handle = m_field_40->AcquireChunk(&chunk_data);
+    if (chunk_handle == 0) return;
+
+    Utf8String chunk_name;                      // FUN_00045cf0
+    PackRead pack_reader((unsigned)chunk_handle, (unsigned)chunk_data);  // FUN_00d42800
+
+    int *counter_ptr = &m_field_a4;
+    char subobj_buf[0x58];                      // 88-byte subobject
+    char *str_begin = 0;
+    char *str_end = 0;
+
+    do {
+        ((SubObjAt1cStub *)&m_field_48)->Process(subobj_buf);
+        FUN_00cc6510((int)&m_field_48, counter_ptr);
+
+        long mul = InterlockedExchangeAdd(&m_field_40->m_field_2140, 0);
+        *counter_ptr = *counter_ptr * mul;
+
+        char *data;
+        if (str_begin == 0 || str_end == str_begin) {
+            data = (char *)&PTR_01110698;
+        } else {
+            data = str_begin;
+            // Dead branch retained from orig — MSVC emits this even
+            // though the if-test is unreachable given the outer
+            // condition. Likely a `_assert`-style check baked into a
+            // template instantiation.
+            if (str_end == str_begin) {
+                _invalid_parameter_noinfo();
+                data = str_begin;
+            }
+        }
+        m_field_9c = data;
+        int len = 0;
+        if (str_begin != 0) {
+            len = (int)(str_end - str_begin);
+        }
+        m_field_a0 = len;
+
+        m_field_44->WaitForReady((int)((char *)this + 0x38));
+
+        long pending = InterlockedExchangeAdd((long *)((char *)this + 0x3c), 0);
+        while (pending == 1) {
+            Sleep(0);
+            pending = InterlockedExchangeAdd((long *)((char *)this + 0x3c), 0);
+        }
+    } while (pack_reader.ReadNext() != 0
+             && InterlockedExchangeAdd(&m_field_a8, 0) == 0);
+
+    m_field_40->ReleaseChunk(chunk_handle);
+    // ~PackRead, ~Utf8String run via SEH unwind on scope exit.
+}
