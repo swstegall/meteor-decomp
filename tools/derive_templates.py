@@ -2796,6 +2796,163 @@ def try_call_with_imm8_arg_pop_ret_9b(body: bytes, va: int, n: int) -> tuple[str
     return None
 
 
+def try_seh_3arg_thiscall_helper_16b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 16B `8b 4d AA 51 8b 55 BB 52 8b 4d CC e8 RR RR RR RR` —
+    #   MOV ECX, [EBP+disp_a]; PUSH ECX
+    #   MOV EDX, [EBP+disp_b]; PUSH EDX
+    #   MOV ECX, [EBP+disp_c]      (final this for thiscall)
+    #   CALL rel32                  (no RET — SEH unwinder handles)
+    # 2-arg thiscall destructor / cleanup helper that pulls all three
+    # operands out of the EBP frame.
+    if not (len(body) == 16
+            and body[0:2] == b"\x8b\x4d"
+            and body[3] == 0x51
+            and body[4:6] == b"\x8b\x55"
+            and body[7] == 0x52
+            and body[8:10] == b"\x8b\x4d"
+            and body[11] == 0xe8):
+        return None
+    a_u, b_u, c_u = body[2], body[6], body[10]
+    a_s = a_u - 256 if a_u >= 0x80 else a_u
+    b_s = b_u - 256 if b_u >= 0x80 else b_u
+    c_s = c_u - 256 if c_u >= 0x80 else c_u
+    a_sign, a_mag = ("-" if a_s < 0 else "+", abs(a_s))
+    b_sign, b_mag = ("-" if b_s < 0 else "+", abs(b_s))
+    c_sign, c_mag = ("-" if c_s < 0 else "+", abs(c_s))
+    src = (
+        _header(va, f"SEH thiscall 2-arg helper (this@EBP{c_sign}0x{c_mag:x}, args from EBP frame)",
+                f"8b 4d {a_u:02x} 51 8b 55 {b_u:02x} 52 8b 4d {c_u:02x} e8 RR RR RR RR", n)
+        + "\nextern \"C\" int target();\n\n"
+          "extern \"C\" __declspec(naked) void seh_3arg_thiscall_helper() {\n"
+          "    __asm {\n"
+        + f"        mov ecx, [ebp {a_sign} {a_mag}]\n"
+          "        push ecx\n"
+        + f"        mov edx, [ebp {b_sign} {b_mag}]\n"
+          "        push edx\n"
+        + f"        mov ecx, [ebp {c_sign} {c_mag}]\n"
+          "        call target\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, f"seh-3arg-thiscall [EBP{a_sign}{a_mag}, EBP{b_sign}{b_mag}, EBP{c_sign}{c_mag}]")
+
+
+def try_seh_push_local_disp32_pop_ret_14b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 14B `8b 85 NN NN NN NN 50 e8 RR RR RR RR 59 c3` —
+    #   MOV EAX, [EBP+disp32]; PUSH EAX; CALL rel32; POP ECX; RET
+    # disp32 form of try_push_ebp_arg1_call_pop_ret_10b.
+    # Skip when displacement fits in disp8 (different cluster).
+    if (len(body) == 14 and body[0:2] == b"\x8b\x85"
+            and body[6] == 0x50 and body[7] == 0xe8
+            and body[12:14] == b"\x59\xc3"):
+        disp_s = int.from_bytes(body[2:6], "little", signed=True)
+        if -128 <= disp_s <= 127:
+            return None
+        sign = "-" if disp_s < 0 else "+"
+        mag = abs(disp_s)
+        src = (
+            _header(va, f"single-arg cdecl wrapper (PUSH [EBP{sign}0x{mag:x}]; CALL; POP ECX; RET) — disp32",
+                    f"8b 85 NN NN NN NN 50 e8 RR RR RR RR 59 c3  (disp={sign}0x{mag:x})", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void wrapper_1arg_ebp_disp32() {\n"
+              "    __asm {\n"
+            + f"        mov eax, [ebp {sign} {mag}]\n"
+              "        push eax\n"
+              "        call target\n"
+              "        pop ecx\n"
+              "        ret\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"1arg-wrapper disp32 [EBP{sign}0x{mag:x}]")
+    return None
+
+
+def try_thiscall_save_call_swap_jmp_16b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 16B `56 8b f1 e8 RR RR RR RR 8b ce 5e e9 RR RR RR RR` —
+    #   PUSH ESI; MOV ESI, ECX     (save this in ESI)
+    #   CALL rel32                  (callee gets `this` in ECX)
+    #   MOV ECX, ESI; POP ESI       (restore this for tail-jmp)
+    #   JMP rel32                    (tail-call B with original this)
+    # Wrapper that calls A on this, then tail-calls B on the SAME
+    # this. Common in two-step init patterns.
+    if (len(body) == 16 and body[0:3] == b"\x56\x8b\xf1"
+            and body[3] == 0xe8 and body[8:11] == b"\x8b\xce\x5e"
+            and body[11] == 0xe9):
+        src = (
+            _header(va, "thiscall save-call-restore-jmp (PUSH ESI; MOV ESI,ECX; CALL A; MOV ECX,ESI; POP ESI; JMP B)",
+                    "56 8b f1 e8 RR RR RR RR 8b ce 5e e9 RR RR RR RR", n)
+            + "\nextern \"C\" int call_a();\n"
+              "extern \"C\" int call_b();\n\n"
+              "extern \"C\" __declspec(naked) void save_call_restore_jmp() {\n"
+              "    __asm {\n"
+              "        push esi\n"
+              "        mov esi, ecx\n"
+              "        call call_a\n"
+              "        mov ecx, esi\n"
+              "        pop esi\n"
+              "        jmp call_b\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "save-call-restore-jmp")
+    return None
+
+
+def try_thiscall_member_adjust_vtable_tailjmp_14b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 14B `8b 49 04 8b 41 04 8b 50 NN 83 c1 04 ff e2` —
+    #   MOV ECX, [ECX+4]   (re-base to member at +4)
+    #   MOV EAX, [ECX+4]   (load member's secondary pointer at +4)
+    #   MOV EDX, [EAX+slot]
+    #   ADD ECX, 4         (advance this by 4 for the call)
+    #   JMP EDX
+    # Specific multi-deref tail-jmp shape that appears repeatedly with
+    # different slot offsets.
+    if (len(body) == 14 and body[0:6] == b"\x8b\x49\x04\x8b\x41\x04"
+            and body[6:8] == b"\x8b\x50"
+            and body[9:12] == b"\x83\xc1\x04"
+            and body[12:14] == b"\xff\xe2"):
+        slot = body[8]
+        if slot == 0:
+            return None
+        src = (
+            _header(va, f"member-adjusted vtable tail-jmp (slot 0x{slot:x})",
+                    f"8b 49 04 8b 41 04 8b 50 {slot:02x} 83 c1 04 ff e2", n)
+            + "\nextern \"C\" __declspec(naked) void member_adjust_vtable_tailjmp() {\n"
+              "    __asm {\n"
+              "        mov ecx, [ecx + 4]\n"
+              "        mov eax, [ecx + 4]\n"
+            + f"        mov edx, [eax + 0x{slot:x}]\n"
+              "        add ecx, 4\n"
+              "        jmp edx\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"member-adjust-vtable tailjmp [+0x{slot:x}]")
+    return None
+
+
+def try_call_then_jmp_10b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 10B `e8 RR RR RR RR e9 RR RR RR RR` —
+    #   CALL rel32; JMP rel32. Sequential call-then-tail-jmp without
+    #   register fix-ups (no return-value plumbing).
+    if (len(body) == 10 and body[0] == 0xe8 and body[5] == 0xe9):
+        src = (
+            _header(va, "sequential call A + tail-jmp B (no register plumbing)",
+                    "e8 RR RR RR RR e9 RR RR RR RR", n)
+            + "\nextern \"C\" int call_a();\n"
+              "extern \"C\" int call_b();\n\n"
+              "extern \"C\" __declspec(naked) void call_then_jmp() {\n"
+              "    __asm {\n"
+              "        call call_a\n"
+              "        jmp call_b\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "call+jmp sequential")
+    return None
+
+
 def try_2arg_passthrough_wrapper_21b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 21B `__stdcall` 2-arg passthrough wrapper:
     #   8b 44 24 08              MOV EAX, [ESP+8]    (arg2)
@@ -2883,6 +3040,11 @@ DERIVERS[_late_idx:_late_idx] = [
     try_return_zero_float_3b,
     try_field_gt_zero_predicate_8b,
     try_call_with_imm8_arg_pop_ret_9b,
+    try_seh_3arg_thiscall_helper_16b,
+    try_seh_push_local_disp32_pop_ret_14b,
+    try_thiscall_save_call_swap_jmp_16b,
+    try_thiscall_member_adjust_vtable_tailjmp_14b,
+    try_call_then_jmp_10b,
 ]
 
 
