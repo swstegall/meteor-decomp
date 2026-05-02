@@ -56,3 +56,7 @@ build/logs/
 *.iml
 *.swp
 *~
+
+# Python
+__pycache__/
+*.pyc

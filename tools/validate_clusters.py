@@ -269,9 +269,11 @@ def main() -> int:
     t0 = time.time()
     verdict_counts = {"GREEN": 0, "PARTIAL": 0, "MISMATCH": 0, "ERROR": 0}
     failures: list[tuple[str, str]] = []
+    per_file_verdicts: list[tuple[str, str, str]] = []  # (name, verdict, summary)
     for cpp in cpps:
         verdict, summary = run_compare(stem, cpp.stem)
         verdict_counts[verdict] += 1
+        per_file_verdicts.append((cpp.stem, verdict, summary))
         if verdict != "GREEN":
             failures.append((cpp.stem, summary))
     t_compare = time.time() - t0
@@ -300,6 +302,19 @@ def main() -> int:
         f.write(f"clone_time_sec={t_clone:.1f}\n")
         f.write(f"compare_time_sec={t_compare:.1f}\n")
     print(f"\n  log: {summary_path.relative_to(REPO_ROOT)}")
+
+    # Per-file JSON results for downstream YAML status sync.
+    results_path = REPO_ROOT / "build" / "easy_wins" / f"{stem}.validate_results.json"
+    per_file: list[dict] = []
+    for name, verdict, summary in per_file_verdicts:
+        m = RE_FUN_NAME.match(name)
+        rva = int(m.group(1), 16) if m else None
+        entry: dict = {"name": name, "rva": rva, "verdict": verdict}
+        if verdict != "GREEN":
+            entry["summary"] = summary
+        per_file.append(entry)
+    results_path.write_text(json.dumps(per_file, indent=2) + "\n")
+    print(f"  results: {results_path.relative_to(REPO_ROOT)}")
     return 0 if verdict_counts["MISMATCH"] == 0 and verdict_counts["ERROR"] == 0 else 1
 
 
