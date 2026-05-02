@@ -534,6 +534,120 @@ def try_push_load_call(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     return None
 
 
+def try_array_deleting_dtor_34b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 34B variant of scalar-deleting-dtor with NULL check + alloc-block
+    # offset (used for arrays). Shape:
+    #
+    #   56 8b f1                                    PUSH ESI; MOV ESI, ECX
+    #   e8 RR RR RR RR                              CALL ~C()
+    #   f6 44 24 08 01                              TEST flag
+    #   74 0d                                       JZ +13
+    #   85 f6                                       TEST ESI, ESI       (null check)
+    #   74 09                                       JZ +9               (skip on null)
+    #   8b 4e fc                                    MOV ECX, [ESI-4]    (alloc-block ptr)
+    #   56                                          PUSH ESI
+    #   e8 RR RR RR RR                              CALL operator delete[]
+    #   8b c6 5e c2 04 00                           MOV EAX,ESI; POP ESI; RET 4
+    if len(body) != 34:
+        return None
+    expected = [
+        (0x56,), (0x8b,), (0xf1,),
+        (0xe8,), None, None, None, None,
+        (0xf6,), (0x44,), (0x24,), (0x08,), (0x01,),
+        (0x74,), (0x0d,),
+        (0x85,), (0xf6,),
+        (0x74,), (0x09,),
+        (0x8b,), (0x4e,), (0xfc,),
+        (0x56,),
+        (0xe8,), None, None, None, None,
+        (0x8b,), (0xc6,), (0x5e,), (0xc2,), (0x04,), (0x00,),
+    ]
+    for i, exp in enumerate(expected):
+        if exp is None:
+            continue
+        if body[i] != exp[0]:
+            return None
+    src = (
+        _header(va, "MSVC array deleting destructor (34B form, null+alloc-block)",
+                "56 8b f1 e8 RR RR RR RR f6 44 24 08 01 74 0d 85 f6 74 09 "
+                "8b 4e fc 56 e8 RR RR RR RR 8b c6 5e c2 04 00", n)
+        + "\nextern \"C\" int real_dtor();\n"
+          "extern \"C\" int operator_delete_array();\n\n"
+          "extern \"C\" __declspec(naked) void array_deleting_dtor() {\n"
+          "    __asm {\n"
+          "        push esi\n"
+          "        mov esi, ecx\n"
+          "        call real_dtor\n"
+          "        test byte ptr [esp+8], 1\n"
+          "        jz no_delete\n"
+          "        test esi, esi\n"
+          "        jz no_delete2\n"
+          "        mov ecx, [esi - 4]\n"
+          "        push esi\n"
+          "        call operator_delete_array\n"
+          "    no_delete2:\n"
+          "    no_delete:\n"
+          "        mov eax, esi\n"
+          "        pop esi\n"
+          "        ret 4\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "array-deleting-dtor 34B")
+
+
+def try_unwind_flag_check_jmp_25b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 25B SEH unwind helper that gates the destructor on a flag bit:
+    #
+    #   8b 45 f0                MOV EAX, [EBP-0x10]
+    #   83 e0 01                AND EAX, 1
+    #   0f 84 0c 00 00 00       JZ FAR +0xc                (long-form JZ)
+    #   83 65 f0 fe             AND [EBP-0x10], 0xfffffffe (clear low bit)
+    #   8b 4d 04                MOV ECX, [EBP+4]
+    #   e9 RR RR RR RR          JMP rel32                  (tail to dtor)
+    #   c3                      RET                        (only when bit was 0)
+    if len(body) != 25:
+        return None
+    expected = [
+        (0x8b,), (0x45,), (0xf0,),
+        (0x83,), (0xe0,), (0x01,),
+        (0x0f,), (0x84,), (0x0c,), (0x00,), (0x00,), (0x00,),
+        (0x83,), (0x65,), (0xf0,), (0xfe,),
+        (0x8b,), (0x4d,), (0x04,),
+        (0xe9,), None, None, None, None,
+        (0xc3,),
+    ]
+    for i, exp in enumerate(expected):
+        if exp is None:
+            continue
+        if body[i] != exp[0]:
+            return None
+    src = (
+        _header(va, "SEH unwind helper (flag-test → tail-call dtor; 25B)",
+                "8b 45 f0 83 e0 01 0f 84 0c 00 00 00 83 65 f0 fe "
+                "8b 4d 04 e9 RR RR RR RR c3", n)
+        + "\nextern \"C\" int target();\n\n"
+          "extern \"C\" __declspec(naked) void unwind_flag_check() {\n"
+          "    __asm {\n"
+          "        mov eax, [ebp - 16]\n"
+          "        and eax, 1\n"
+          "        ; force long-form JZ (cl.exe defaults to short).\n"
+          "        _emit 0x0f\n"
+          "        _emit 0x84\n"
+          "        _emit 0x0c\n"
+          "        _emit 0x00\n"
+          "        _emit 0x00\n"
+          "        _emit 0x00\n"
+          "        and dword ptr [ebp - 16], -2\n"
+          "        mov ecx, [ebp + 4]\n"
+          "        jmp target\n"
+          "        ret\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "unwind flag-check 25B")
+
+
 def try_scalar_deleting_dtor_30b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # MSVC-emitted "scalar deleting destructor" — appears in every class
     # vtable that has a virtual destructor. Shape (30 bytes):
@@ -838,6 +952,8 @@ DERIVERS = [
     try_return_global_addr,
     try_scalar_deleting_dtor_30b,
     try_scalar_deleting_dtor_32b,
+    try_array_deleting_dtor_34b,
+    try_unwind_flag_check_jmp_25b,
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_jmp_thunk,
