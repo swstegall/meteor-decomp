@@ -48,12 +48,37 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-
-# Defaults (single-binary repo; future multi-binary support would parameterise).
-ORIG_PE = REPO_ROOT / "orig" / "ffxivgame.exe"
 CONFIG_DIR = REPO_ROOT / "config"
-PE_LAYOUT = REPO_ROOT / "build" / "pe-layout" / "ffxivgame.json"
-OBJ_ROOT = REPO_ROOT / "build" / "obj" / "_rosetta"
+
+
+def _binary_paths(binary_stem: str) -> tuple[Path, Path, Path]:
+    """Return (orig_pe, pe_layout_json, obj_root) for a given binary stem.
+
+    For ffxivgame the legacy non-suffixed obj_root is used (so existing
+    builds continue to work); for any other binary the obj root is
+    namespaced under the stem so multi-binary builds don't collide.
+    """
+    orig_pe = REPO_ROOT / "orig" / f"{binary_stem}.exe"
+    pe_layout = REPO_ROOT / "build" / "pe-layout" / f"{binary_stem}.json"
+    if binary_stem == "ffxivgame":
+        # Backward-compatible: legacy obj root for ffxivgame.
+        legacy = REPO_ROOT / "build" / "obj" / "_rosetta"
+        nested = legacy / "ffxivgame"
+        # Prefer nested (new layout) if it exists, else fall back.
+        obj_root = nested if nested.is_dir() else legacy
+    else:
+        obj_root = REPO_ROOT / "build" / "obj" / "_rosetta" / binary_stem
+    return orig_pe, pe_layout, obj_root
+
+
+def _parse_kv_arg(arg: str, key: str) -> str | None:
+    """Parse a `KEY=value` style argument; return value or None if not match."""
+    if not arg:
+        return None
+    if "=" not in arg:
+        return None
+    k, v = arg.split("=", 1)
+    return v if k == key else None
 
 
 def _parse_func_arg(arg: str) -> str:
@@ -68,14 +93,14 @@ def _abs_from_fun_name(name: str) -> int | None:
     return int(m.group(1), 16) if m else None
 
 
-def _read_pe_layout() -> tuple[int, list[dict]]:
+def _read_pe_layout(pe_layout_path: Path) -> tuple[int, list[dict]]:
     """Parse build/pe-layout/<bin>.json (regenerable via tools/extract_pe.py)
     and return (image_base, sections) where sections is a list of dicts
     matching the JSON schema."""
-    if not PE_LAYOUT.exists():
-        print(f"error: {PE_LAYOUT} missing — run tools/extract_pe.py first", file=sys.stderr)
+    if not pe_layout_path.exists():
+        print(f"error: {pe_layout_path} missing — run tools/extract_pe.py first", file=sys.stderr)
         sys.exit(3)
-    data = json.loads(PE_LAYOUT.read_text())
+    data = json.loads(pe_layout_path.read_text())
     image_base = int(data["image_base"], 16)
     return image_base, data["sections"]
 
@@ -91,13 +116,13 @@ def _rva_to_file_offset(rva: int, sections: list[dict]) -> int | None:
     return None
 
 
-def _read_orig_bytes(rva: int, size: int) -> bytes:
-    image_base, sections = _read_pe_layout()
+def _read_orig_bytes(rva: int, size: int, orig_pe: Path, pe_layout_path: Path) -> bytes:
+    image_base, sections = _read_pe_layout(pe_layout_path)
     file_off = _rva_to_file_offset(rva, sections)
     if file_off is None:
         print(f"error: rva {rva:#x} not in any section", file=sys.stderr)
         sys.exit(3)
-    with ORIG_PE.open("rb") as f:
+    with orig_pe.open("rb") as f:
         f.seek(file_off)
         return f.read(size)
 
@@ -280,17 +305,26 @@ def _first_mismatch(orig: bytes, ours: bytes, mask: bytearray) -> int | None:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("func", nargs="?", help="FUNC name or FUNC=name")
-    ap.add_argument("rest", nargs="*", help=argparse.SUPPRESS)
-    args = ap.parse_args()
+    ap.add_argument("args", nargs="*", help="FUNC=<name>  [BINARY=<bin>.exe]")
+    parsed = ap.parse_args()
 
-    if not args.func:
-        print("usage: tools/compare.py FUNC=<symbol-name>", file=sys.stderr)
-        return 3
-    # Accept the Makefile shape: `compare.py FUNC=<name>`.
-    func_name = _parse_func_arg(args.func) or _parse_func_arg((args.rest or [""])[0])
+    func_name: str | None = None
+    binary_stem = "ffxivgame"
+    for a in parsed.args:
+        v = _parse_kv_arg(a, "FUNC")
+        if v:
+            func_name = v
+            continue
+        v = _parse_kv_arg(a, "BINARY")
+        if v:
+            binary_stem = v.replace(".exe", "")
+            continue
+        # Bare FUN_xxxx (legacy)
+        if a.startswith("FUN_"):
+            func_name = a
+
     if not func_name:
-        print("usage: tools/compare.py FUNC=<symbol-name>", file=sys.stderr)
+        print("usage: tools/compare.py FUNC=<symbol-name> [BINARY=<bin>.exe]", file=sys.stderr)
         return 3
 
     abs_addr = _abs_from_fun_name(func_name)
@@ -298,12 +332,13 @@ def main() -> int:
         print(f"error: only FUN_<address> names supported today, got {func_name!r}", file=sys.stderr)
         return 3
 
-    image_base, _ = _read_pe_layout()
+    orig_pe, pe_layout_path, obj_root = _binary_paths(binary_stem)
+    image_base, _ = _read_pe_layout(pe_layout_path)
     rva = abs_addr - image_base
 
-    sym_path = CONFIG_DIR / "ffxivgame.symbols.json"
+    sym_path = CONFIG_DIR / f"{binary_stem}.symbols.json"
     if not sym_path.exists():
-        print(f"error: {sym_path} missing — run `make split BINARY=ffxivgame.exe`", file=sys.stderr)
+        print(f"error: {sym_path} missing — run `make split BINARY={binary_stem}.exe`", file=sys.stderr)
         return 3
     syms = json.loads(sym_path.read_text())
     sym = next((s for s in syms if s["rva"] == rva), None)
@@ -314,7 +349,7 @@ def main() -> int:
     # Prefer the YAML's `size:` over symbols.json — Ghidra occasionally
     # under-counts (e.g. trailing XOR/RET + INT3 padding). The YAML is
     # human-curated and more reliable for known-corrected functions.
-    yaml_path = CONFIG_DIR / "ffxivgame.yaml"
+    yaml_path = CONFIG_DIR / f"{binary_stem}.yaml"
     yaml_size = _yaml_size_override(rva, yaml_path)
     sym_size = int(sym["size"])
     if yaml_size is not None and yaml_size != sym_size:
@@ -324,19 +359,19 @@ def main() -> int:
         size = sym_size
         size_source = "symbols.json"
 
-    obj_path = OBJ_ROOT / f"{func_name}.obj"
+    obj_path = obj_root / f"{func_name}.obj"
     if not obj_path.exists():
-        print(f"error: {obj_path} missing — run `make rosetta` first", file=sys.stderr)
+        print(f"error: {obj_path} missing — run `make rosetta BINARY={binary_stem}.exe` first", file=sys.stderr)
         return 3
 
-    orig = _read_orig_bytes(rva, size)
+    orig = _read_orig_bytes(rva, size, orig_pe, pe_layout_path)
     ours = _coff_text_bytes(obj_path)
     relocs = _coff_text_relocs(obj_path)
     mask = _build_reloc_mask(relocs, max(len(orig), len(ours)))
     verdict, structural, reloc, total = _verdict(orig, ours, mask)
 
-    print(f"=== {func_name} (rva {rva:#x}, size {size} B from {size_source}) ===")
-    print(f"  orig: {len(orig)} bytes from {ORIG_PE.relative_to(REPO_ROOT)}")
+    print(f"=== {func_name} [{binary_stem}] (rva {rva:#x}, size {size} B from {size_source}) ===")
+    print(f"  orig: {len(orig)} bytes from {orig_pe.relative_to(REPO_ROOT)}")
     print(f"  ours: {len(ours)} bytes from {obj_path.relative_to(REPO_ROOT)}")
     if relocs:
         print(f"  reloc-masked positions: {sum(1 for m in mask[:total] if m)} of {total} bytes")

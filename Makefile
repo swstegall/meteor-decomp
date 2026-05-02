@@ -140,22 +140,27 @@ find-rosetta:
 	$(PY) $(TOOLS)/find_rosetta.py $(or $(BINARY),ffxivgame)
 
 # Compile + diff the staged Rosetta source against the original binary.
-# The candidate's .cpp lives at src/ffxivgame/_rosetta/<sym>.cpp.
+# The candidate's .cpp lives at src/<binary>/_rosetta/<sym>.cpp.
+# Pass BINARY=ffxivboot.exe (or any other split binary) to retarget.
 ROSETTA_FLAGS ?= /c /O2 /Oy /GR /EHsc /Gy /GS /MT /Zc:wchar_t /Zc:forScope /TP
+ROSETTA_BIN_STEM = $(basename $(or $(BINARY),ffxivgame.exe))
+ROSETTA_SRC_DIR = src/$(ROSETTA_BIN_STEM)/_rosetta
+ROSETTA_OBJ_DIR = $(BUILD)/obj/_rosetta/$(ROSETTA_BIN_STEM)
 rosetta: setup-msvc
-	@if ! ls src/ffxivgame/_rosetta/*.cpp >/dev/null 2>&1; then \
-	    echo "no rosetta source staged in src/ffxivgame/_rosetta/"; \
-	    echo "run 'make find-rosetta' and hand-translate the top candidate."; \
+	@if ! ls $(ROSETTA_SRC_DIR)/*.cpp >/dev/null 2>&1; then \
+	    echo "no rosetta source staged in $(ROSETTA_SRC_DIR)/"; \
+	    echo "run 'make find-rosetta BINARY=$(ROSETTA_BIN_STEM).exe' and hand-translate the top candidate,"; \
+	    echo "or use tools/seed_templates.py to bootstrap canonical stub templates from another binary."; \
 	    exit 1; \
 	fi
-	mkdir -p $(BUILD)/obj/_rosetta
-	@for cpp in src/ffxivgame/_rosetta/*.cpp; do \
+	mkdir -p $(ROSETTA_OBJ_DIR)
+	@for cpp in $(ROSETTA_SRC_DIR)/*.cpp; do \
 	    name=$$(basename $$cpp .cpp); \
-	    obj=$(BUILD)/obj/_rosetta/$$name.obj; \
+	    obj=$(ROSETTA_OBJ_DIR)/$$name.obj; \
 	    echo ">>> cl $$cpp -> $$obj"; \
 	    $(TOOLS)/cl-wine.sh $(ROSETTA_FLAGS) /Fo$$obj $$cpp || exit $$?; \
 	    echo ">>> objdiff $$obj vs orig"; \
-	    $(PY) $(TOOLS)/compare.py FUNC=$$name || exit $$?; \
+	    $(PY) $(TOOLS)/compare.py BINARY=$(ROSETTA_BIN_STEM).exe FUNC=$$name || exit $$?; \
 	done
 
 # Like `rosetta` but never bails on a non-GREEN verdict — useful for
@@ -163,24 +168,24 @@ rosetta: setup-msvc
 # single PARTIAL or MISMATCH shouldn't stop the whole sweep. The
 # verdict per file is still printed; aggregate counts come from the
 # log via `grep -c GREEN/PARTIAL/MISMATCH`. The tally is also written
-# to build/logs/rosetta_bulk_summary.txt for quick review.
+# to build/logs/rosetta_bulk_summary_<binary>.txt for quick review.
 .PHONY: rosetta-bulk
 rosetta-bulk: setup-msvc
-	@if ! ls src/ffxivgame/_rosetta/*.cpp >/dev/null 2>&1; then \
-	    echo "no rosetta source staged in src/ffxivgame/_rosetta/"; \
+	@if ! ls $(ROSETTA_SRC_DIR)/*.cpp >/dev/null 2>&1; then \
+	    echo "no rosetta source staged in $(ROSETTA_SRC_DIR)/"; \
 	    exit 1; \
 	fi
-	mkdir -p $(BUILD)/obj/_rosetta $(BUILD)/logs
+	mkdir -p $(ROSETTA_OBJ_DIR) $(BUILD)/logs
 	@green=0; partial=0; mismatch=0; cl_fail=0; \
-	for cpp in src/ffxivgame/_rosetta/*.cpp; do \
+	for cpp in $(ROSETTA_SRC_DIR)/*.cpp; do \
 	    name=$$(basename $$cpp .cpp); \
-	    obj=$(BUILD)/obj/_rosetta/$$name.obj; \
+	    obj=$(ROSETTA_OBJ_DIR)/$$name.obj; \
 	    echo ">>> cl $$cpp -> $$obj"; \
 	    if ! $(TOOLS)/cl-wine.sh $(ROSETTA_FLAGS) /Fo$$obj $$cpp; then \
 	        cl_fail=$$((cl_fail + 1)); echo "  ⚠️  cl failed (continuing)"; continue; \
 	    fi; \
 	    echo ">>> objdiff $$obj vs orig"; \
-	    if $(PY) $(TOOLS)/compare.py FUNC=$$name >/tmp/.rb.$$$$ 2>&1; then \
+	    if $(PY) $(TOOLS)/compare.py BINARY=$(ROSETTA_BIN_STEM).exe FUNC=$$name >/tmp/.rb.$$$$ 2>&1; then \
 	        green=$$((green + 1)); cat /tmp/.rb.$$$$ | grep -E "GREEN|orig:|ours:" | head -1; \
 	    else \
 	        rc=$$?; \
@@ -190,8 +195,8 @@ rosetta-bulk: setup-msvc
 	    fi; \
 	    rm -f /tmp/.rb.$$$$; \
 	done; \
-	echo; echo "rosetta-bulk summary  GREEN=$$green  PARTIAL=$$partial  MISMATCH=$$mismatch  cl_failed=$$cl_fail"; \
-	{ echo "GREEN=$$green"; echo "PARTIAL=$$partial"; echo "MISMATCH=$$mismatch"; echo "cl_failed=$$cl_fail"; } > $(BUILD)/logs/rosetta_bulk_summary.txt
+	echo; echo "rosetta-bulk[$(ROSETTA_BIN_STEM)] summary  GREEN=$$green  PARTIAL=$$partial  MISMATCH=$$mismatch  cl_failed=$$cl_fail"; \
+	{ echo "GREEN=$$green"; echo "PARTIAL=$$partial"; echo "MISMATCH=$$mismatch"; echo "cl_failed=$$cl_fail"; } > $(BUILD)/logs/rosetta_bulk_summary_$(ROSETTA_BIN_STEM).txt
 
 diff:
 	@if [ -z "$(FUNC)" ]; then echo "usage: make diff FUNC=Symbol::Name"; exit 1; fi
