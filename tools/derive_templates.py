@@ -1225,6 +1225,164 @@ def try_push_local_call_pop_11b(body: bytes, va: int, n: int) -> tuple[str, str]
     return None
 
 
+def try_release_then_free_22b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 22B "if non-null, release-then-stdcall-free" wrapper. The free
+    # function is __stdcall (callee cleans up the pushed arg), so no
+    # POP ECX between CALL and POP ESI:
+    #   56                    PUSH ESI
+    #   8b 31                 MOV ESI, [ECX]      (load resource ptr)
+    #   85 f6                 TEST ESI, ESI
+    #   74 0e                 JZ +0x0e
+    #   8b ce                 MOV ECX, ESI
+    #   e8 RR RR RR RR        CALL release        (thiscall)
+    #   56                    PUSH ESI
+    #   e8 RR RR RR RR        CALL free__stdcall
+    #   5e                    POP ESI
+    #   c3                    RET
+    if len(body) != 22:
+        return None
+    # Match positions explicitly — last 2 bytes are POP ESI; RET (no
+    # POP ECX, since the second CALL is __stdcall-cleanup).
+    if not (body[0] == 0x56 and body[1] == 0x8b and body[2] == 0x31
+            and body[3] == 0x85 and body[4] == 0xf6
+            and body[5] == 0x74
+            and body[7] == 0x8b and body[8] == 0xce
+            and body[9] == 0xe8
+            and body[14] == 0x56
+            and body[15] == 0xe8
+            and body[20] == 0x5e and body[21] == 0xc3):
+        return None
+    src = (
+        _header(va, "release-then-free wrapper (TEST [this]; CALL release; CALL stdcall-free)",
+                "56 8b 31 85 f6 74 NN 8b ce e8 RR RR RR RR 56 e8 RR RR RR RR 5e c3", n)
+        + "\nextern \"C\" int release();\n"
+          "extern \"C\" int free_resource();\n\n"
+          "extern \"C\" __declspec(naked) void release_then_free() {\n"
+          "    __asm {\n"
+          "        push esi\n"
+          "        mov esi, [ecx]\n"
+          "        test esi, esi\n"
+          "        jz no_call\n"
+          "        mov ecx, esi\n"
+          "        call release\n"
+          "        push esi\n"
+          "        call free_resource\n"
+          "    no_call:\n"
+          "        pop esi\n"
+          "        ret\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "release-then-free 22B")
+
+
+def try_seh_catch_call_call_17b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 17B SEH catch: load local; call; PUSH 0; PUSH 0; call (no RET).
+    #   8b 4d ec              MOV ECX, [EBP-0x14]
+    #   e8 RR RR RR RR        CALL func1
+    #   6a 00 6a 00           PUSH 0; PUSH 0
+    #   e8 RR RR RR RR        CALL func2     (terminator — falls through)
+    if len(body) != 17:
+        return None
+    expected = [
+        (0x8b,), (0x4d,), None,                     # MOV ECX, [EBP+disp8]
+        (0xe8,), None, None, None, None,
+        (0x6a,), (0x00,), (0x6a,), (0x00,),
+        (0xe8,), None, None, None, None,
+    ]
+    if not all(exp is None or body[i] == exp[0] for i, exp in enumerate(expected)):
+        return None
+    disp_u = body[2]
+    disp_s = disp_u - 256 if disp_u >= 0x80 else disp_u
+    sign = "-" if disp_s < 0 else "+"
+    mag = abs(disp_s)
+    src = (
+        _header(va, f"SEH catch (MOV ECX, [EBP{sign}0x{mag:x}]; CALL; PUSH 0,0; CALL)",
+                f"8b 4d {disp_u:02x} e8 RR RR RR RR 6a 00 6a 00 e8 RR RR RR RR", n)
+        + "\nextern \"C\" int target1();\nextern \"C\" int target2();\n\n"
+          "extern \"C\" __declspec(naked) void seh_catch() {\n"
+          "    __asm {\n"
+        + f"        mov ecx, [ebp {sign} {mag}]\n"
+          "        call target1\n"
+          "        push 0\n"
+          "        push 0\n"
+          "        call target2\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, f"seh-catch [EBP{sign}{mag}]+call+push00+call")
+
+
+def try_push_str_then_call_14b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 14B "push fixed pointer; call; cleanup":
+    #   68 GG GG GG GG        PUSH offset arg1
+    #   e8 RR RR RR RR        CALL extern
+    #   83 c4 04              ADD ESP, 4
+    #   c3                    RET
+    if len(body) != 14:
+        return None
+    expected = [
+        (0x68,), None, None, None, None,
+        (0xe8,), None, None, None, None,
+        (0x83,), (0xc4,), (0x04,),
+        (0xc3,),
+    ]
+    if not all(exp is None or body[i] == exp[0] for i, exp in enumerate(expected)):
+        return None
+    src = (
+        _header(va, "1-arg fixed-pointer call (PUSH offset; CALL; ADD ESP,4; RET)",
+                "68 GG GG GG GG e8 RR RR RR RR 83 c4 04 c3", n)
+        + "\nextern \"C\" int the_arg;\nextern \"C\" int target();\n\n"
+          "extern \"C\" __declspec(naked) void push_str_call() {\n"
+          "    __asm {\n"
+          "        push offset the_arg\n"
+          "        call target\n"
+          "        add esp, 4\n"
+          "        ret\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "push-fixed-call 14B")
+
+
+def try_push_arg_str_call_19b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 19B "load arg1; push fixed; push arg1; call; cleanup":
+    #   8b 44 24 04           MOV EAX, [ESP+4]
+    #   68 GG GG GG GG        PUSH offset arg1_fixed
+    #   50                    PUSH EAX        (caller's arg1)
+    #   e8 RR RR RR RR        CALL extern
+    #   83 c4 08              ADD ESP, 8
+    #   c3                    RET
+    if len(body) != 19:
+        return None
+    expected = [
+        (0x8b,), (0x44,), (0x24,), (0x04,),
+        (0x68,), None, None, None, None,
+        (0x50,),
+        (0xe8,), None, None, None, None,
+        (0x83,), (0xc4,), (0x08,),
+        (0xc3,),
+    ]
+    if not all(exp is None or body[i] == exp[0] for i, exp in enumerate(expected)):
+        return None
+    src = (
+        _header(va, "wrapper (PUSH fixed; PUSH arg1; CALL; ADD ESP,8; RET)",
+                "8b 44 24 04 68 GG GG GG GG 50 e8 RR RR RR RR 83 c4 08 c3", n)
+        + "\nextern \"C\" int the_fixed_arg;\nextern \"C\" int target();\n\n"
+          "extern \"C\" __declspec(naked) void wrapper_2arg() {\n"
+          "    __asm {\n"
+          "        mov eax, [esp + 4]\n"
+          "        push offset the_fixed_arg\n"
+          "        push eax\n"
+          "        call target\n"
+          "        add esp, 8\n"
+          "        ret\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "wrapper PUSH-fixed+arg1+call 19B")
+
+
 def try_no_reloc_emit_fallback(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     """Universal fallback for clusters with NO reloc bytes — just emit
     every byte via `_emit`. Only fires when no specific deriver above
@@ -1318,6 +1476,13 @@ DERIVERS = [
     try_import_thunk_jmp_m32,
     try_load_this_jmp_indirect_7b,
     try_push_local_call_pop_11b,
+    # try_release_then_free_22b — disabled. Cluster matches the asm-dump
+    # shape but the asm dump is wrong: Ghidra under-counts these
+    # functions by 3 bytes (drops `83 c4 04` ADD ESP,4 between CALL
+    # and POP ESI). Re-enable after recompute_sizes fixes the size.
+    try_seh_catch_call_call_17b,
+    try_push_str_then_call_14b,
+    try_push_arg_str_call_19b,
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_jmp_thunk,
