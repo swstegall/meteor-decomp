@@ -2270,6 +2270,182 @@ def try_call_then_ret8_8b(body: bytes, va: int, n: int) -> tuple[str, str] | Non
     return None
 
 
+def try_seh_destructor_then_push2_call_17b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 17B `8b 4d NN e8 RR RR RR RR XX YY ZZ ZZ e8 RR RR RR RR` —
+    #   MOV ECX, [EBP+disp8]
+    #   CALL rel32           (destructor / cleanup)
+    #   XOR REG, REG         (33 c0 = EAX, 33 db = EBX, 33 d2 = EDX, 33 c9 = ECX)
+    #   PUSH REG; PUSH REG   (50/53/52/51 twice)
+    #   CALL rel32           (typically abort / longjmp / __unwind_resume)
+    # SEH unwind helper that destructs an in-frame object, then bails
+    # via a 2-arg(0,0) call. Three register-color variants share the
+    # same idiom: EAX (`33 c0 50 50`), EBX (`33 db 53 53`), EDX
+    # (`33 d2 52 52`). All collapse here.
+    if not (len(body) == 17 and body[0:2] == b"\x8b\x4d"
+            and body[3] == 0xe8 and body[12] == 0xe8):
+        return None
+    # Layout (offsets):
+    #   [0..2]   8b 4d NN     MOV ECX, [EBP+disp8]
+    #   [3..7]   e8 RR RR RR RR  CALL rel32
+    #   [8..9]   33 XX         XOR REG, REG
+    #   [10..11] PP PP          PUSH REG; PUSH REG
+    #   [12..16] e8 RR RR RR RR  CALL rel32
+    if body[8] != 0x33:
+        return None
+    disp_u = body[2]
+    xor_modrm = body[9]
+    push_b = body[10]
+    push_b2 = body[11]
+    if push_b != push_b2:
+        return None
+    reg_map = {
+        (0xc0, 0x50): "eax",
+        (0xdb, 0x53): "ebx",
+        (0xd2, 0x52): "edx",
+        (0xc9, 0x51): "ecx",
+    }
+    reg = reg_map.get((xor_modrm, push_b))
+    if reg is None:
+        return None
+    disp_s = disp_u - 256 if disp_u >= 0x80 else disp_u
+    sign = "-" if disp_s < 0 else "+"
+    mag = abs(disp_s)
+    src = (
+        _header(va, f"SEH destructor + 2-arg(0,0) bail (MOV ECX,[EBP{sign}0x{mag:x}]; CALL; XOR {reg},{reg}; PUSH×2; CALL)",
+                f"8b 4d {disp_u:02x} e8 RR RR RR RR 33 {xor_modrm:02x} {push_b:02x} {push_b:02x} e8 RR RR RR RR", n)
+        + "\nextern \"C\" int dtor();\n"
+          "extern \"C\" int bail();\n\n"
+          "extern \"C\" __declspec(naked) void seh_destructor_then_push2_call() {\n"
+          "    __asm {\n"
+        + f"        mov ecx, [ebp {sign} {mag}]\n"
+          "        call dtor\n"
+        + f"        xor {reg}, {reg}\n"
+          f"        push {reg}\n"
+          f"        push {reg}\n"
+          "        call bail\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, f"seh-dtor+push2-call ({reg})")
+
+
+def try_thisderef_call_movecx_jmp_14b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 14B `8b 09 e8 RR RR RR RR 8b c8 e9 RR RR RR RR` —
+    #   MOV ECX, [ECX]      (deref this)
+    #   CALL rel32          (typically a getter)
+    #   MOV ECX, EAX        (new this)
+    #   JMP rel32           (tail-call)
+    # Variant of try_call_chain_movecx_jmp_12b with prepended deref.
+    if (len(body) == 14 and body[0:2] == b"\x8b\x09"
+            and body[2] == 0xe8 and body[7:9] == b"\x8b\xc8"
+            and body[9] == 0xe9):
+        src = (
+            _header(va, "deref-this + call A + tail-jmp B (with EAX→ECX)",
+                    "8b 09 e8 RR RR RR RR 8b c8 e9 RR RR RR RR", n)
+            + "\nextern \"C\" int call_a();\n"
+              "extern \"C\" int call_b();\n\n"
+              "extern \"C\" __declspec(naked) void thisderef_chain() {\n"
+              "    __asm {\n"
+              "        mov ecx, [ecx]\n"
+              "        call call_a\n"
+              "        mov ecx, eax\n"
+              "        jmp call_b\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "thisderef+call+movecx+jmp")
+    return None
+
+
+def try_sso_accessor_20b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 20B `83 3d GG GG GG GG 10 a1 GG GG GG GG 73 05 b8 GG GG GG GG c3` —
+    #   CMP [size_global], 0x10
+    #   MOV EAX, [data_global]   (load heap-data pointer)
+    #   JNB +5                   (if size >= 0x10, return that pointer)
+    #   MOV EAX, offset inline_global   (else return inline-buffer addr)
+    #   RET
+    # std::string-style short-string-optimization c_str() accessor on
+    # a global string. JNB = "Not Below" = unsigned ≥ comparison.
+    if (len(body) == 20 and body[0:2] == b"\x83\x3d"
+            and body[6] == 0x10 and body[7] == 0xa1
+            and body[12:14] == b"\x73\x05"
+            and body[14] == 0xb8 and body[19] == 0xc3):
+        src = (
+            _header(va, "global SSO accessor (size>=0x10 ? heap_data : inline_buf)",
+                    "83 3d GG GG GG GG 10 a1 GG GG GG GG 73 05 b8 GG GG GG GG c3", n)
+            + "\nextern \"C\" int the_size;\n"
+              "extern \"C\" int the_data;\n"
+              "extern \"C\" int the_inline;\n\n"
+              "extern \"C\" __declspec(naked) void sso_accessor() {\n"
+              "    __asm {\n"
+              "        cmp dword ptr [the_size], 0x10\n"
+              "        mov eax, dword ptr [the_data]\n"
+              "        jnb is_heap\n"
+              "        mov eax, offset the_inline\n"
+              "    is_heap:\n"
+              "        ret\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "global SSO accessor")
+    return None
+
+
+def try_push_imm_indirect_call_ret_12b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 12B `68 II II II II ff 15 GG GG GG GG c3` —
+    #   PUSH imm32                  (literal arg)
+    #   CALL [import_addr]          (indirect call via IAT entry)
+    #   RET
+    # Win32 API trampoline calling an imported stdcall function with
+    # one literal arg.
+    if (len(body) == 12 and body[0] == 0x68
+            and body[5:7] == b"\xff\x15"
+            and body[11] == 0xc3):
+        src = (
+            _header(va, "push-imm32 + indirect-CALL [import] + ret (Win32 API trampoline)",
+                    "68 II II II II ff 15 GG GG GG GG c3", n)
+            + "\nextern \"C\" __declspec(dllimport) void __stdcall import_target(int);\n"
+              "extern \"C\" int the_imm;\n\n"
+              "extern \"C\" __declspec(naked) void api_trampoline() {\n"
+              "    __asm {\n"
+              "        push offset the_imm\n"
+              "        call dword ptr [import_target]\n"
+              "        ret\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "push-imm32+CALL [import]+ret")
+    return None
+
+
+def try_push_arg_push_imm32_call_addsp8_ret_19b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 19B `8b 44 24 04 50 68 II II II II e8 RR RR RR RR 83 c4 08 c3` —
+    #   MOV EAX, [ESP+4]; PUSH EAX; PUSH imm32; CALL; ADD ESP, 8; RET
+    # __cdecl 1-arg wrapper that prepends a literal as arg1; cdecl
+    # callee leaves args on stack, wrapper cleans 8.
+    if (len(body) == 19 and body[0:4] == b"\x8b\x44\x24\x04"
+            and body[4] == 0x50 and body[5] == 0x68
+            and body[10] == 0xe8 and body[15:19] == b"\x83\xc4\x08\xc3"):
+        src = (
+            _header(va, "cdecl wrapper: push-arg + push-imm32 + call + addsp 8 + ret",
+                    "8b 44 24 04 50 68 II II II II e8 RR RR RR RR 83 c4 08 c3", n)
+            + "\nextern \"C\" int target(int, int);\n"
+              "extern \"C\" int the_imm;\n\n"
+              "extern \"C\" __declspec(naked) void wrapper_cdecl_imm32_arg() {\n"
+              "    __asm {\n"
+              "        mov eax, [esp + 4]\n"
+              "        push eax\n"
+              "        push offset the_imm\n"
+              "        call target\n"
+              "        add esp, 8\n"
+              "        ret\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "cdecl push-arg+push-imm32+call+addsp")
+    return None
+
+
 def try_2arg_passthrough_wrapper_21b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 21B `__stdcall` 2-arg passthrough wrapper:
     #   8b 44 24 08              MOV EAX, [ESP+8]    (arg2)
@@ -2336,6 +2512,11 @@ DERIVERS[_late_idx:_late_idx] = [
     try_thiscall_null_check_member_jmp_15b,
     try_2arg_cdecl_arg_thisderef_19b,
     try_call_then_ret8_8b,
+    try_seh_destructor_then_push2_call_17b,
+    try_thisderef_call_movecx_jmp_14b,
+    try_sso_accessor_20b,
+    try_push_imm_indirect_call_ret_12b,
+    try_push_arg_push_imm32_call_addsp8_ret_19b,
 ]
 
 
