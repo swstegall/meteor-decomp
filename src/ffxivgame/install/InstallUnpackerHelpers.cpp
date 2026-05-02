@@ -14,6 +14,18 @@
 
 extern "C" __declspec(dllimport) long __stdcall InterlockedExchange(long *target, long value);
 extern "C" __declspec(dllimport) int __stdcall SwitchToThread();
+extern "C" __declspec(dllimport) long __stdcall InterlockedIncrement(long *target);
+extern "C" __declspec(dllimport) long __stdcall InterlockedExchangeAdd(long *target, long add);
+
+// Each entry in ChunkSource::m_entries is 12 bytes:
+//   +0x00 long released;   (atomically set to 1 when chunk consumed)
+//   +0x04 int  unknown_4;
+//   +0x08 int  handle;     (matched against the arg in ReleaseChunk)
+struct chunk_entry {
+    long released;
+    int  unknown_4;
+    int  handle;
+};
 
 // FUNCTION: ffxivgame 0x00cc6620 — wait-for-resource-ready spin (71 B)
 //
@@ -102,5 +114,76 @@ void InstallUnpacker::WaitForReady(int handle) {
         do {
             SwitchToThread();
         } while (!m_resource.TryReady(&handle));
+    }
+}
+
+// FUNCTION: ffxivgame 0x008c5e40 — ChunkSource::ReleaseChunk (124 B)
+//
+// `this` is the ChunkSource pointed to by InstallUnpacker.m_field_40.
+// Called from InstallUnpacker::Unpack at offset 0x18c with the chunk
+// handle to release.
+//
+// Linear-searches the entries array for one with matching handle.
+// When found:
+//   1. Mark the entry's `released` field = 1 atomically
+//   2. Atomically increment ChunkSource.m_released_count
+//   3. If ChunkSource.m_state == 3 (i.e., "all chunks dispatched, waiting
+//      for releases"), check if released_count == total_count and
+//      transition state to 4 ("done") atomically.
+//
+// Recovered from Ghidra GUI 2026-05-02:
+//   void __thiscall FUN_00cc5e40(int param_1, int param_2) {
+//     iVar1 = 0;
+//     if (0 < *(int *)(param_1 + 0x5c)) {
+//       piVar4 = (int *)(*(int *)(param_1 + 0x58) + 8);
+//       while (*piVar4 != param_2) {
+//         iVar1 = iVar1 + 1;
+//         piVar4 = piVar4 + 3;
+//         if (*(int *)(param_1 + 0x5c) <= iVar1) return;
+//       }
+//       InterlockedExchange((LONG *)(*(int *)(param_1 + 0x58) + iVar1 * 0xc), 1);
+//       InterlockedIncrement((LONG *)(param_1 + 0x54));
+//       LVar2 = InterlockedExchangeAdd((LONG *)(param_1 + 0x60), 0);
+//       if (LVar2 == 3) {
+//         LVar2 = InterlockedExchangeAdd((LONG *)(param_1 + 0x54), 0);
+//         LVar3 = InterlockedExchangeAdd((LONG *)(param_1 + 0x50), 0);
+//         if (LVar2 == LVar3) {
+//           InterlockedExchange((LONG *)(param_1 + 0x60), 4);
+//         }
+//       }
+//     }
+//   }
+
+class ChunkSource {
+public:
+    void ReleaseChunk(int handle);
+private:
+    char m_pad[0x50];
+    long m_total;             // +0x50
+    long m_released_count;    // +0x54
+    chunk_entry *m_entries;   // +0x58
+    int  m_entry_count;       // +0x5c
+    long m_state;             // +0x60
+};
+
+void ChunkSource::ReleaseChunk(int handle) {
+    int idx = 0;
+    if (m_entry_count > 0) {
+        int *p = (int *)((char *)m_entries + 8);   // points to entries[0].handle
+        while (*p != handle) {
+            idx = idx + 1;
+            p = p + 3;
+            if (m_entry_count <= idx) return;
+        }
+        InterlockedExchange((long *)((char *)m_entries + idx * 0xc), 1);
+        InterlockedIncrement(&m_released_count);
+        long state = InterlockedExchangeAdd(&m_state, 0);
+        if (state == 3) {
+            long rel = InterlockedExchangeAdd(&m_released_count, 0);
+            long tot = InterlockedExchangeAdd(&m_total, 0);
+            if (rel == tot) {
+                InterlockedExchange(&m_state, 4);
+            }
+        }
     }
 }
