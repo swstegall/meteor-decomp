@@ -349,6 +349,132 @@ def try_thiscall_return_self_wrapper(body: bytes, va: int, n: int) -> tuple[str,
     return None
 
 
+def try_adjustor_thunk_sub_imm8(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 83 e9 NN e9 RR RR RR RR — SUB ECX, imm8; JMP rel32
+    # Multi-inheritance `this`-adjustor thunk: subtracts NN from `this`
+    # to get back to the derived class, then tail-jumps to the actual
+    # virtual override. MSVC auto-emits these for overrides reached
+    # via a secondary base.
+    if len(body) == 8 and body[0:2] == b"\x83\xe9" and body[3] == 0xe9:
+        offset = body[2]
+        if offset == 0:
+            return None
+        src = (
+            _header(va, f"multi-inheritance `this`-adjustor (SUB ECX, 0x{offset:x}; JMP)",
+                    f"83 e9 {offset:02x} e9 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+            + "extern \"C\" __declspec(naked) void adjustor_thunk() {\n"
+            + "    __asm {\n"
+            + f"        sub ecx, {offset}\n"
+            + "        jmp target\n"
+            + "    }\n"
+            + "}\n"
+        )
+        return (src, f"adjustor SUB imm8 {offset}")
+    return None
+
+
+def try_unwind_mov_ebp_jmp(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 8b 4d NN e9 RR RR RR RR — MOV ECX, [EBP+disp8]; JMP rel32
+    # MSVC-emitted SEH unwind helper that loads a frame-saved `this`
+    # from the parent function's stack frame and tail-jumps to a
+    # destructor or other cleanup. Common across ffxivgame/ffxivboot.
+    if len(body) == 8 and body[0:2] == b"\x8b\x4d" and body[3] == 0xe9:
+        disp_unsigned = body[2]
+        disp_signed = disp_unsigned - 256 if disp_unsigned >= 0x80 else disp_unsigned
+        sign = "-" if disp_signed < 0 else "+"
+        magnitude = abs(disp_signed)
+        src = (
+            _header(va, f"SEH unwind helper (MOV ECX, [EBP{sign}0x{magnitude:x}]; JMP)",
+                    f"8b 4d {disp_unsigned:02x} e9 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+            + "extern \"C\" __declspec(naked) void unwind_thunk() {\n"
+            + "    __asm {\n"
+            + f"        mov ecx, [ebp {sign} {magnitude}]\n"
+            + "        jmp target\n"
+            + "    }\n"
+            + "}\n"
+        )
+        return (src, f"unwind MOV ECX,[EBP{sign}{magnitude}]")
+    return None
+
+
+def try_unwind_lea_ebp_jmp(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 8d 4d NN e9 RR RR RR RR — LEA ECX, [EBP+disp8]; JMP rel32
+    # SEH unwind helper that takes the ADDRESS of a stack-frame
+    # local (rather than loading a pointer from one). Used when
+    # the parent's local IS the object being destructed (vs a
+    # pointer to it).
+    if len(body) == 8 and body[0:2] == b"\x8d\x4d" and body[3] == 0xe9:
+        disp_unsigned = body[2]
+        disp_signed = disp_unsigned - 256 if disp_unsigned >= 0x80 else disp_unsigned
+        sign = "-" if disp_signed < 0 else "+"
+        magnitude = abs(disp_signed)
+        src = (
+            _header(va, f"SEH unwind helper (LEA ECX, [EBP{sign}0x{magnitude:x}]; JMP)",
+                    f"8d 4d {disp_unsigned:02x} e9 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+            + "extern \"C\" __declspec(naked) void unwind_thunk() {\n"
+            + "    __asm {\n"
+            + f"        lea ecx, [ebp {sign} {magnitude}]\n"
+            + "        jmp target\n"
+            + "    }\n"
+            + "}\n"
+        )
+        return (src, f"unwind LEA ECX,[EBP{sign}{magnitude}]")
+    return None
+
+
+def try_unwind_mov_ebp_add_jmp(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 8b 4d NN 83 c1 MM e9 RR RR RR RR (11 bytes)
+    # MOV ECX, [EBP+disp8]; ADD ECX, imm8; JMP rel32
+    # Variant where the saved pointer needs an additional offset
+    # (e.g. base-class subobject inside a frame-stored derived).
+    if len(body) == 11 and body[0:2] == b"\x8b\x4d" and body[3:5] == b"\x83\xc1" and body[6] == 0xe9:
+        ebp_disp_u = body[2]
+        ebp_disp_s = ebp_disp_u - 256 if ebp_disp_u >= 0x80 else ebp_disp_u
+        ebp_sign = "-" if ebp_disp_s < 0 else "+"
+        ebp_mag = abs(ebp_disp_s)
+        add_imm = body[5]
+        src = (
+            _header(va,
+                    f"SEH unwind helper (MOV ECX, [EBP{ebp_sign}0x{ebp_mag:x}]; ADD ECX, 0x{add_imm:x}; JMP)",
+                    f"8b 4d {ebp_disp_u:02x} 83 c1 {add_imm:02x} e9 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+            + "extern \"C\" __declspec(naked) void unwind_thunk() {\n"
+            + "    __asm {\n"
+            + f"        mov ecx, [ebp {ebp_sign} {ebp_mag}]\n"
+            + f"        add ecx, {add_imm}\n"
+            + "        jmp target\n"
+            + "    }\n"
+            + "}\n"
+        )
+        return (src, f"unwind MOV+ADD ECX,[EBP{ebp_sign}{ebp_mag}]+{add_imm}")
+    return None
+
+
+def try_adjustor_thunk_sub_imm32(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 81 e9 NN NN NN NN e9 RR RR RR RR — SUB ECX, imm32; JMP rel32
+    # Same as imm8 form but for offsets ≥ 0x80 (8-bit signed range exhausted).
+    if len(body) == 11 and body[0:2] == b"\x81\xe9" and body[6] == 0xe9:
+        offset = int.from_bytes(body[2:6], "little")
+        if offset == 0:
+            return None
+        src = (
+            _header(va, f"multi-inheritance `this`-adjustor (SUB ECX, 0x{offset:x}; JMP)",
+                    f"81 e9 {offset:08x} (LE) e9 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+            + "extern \"C\" __declspec(naked) void adjustor_thunk() {\n"
+            + "    __asm {\n"
+            + f"        sub ecx, {offset}\n"
+            + "        jmp target\n"
+            + "    }\n"
+            + "}\n"
+        )
+        return (src, f"adjustor SUB imm32 {offset}")
+    return None
+
+
 def try_chained_ptr_getter(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 8b 41 NN 8b 40 MM c3 — MOV EAX,[ECX+NN]; MOV EAX,[EAX+MM]; RET
     if (len(body) == 7 and body[0] == 0x8b and body[1] == 0x41 and body[3] == 0x8b
@@ -390,6 +516,11 @@ DERIVERS = [
     try_short_zero_ext_getter,
     try_byte_zero_ext_getter,
     try_chained_ptr_getter,
+    try_adjustor_thunk_sub_imm8,
+    try_adjustor_thunk_sub_imm32,
+    try_unwind_mov_ebp_jmp,
+    try_unwind_lea_ebp_jmp,
+    try_unwind_mov_ebp_add_jmp,
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_jmp_thunk,

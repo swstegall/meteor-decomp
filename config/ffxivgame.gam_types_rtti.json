@@ -171,7 +171,7 @@
     "id": 103,
     "ns": "Application::Network::GameAttributeManager::Data::ClientSelectData",
     "rtti_type_raw": "unsigned___int64",
-    "rtti_type": "unsigned   int64"
+    "rtti_type": "unsigned __int64"
   },
   {
     "id": 104,
@@ -273,7 +273,7 @@
     "id": 102,
     "ns": "Application::Network::GameAttributeManager::Data::ClientSelectDataN",
     "rtti_type_raw": "unsigned___int64",
-    "rtti_type": "unsigned   int64"
+    "rtti_type": "unsigned __int64"
   },
   {
     "id": 103,

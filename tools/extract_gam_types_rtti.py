@@ -52,9 +52,15 @@ def normalize_type(rtti_type: str) -> str:
     looks like the original C++ source.
     """
     t = rtti_type
-    t = t.replace("___", " __")             # unsigned___int64 → unsigned __int64
+    # `unsigned___int64` and `signed___int64` are the only RTTI renderings
+    # of the MSVC `__int64` types. Protect them from the generic
+    # underscore→space pass with a placeholder.
+    t = t.replace("unsigned___int64", "\x00U64\x00")
+    t = t.replace("signed___int64", "\x00I64\x00")
     t = re.sub(r"\b(class|struct)_", "", t) # strip kind prefix
     t = t.replace("_", " ")                 # signed_char → signed char
+    t = t.replace("\x00U64\x00", "unsigned __int64")
+    t = t.replace("\x00I64\x00", "signed __int64")
     # Render Component::GAM::Array<X,N> → X[N]
     m = re.match(r"^Component::GAM::Array<(.+?),(\d+)>(.*)$", t)
     if m:
