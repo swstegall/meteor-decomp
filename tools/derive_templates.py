@@ -1490,6 +1490,101 @@ DERIVERS = [
 ]
 
 
+def try_adjustor_thunk_add_imm8(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 8B `83 c1 NN e9 RR RR RR RR` — ADD ECX, imm8; JMP rel32.
+    # Mirror of try_adjustor_thunk_sub_imm8 but with ADD (used for
+    # interface-dispatch adjustors that move `this` FORWARD to a
+    # secondary-base subobject).
+    if len(body) == 8 and body[0:2] == b"\x83\xc1" and body[3] == 0xe9:
+        offset = body[2]
+        if offset == 0:
+            return None
+        src = (
+            _header(va, f"adjustor thunk (ADD ECX, 0x{offset:x}; JMP)",
+                    f"83 c1 {offset:02x} e9 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void adjustor_add() {\n"
+              "    __asm {\n"
+            + f"        add ecx, {offset}\n"
+              "        jmp target\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"adjustor ADD imm8 {offset}")
+    return None
+
+
+def try_seh_catch_arg_call_9b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 9B SEH catch: load arg from local; push; CALL (no RET).
+    #   8b 55 NN              MOV EDX, [EBP+disp8]
+    #   52                    PUSH EDX
+    #   e8 RR RR RR RR        CALL extern
+    if len(body) == 9 and body[0:2] == b"\x8b\x55" and body[3] == 0x52 and body[4] == 0xe8:
+        disp_u = body[2]
+        disp_s = disp_u - 256 if disp_u >= 0x80 else disp_u
+        sign = "-" if disp_s < 0 else "+"
+        mag = abs(disp_s)
+        src = (
+            _header(va, f"SEH catch arg-push (MOV EDX, [EBP{sign}0x{mag:x}]; PUSH EDX; CALL)",
+                    f"8b 55 {disp_u:02x} 52 e8 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void seh_catch_arg() {\n"
+              "    __asm {\n"
+            + f"        mov edx, [ebp {sign} {mag}]\n"
+              "        push edx\n"
+              "        call target\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"seh-catch arg [EBP{sign}{mag}]+call")
+    return None
+
+
+def try_2arg_passthrough_wrapper_21b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 21B `__stdcall` 2-arg passthrough wrapper:
+    #   8b 44 24 08              MOV EAX, [ESP+8]    (arg2)
+    #   8b 4c 24 04              MOV ECX, [ESP+4]    (arg1)
+    #   50                       PUSH EAX
+    #   51                       PUSH ECX
+    #   e8 RR RR RR RR           CALL extern
+    #   83 c4 08                 ADD ESP, 8
+    #   c2 08 00                 RET 8
+    expected = bytes.fromhex(
+        "8b442408 8b4c2404 5051 e8".replace(" ", "")
+    )
+    suffix = bytes.fromhex("83c408 c20800")
+    if (len(body) == 21 and body[:len(expected)] == expected
+            and body[15:] == suffix):
+        src = (
+            _header(va, "2-arg passthrough wrapper (PUSH arg2; PUSH arg1; CALL; ADD ESP,8; RET 8)",
+                    "8b 44 24 08 8b 4c 24 04 50 51 e8 RR RR RR RR 83 c4 08 c2 08 00", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void wrapper_2arg_passthrough() {\n"
+              "    __asm {\n"
+              "        mov eax, [esp + 8]\n"
+              "        mov ecx, [esp + 4]\n"
+              "        push eax\n"
+              "        push ecx\n"
+              "        call target\n"
+              "        add esp, 8\n"
+              "        ret 8\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "2arg-passthrough 21B")
+    return None
+
+
+# Splice the late-defined derivers into DERIVERS in front of the
+# no-reloc fallback, so the more-specific patterns try first.
+_late_idx = DERIVERS.index(try_no_reloc_emit_fallback)
+DERIVERS[_late_idx:_late_idx] = [
+    try_adjustor_thunk_add_imm8,
+    try_seh_catch_arg_call_9b,
+    try_2arg_passthrough_wrapper_21b,
+]
+
+
 def derive_one(body: bytes, va: int, n_members: int) -> tuple[str, str] | None:
     for fn in DERIVERS:
         result = fn(body, va, n_members)
