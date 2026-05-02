@@ -534,6 +534,55 @@ def try_push_load_call(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     return None
 
 
+def try_return_global_addr(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # b8 GG GG GG GG c3 (6 bytes)
+    # MOV EAX, imm32; RET. Returns a constant 32-bit value — typically
+    # the address of a global, but could also be an arbitrary const.
+    # Reloc-equivalent shape: every cluster member shares the same
+    # encoding shape but with a different reloc target (the imm32).
+    if len(body) == 6 and body[0] == 0xb8 and body[5] == 0xc3:
+        # Treat the imm32 as a relocated address — emit `&the_global`.
+        src = (
+            _header(va, "return global address (MOV EAX, &global; RET)",
+                    "b8 GG GG GG GG c3", n)
+            + "\nextern \"C\" int the_global;\n\n"
+            + "extern \"C\" int *get_global_addr() {\n"
+              "    return &the_global;\n"
+              "}\n"
+        )
+        return (src, "return-global-addr")
+    return None
+
+
+def try_unwind_mov_ebp_add32_jmp(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 8b 4d NN 81 c1 MM MM MM MM e9 RR RR RR RR (14 bytes)
+    # MOV ECX, [EBP+disp8]; ADD ECX, imm32; JMP rel32
+    # disp32-ADD variant of `try_unwind_mov_ebp_add_jmp`. Used when
+    # the additional subobject offset is outside int8 range.
+    if (len(body) == 14 and body[0:2] == b"\x8b\x4d" and body[3:5] == b"\x81\xc1"
+            and body[9] == 0xe9):
+        ebp_disp_u = body[2]
+        ebp_disp_s = ebp_disp_u - 256 if ebp_disp_u >= 0x80 else ebp_disp_u
+        ebp_sign = "-" if ebp_disp_s < 0 else "+"
+        ebp_mag = abs(ebp_disp_s)
+        add_imm = int.from_bytes(body[5:9], "little")
+        src = (
+            _header(va,
+                    f"SEH unwind helper (MOV ECX, [EBP{ebp_sign}0x{ebp_mag:x}]; ADD ECX, 0x{add_imm:x}; JMP)",
+                    f"8b 4d {ebp_disp_u:02x} 81 c1 {add_imm:08x} e9 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+            + "extern \"C\" __declspec(naked) void unwind_thunk() {\n"
+            + "    __asm {\n"
+            + f"        mov ecx, [ebp {ebp_sign} {ebp_mag}]\n"
+            + f"        add ecx, {add_imm}\n"
+            + "        jmp target\n"
+            + "    }\n"
+            + "}\n"
+        )
+        return (src, f"unwind MOV+ADD32 ECX,[EBP{ebp_sign}{ebp_mag}]+{add_imm}")
+    return None
+
+
 def try_unwind_mov_ebp_add_jmp(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 8b 4d NN 83 c1 MM e9 RR RR RR RR (11 bytes)
     # MOV ECX, [EBP+disp8]; ADD ECX, imm8; JMP rel32
@@ -667,8 +716,10 @@ DERIVERS = [
     try_unwind_lea_ebp_disp32_jmp,
     try_unwind_mov_ebp_disp32_jmp,
     try_unwind_mov_ebp_add_jmp,
+    try_unwind_mov_ebp_add32_jmp,
     try_clear_flag_in_global,
     try_push_load_call,
+    try_return_global_addr,
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_jmp_thunk,
