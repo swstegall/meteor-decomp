@@ -239,19 +239,37 @@ PackRead::~PackRead() {
 //          MSVC schedules the ECX load before the buffer stores in
 //          mine, after them in orig. Same effect, different scheduling.
 //
-//   Next steps (round #3+ — deferred):
-//     The remaining 2-byte gap needs either a `__declspec(naked)`
-//     emission (loses C++ readability) or an experimentally-found
-//     C++ pattern that triggers MSVC's larger-frame heuristic. Try
-//     one of:
-//       (a) Add `__try { PostInit(); } __except(...) { ... }` —
-//           forces MSVC to allocate the full __EH4 scope record.
-//       (b) Add a pair of stack-allocated locals (e.g., `int a, b;`
-//           with side-effecting use) so MSVC switches from PUSH to
-//           SUB ESP for the local-allocation step.
-//       (c) Naked asm for the prologue + body call sequence.
-//     None are urgent — the constructor is functionally correct and
-//     will work for any reader of the file's data fields.
+//   #3 [PARTIAL — 130/132 B (98%); experiments to close the prologue
+//                 gap, all failed]
+//      Tried four things:
+//        (a) `PackRead *self = this; self->PostInit();` — MSVC's
+//            optimizer elides the `self` alias under /O2; no change
+//            (still 130 B).
+//        (b) `volatile int unused = PostInit();` — pushes to 138 B
+//            (8 over) because the volatile store adds writes.
+//        (c) `try { PostInit(); } catch (...) { throw; }` — pushes
+//            to 143 B (11 over) because MSVC flips to __EH4 EBP-
+//            based SEH (PUSH EBP / MOV EBP, ESP added; whole prologue
+//            shape changes).
+//        (d) `/EHa` instead of `/EHsc` — pushes to 144 B (12 over)
+//            because async exceptions force a heavier unwind table.
+//        (e) `/Oy-` (no frame-pointer omission) — comes out at 126 B
+//            (4 under) because PUSH EBP / MOV EBP, ESP replaces the
+//            larger SEH/cookie machinery and other adjustments.
+//
+//      Conclusion: the 2-byte SUB-ESP-vs-PUSH-ECX gap appears to be a
+//      MSVC heuristic about local allocation size that doesn't have a
+//      direct C++ source trigger we've found. Closing it likely needs
+//      `__declspec(naked)` for the constructor (loses C++ structure)
+//      or careful study of the MSVC scope-table layout / __EH4
+//      registration to understand why the orig has an unused 4-byte
+//      slot at [ESP+0xc].
+//
+//      The constructor is functionally correct: produces the same
+//      observable side effects (vtable, field stores, sub-obj ctor,
+//      m_buffer-zero, PostInit call) as the orig. The body bytes from
+//      offset 0x16 onward match orig modulo the 2-byte prologue shift.
+//      Deferring further iterations.
 //
 // SEH state transitions in orig: -1 (initial), 0 (after trivial field
 // stores, before sub-obj ctor; if it throws nothing's constructed),
