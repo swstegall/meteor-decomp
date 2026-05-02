@@ -1926,6 +1926,178 @@ def try_push_imm_call_addret_14b(body: bytes, va: int, n: int) -> tuple[str, str
     return None
 
 
+def try_seh_and_clear_bit_jmp_25b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 25B `8b 45 AA 83 e0 01 0f 84 0c 00 00 00 83 65 AA fe 8b 4d BB e9 RR RR RR RR c3`
+    #   MOV EAX, [EBP+flag_disp8]
+    #   AND EAX, 1
+    #   JZ +0xc          (skip clear if bit not set)
+    #   AND [EBP+flag_disp8], 0xfe   (clear LSB)
+    #   MOV ECX, [EBP+local_disp8]
+    #   JMP rel32         (tail-call cleanup)
+    # default-skip RET   (one-byte trailing RET — only reached on JZ taken)
+    # SEH-frame unwind helper: a per-record __EHCookie-style flag check.
+    # Six exact-byte clusters with different (flag_disp8, local_disp8)
+    # pairs cover 100+ functions in ffxivgame.
+    if not (len(body) == 25
+            and body[0:2] == b"\x8b\x45"
+            and body[3:6] == b"\x83\xe0\x01"
+            and body[6:12] == b"\x0f\x84\x0c\x00\x00\x00"
+            and body[12:14] == b"\x83\x65"
+            and body[15] == 0xfe
+            and body[16:18] == b"\x8b\x4d"
+            and body[19] == 0xe9
+            and body[24] == 0xc3):
+        return None
+    flag_u = body[2]
+    flag_u2 = body[14]
+    if flag_u != flag_u2:
+        return None
+    local_u = body[18]
+    flag_s = flag_u - 256 if flag_u >= 0x80 else flag_u
+    local_s = local_u - 256 if local_u >= 0x80 else local_u
+    f_sign, f_mag = ("-" if flag_s < 0 else "+", abs(flag_s))
+    l_sign, l_mag = ("-" if local_s < 0 else "+", abs(local_s))
+    # MSVC's inline assembler picks the short JZ form (74 NN, 2 bytes)
+    # for any in-range branch target. The original binary uses the
+    # near form (0f 84 NN NN NN NN, 6 bytes) — likely a /Gh hook or
+    # SEH-prologue macro forced the encoding. Emit the 6 bytes
+    # manually via __emit so the cluster matches byte-for-byte.
+    src = (
+        _header(va, f"SEH frame-flag clear + tail-jmp (flag@EBP{f_sign}0x{f_mag:x}, local@EBP{l_sign}0x{l_mag:x})",
+                f"8b 45 {flag_u:02x} 83 e0 01 0f 84 0c 00 00 00 83 65 {flag_u:02x} fe 8b 4d {local_u:02x} e9 RR RR RR RR c3", n)
+        + "\nextern \"C\" int target();\n\n"
+          "extern \"C\" __declspec(naked) void seh_clear_bit_jmp() {\n"
+          "    __asm {\n"
+        + f"        mov eax, [ebp {f_sign} {f_mag}]\n"
+          "        and eax, 1\n"
+          "        __emit 0x0f\n"
+          "        __emit 0x84\n"
+          "        __emit 0x0c\n"
+          "        __emit 0x00\n"
+          "        __emit 0x00\n"
+          "        __emit 0x00\n"
+        + f"        and dword ptr [ebp {f_sign} {f_mag}], 0xfffffffe\n"
+          f"        mov ecx, [ebp {l_sign} {l_mag}]\n"
+          "        jmp target\n"
+          "        ret\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, f"seh-and-clear-bit jmp [EBP{f_sign}0x{f_mag:x}, EBP{l_sign}0x{l_mag:x}]")
+
+
+def try_adjustor_thunk_add_imm32_11b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 11B `81 c1 NN NN NN NN e9 RR RR RR RR` —
+    #   ADD ECX, imm32; JMP rel32
+    # disp32 form of try_adjustor_thunk_add_imm8 — needed when the
+    # member-base offset doesn't fit in disp8.
+    if (len(body) == 11 and body[0:2] == b"\x81\xc1"
+            and body[6] == 0xe9):
+        offset = int.from_bytes(body[2:6], "little", signed=False)
+        # MSVC will emit the disp8 form (8 bytes) for offsets ≤ 0x7f
+        # signed. Force disp32 when offset > 0x7f.
+        if offset <= 0x7f:
+            return None
+        src = (
+            _header(va, f"adjustor thunk imm32 (ADD ECX, 0x{offset:x}; JMP)",
+                    f"81 c1 NN NN NN NN e9 RR RR RR RR  (offset=0x{offset:x})", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void adjustor_add_imm32() {\n"
+              "    __asm {\n"
+            + f"        add ecx, 0x{offset:x}\n"
+              "        jmp target\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"adjustor ADD imm32 0x{offset:x}")
+    return None
+
+
+def try_push_arg_push_imm32_call_ret4_18b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 18B `8b 44 24 04 50 68 II II II II e8 RR RR RR RR c2 04 00` —
+    #   MOV EAX, [ESP+4]   (load forwarded arg)
+    #   PUSH EAX
+    #   PUSH imm32         (literal — usually a const-pointer reloc)
+    #   CALL rel32         (callee is stdcall 2-arg → cleans 8 itself)
+    #   RET 4              (clean own 1-arg stdcall frame)
+    # 1-arg stdcall wrapper that prepends a literal as arg1.
+    if (len(body) == 18 and body[0:4] == b"\x8b\x44\x24\x04"
+            and body[4] == 0x50 and body[5] == 0x68
+            and body[10] == 0xe8 and body[15:18] == b"\xc2\x04\x00"):
+        src = (
+            _header(va, "push-arg + push-imm32 + call + ret4 (1-arg stdcall wrapper, prepended literal)",
+                    "8b 44 24 04 50 68 II II II II e8 RR RR RR RR c2 04 00", n)
+            + "\nextern \"C\" void __stdcall target(void *, int);\n"
+              "extern \"C\" int the_imm;\n\n"
+              "extern \"C\" __declspec(naked) void __stdcall wrapper_push_imm32(int) {\n"
+              "    __asm {\n"
+              "        mov eax, [esp + 4]\n"
+              "        push eax\n"
+              "        push offset the_imm\n"
+              "        call target\n"
+              "        ret 4\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "push-arg+push-imm32+call ret4")
+    return None
+
+
+def try_push_arg_call_addsp4_ret4_16b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 16B `8b 44 24 04 50 e8 RR RR RR RR 83 c4 04 c2 04 00` —
+    #   MOV EAX, [ESP+4]; PUSH EAX; CALL rel32; ADD ESP, 4; RET 4
+    # Variant of try_push_esp_arg1_call_pop_ret4_14b that uses
+    # ADD ESP, 4 instead of POP ECX. 14B had POP ECX (2 bytes saved
+    # encoding). The two encodings serve identical semantics but are
+    # distinct cluster bodies.
+    if (len(body) == 16 and body[0:4] == b"\x8b\x44\x24\x04"
+            and body[4] == 0x50 and body[5] == 0xe8
+            and body[10:13] == b"\x83\xc4\x04"
+            and body[13:16] == b"\xc2\x04\x00"):
+        src = (
+            _header(va, "stdcall→cdecl 1-arg wrapper (ADD ESP form)",
+                    "8b 44 24 04 50 e8 RR RR RR RR 83 c4 04 c2 04 00", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void __stdcall wrapper_addsp_ret4(int) {\n"
+              "    __asm {\n"
+              "        mov eax, [esp + 4]\n"
+              "        push eax\n"
+              "        call target\n"
+              "        add esp, 4\n"
+              "        ret 4\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "1arg-wrapper ADD ESP+ret4")
+    return None
+
+
+def try_call_chain_movecx_jmp_12b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 12B `e8 RR RR RR RR 8b c8 e9 RR RR RR RR` —
+    #   CALL rel32 ; MOV ECX, EAX ; JMP rel32
+    # Two-step forwarder: call func A (typically a getter that returns
+    # a pointer), then tail-call func B with the returned pointer as
+    # `this` (ECX). Common in fluent-builder pipelines.
+    if (len(body) == 12 and body[0] == 0xe8
+            and body[5:7] == b"\x8b\xc8"
+            and body[7] == 0xe9):
+        src = (
+            _header(va, "call chain + tail-jmp (CALL A; MOV ECX,EAX; JMP B)",
+                    "e8 RR RR RR RR 8b c8 e9 RR RR RR RR", n)
+            + "\nextern \"C\" int call_a();\n"
+              "extern \"C\" int call_b();\n\n"
+              "extern \"C\" __declspec(naked) void chain_a_then_b() {\n"
+              "    __asm {\n"
+              "        call call_a\n"
+              "        mov ecx, eax\n"
+              "        jmp call_b\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "call+movecx+jmp")
+    return None
+
+
 def try_2arg_passthrough_wrapper_21b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 21B `__stdcall` 2-arg passthrough wrapper:
     #   8b 44 24 08              MOV EAX, [ESP+8]    (arg2)
@@ -1981,6 +2153,11 @@ DERIVERS[_late_idx:_late_idx] = [
     try_unwind_2arg_field_local_call_20b,
     try_seh_push_ecx_local_call_9b,
     try_push_imm_call_addret_14b,
+    try_seh_and_clear_bit_jmp_25b,
+    try_adjustor_thunk_add_imm32_11b,
+    try_push_arg_push_imm32_call_ret4_18b,
+    try_push_arg_call_addsp4_ret4_16b,
+    try_call_chain_movecx_jmp_12b,
 ]
 
 
