@@ -5,16 +5,41 @@ of the Phase 4 reconnaissance trail — `FUN_00cc6700` is its slot-2
 virtual method (the main unpack-loop) and the only direct consumer of
 `Sqex::Data::PackRead` in `ffxivgame.exe`.
 
-## Vtable
+## Class hierarchy (recovered 2026-05-02)
+
+`Component::Install::InstallUnpacker` is a **thread class** — extends
+`Sqex::Thread::Thread` as primary base, with a secondary base in the
+`InstallWriter` family at member offset `+0x38`. Confirmed via:
+  - The D1 destructor at `0x008be9f0` calls
+    `Sqex::Thread::Thread::~Thread` at `0x00935560` (which writes
+    `[ESI] = 0x01110688` = the Sqex::Thread::Thread vtable, RTTI-named).
+  - The destructor swaps `[ESI+0x38]` between `0x0110d524` (an
+    InstallUnpacker secondary vtable) and `0x0110d4f0`
+    (InstallWriter::WriteEntry vtable) — typical MSVC virtual-base
+    destruction sequence.
+
+So `Unpack` (slot 2) is a Thread::Run-style override that runs on
+worker threads dispatched from a chunk-source. The whole architecture
+is producer-consumer:
+  - Main thread fills a `ChunkSource` with chunk descriptors.
+  - Worker InstallUnpackers spin on the source via `WaitForReady`,
+    extract chunks via `PackRead` + a Utf8String per chunk, then
+    `ChunkSource::ReleaseChunk` to signal completion.
+  - Source state machine: state=3 = "all dispatched, waiting", state=4
+    = "all released → done".
+
+## Primary vtable
 
 ```
-Component::Install::InstallUnpacker  vtable @ RVA 0x00d0d53c (4 slots)
-  slot 0: FUN_00cbea90 @ 0x008bea90    ; ~InstallUnpacker (D2 wrapper)
-  slot 1: FUN_00d35590 @ 0x00935590    ; (purpose unknown)
-  slot 2: FUN_00cc6700 @ 0x008c6700    ; ★ unpack/extract loop (490 B)
-  slot 3: FUN_00d355a0 @ 0x009355a0    ; (purpose unknown)
+Component::Install::InstallUnpacker  primary vtable @ RVA 0x00d0d53c (4 slots)
+  slot 0: FUN_00cbea90 @ 0x008bea90    ; ~InstallUnpacker (D2 wrapper, 30 B)
+  slot 1: FUN_00d35590 @ 0x00935590    ; tiny `MOV AL, 1; RET` — likely
+                                       ; Thread::IsAlive() override returning true
+  slot 2: FUN_00cc6700 @ 0x008c6700    ; ★ Thread::Run override — unpack
+                                       ;   loop (490 B); see below
+  slot 3: FUN_00d355a0 @ 0x009355a0    ; single `RET` — empty/nop slot
 
-typeinfo ptr at vtable-4: 0x0119d4e8 (the type descriptor)
+typeinfo ptr at vtable-4: 0x0119d4e8
 ```
 
 ## `FUN_00cc6700` — slot-2 unpack loop (490 B)
