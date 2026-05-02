@@ -2098,6 +2098,178 @@ def try_call_chain_movecx_jmp_12b(body: bytes, va: int, n: int) -> tuple[str, st
     return None
 
 
+def try_lea_this_offset_getter_4b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 4B `8d 41 NN c3` — LEA EAX, [ECX+disp8]; RET.
+    # Returns the address of a member field. Sister of try_int_getter
+    # (which returns the *value*).
+    if len(body) == 4 and body[0:2] == b"\x8d\x41" and body[3] == 0xc3:
+        offset = body[2]
+        if offset == 0:
+            return None
+        pad = _padding_for_offset(offset, "char")
+        src = (
+            _header(va, f"address-of-member getter at offset 0x{offset:x} (LEA)",
+                    f"8d 41 {offset:02x} c3", n)
+            + f"\nclass C {{\n"
+            + (f"    {pad}\n" if pad else "")
+            + f"    int field;\npublic:\n    int *get_field_addr();\n}};\n\n"
+              f"int *C::get_field_addr() {{ return &field; }}\n"
+        )
+        return (src, f"LEA getter @ 0x{offset:x}")
+    return None
+
+
+def try_int_setter_disp8_10b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 10B `8b 44 24 04 89 41 NN c2 04 00` —
+    #   MOV EAX, [ESP+4]; MOV [ECX+disp8], EAX; RET 4
+    # __thiscall int-field setter at disp8 offset. The 7-byte form
+    # `8b 44 24 04 89 41 NN c3` (no RET 4) would be __cdecl variant.
+    if (len(body) == 10 and body[0:4] == b"\x8b\x44\x24\x04"
+            and body[4:6] == b"\x89\x41"
+            and body[7:10] == b"\xc2\x04\x00"):
+        offset = body[6]
+        if offset == 0:
+            # disp=0 would encode as `89 01` not `89 41 00` — distinct
+            # cluster.
+            return None
+        if offset % 4 != 0:
+            return None
+        pad = _padding_for_offset(offset, "int")
+        src = (
+            _header(va, f"int field setter at offset 0x{offset:x}",
+                    f"8b 44 24 04 89 41 {offset:02x} c2 04 00", n)
+            + f"\nclass C {{\n"
+            + (f"    {pad}\n" if pad else "")
+            + f"    int field;\npublic:\n    void set_field(int);\n}};\n\n"
+              f"void C::set_field(int v) {{ field = v; }}\n"
+        )
+        return (src, f"int setter @ 0x{offset:x}")
+    return None
+
+
+def try_int_setter_disp32_13b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 13B `8b 44 24 04 89 81 NN NN NN NN c2 04 00` —
+    #   MOV EAX, [ESP+4]; MOV [ECX+disp32], EAX; RET 4
+    # disp32 form for offsets > 0x7f.
+    if (len(body) == 13 and body[0:4] == b"\x8b\x44\x24\x04"
+            and body[4:6] == b"\x89\x81"
+            and body[10:13] == b"\xc2\x04\x00"):
+        offset = int.from_bytes(body[6:10], "little", signed=False)
+        if offset <= 0x7f:
+            return None
+        if offset % 4 != 0:
+            return None
+        pad = _padding_for_offset(offset, "int")
+        src = (
+            _header(va, f"int field setter at offset 0x{offset:x} (disp32)",
+                    f"8b 44 24 04 89 81 NN NN NN NN c2 04 00  (offset=0x{offset:x})", n)
+            + f"\nclass C {{\n"
+            + (f"    {pad}\n" if pad else "")
+            + f"    int field;\npublic:\n    void set_field(int);\n}};\n\n"
+              f"void C::set_field(int v) {{ field = v; }}\n"
+        )
+        return (src, f"int setter disp32 @ 0x{offset:x}")
+    return None
+
+
+def try_thiscall_null_check_member_jmp_15b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 15B `8b 49 NN 85 c9 74 05 e9 RR RR RR RR c2 04 00` —
+    #   MOV ECX, [ECX+disp8]      (load this->member)
+    #   TEST ECX, ECX
+    #   JZ +5                     (skip tail-jmp if null)
+    #   JMP rel32                 (tail-call)
+    #   RET 4                     (fall-through return when null)
+    # Common in linked-list/parent-pointer traversal where the
+    # operation is no-op on null.
+    if (len(body) == 15 and body[0:2] == b"\x8b\x49"
+            and body[3:7] == b"\x85\xc9\x74\x05"
+            and body[7] == 0xe9 and body[12:15] == b"\xc2\x04\x00"):
+        disp = body[2]
+        if disp == 0:
+            return None
+        src = (
+            _header(va, f"thiscall null-check member tail-jmp (this->[+0x{disp:x}], skip if null)",
+                    f"8b 49 {disp:02x} 85 c9 74 05 e9 RR RR RR RR c2 04 00", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void thiscall_null_check_jmp() {\n"
+              "    __asm {\n"
+            + f"        mov ecx, [ecx + 0x{disp:x}]\n"
+              "        test ecx, ecx\n"
+              "        jz skip\n"
+              "        jmp target\n"
+              "    skip:\n"
+              "        ret 4\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"thiscall null-check+jmp [+0x{disp:x}]")
+    return None
+
+
+def try_2arg_cdecl_arg_thisderef_19b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 19B `8b 44 24 04 8b 09 50 51 e8 RR RR RR RR 83 c4 08 c2 04 00` —
+    #   MOV EAX, [ESP+4]      (load forwarded arg)
+    #   MOV ECX, [ECX]        (deref this — typically the vtable or
+    #                          first member)
+    #   PUSH EAX
+    #   PUSH ECX
+    #   CALL rel32
+    #   ADD ESP, 8
+    #   RET 4
+    # 2-arg cdecl wrapper: arg1 = forwarded stdcall arg, arg2 = *this.
+    if (len(body) == 19 and body[0:4] == b"\x8b\x44\x24\x04"
+            and body[4:6] == b"\x8b\x09"
+            and body[6:8] == b"\x50\x51"
+            and body[8] == 0xe8
+            and body[13:16] == b"\x83\xc4\x08"
+            and body[16:19] == b"\xc2\x04\x00"):
+        src = (
+            _header(va, "2-arg cdecl wrapper (arg + *this, ret 4)",
+                    "8b 44 24 04 8b 09 50 51 e8 RR RR RR RR 83 c4 08 c2 04 00", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void wrapper_2arg_arg_thisderef() {\n"
+              "    __asm {\n"
+              "        mov eax, [esp + 4]\n"
+              "        mov ecx, [ecx]\n"
+              "        push eax\n"
+              "        push ecx\n"
+              "        call target\n"
+              "        add esp, 8\n"
+              "        ret 4\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "2arg cdecl arg+*this ret4")
+    return None
+
+
+def try_call_then_ret8_8b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 8B `e8 RR RR RR RR c2 08 00` — CALL rel32; RET 8.
+    # 2-arg stdcall wrapper that doesn't shuffle args — caller's args
+    # are still on the stack at [ESP+4]/[ESP+8] when CALL fires (CALL
+    # itself pushes return addr, putting args at [ESP+8]/[ESP+0xc] in
+    # the callee). The callee must agree on the same stack layout.
+    # In practice: the wrapper takes 2 stdcall args, calls a function
+    # that uses those args (typically as if they were its own
+    # __thiscall args and `this` came in ECX from the wrapper's
+    # caller), and returns 8 to clean the wrapper's stdcall frame.
+    if (len(body) == 8 and body[0] == 0xe8
+            and body[5:8] == b"\xc2\x08\x00"):
+        src = (
+            _header(va, "stdcall 2-arg passthrough (CALL; RET 8)",
+                    "e8 RR RR RR RR c2 08 00", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void __stdcall wrapper_call_ret8(int, int) {\n"
+              "    __asm {\n"
+              "        call target\n"
+              "        ret 8\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "call+ret8 stdcall passthrough")
+    return None
+
+
 def try_2arg_passthrough_wrapper_21b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 21B `__stdcall` 2-arg passthrough wrapper:
     #   8b 44 24 08              MOV EAX, [ESP+8]    (arg2)
@@ -2158,6 +2330,12 @@ DERIVERS[_late_idx:_late_idx] = [
     try_push_arg_push_imm32_call_ret4_18b,
     try_push_arg_call_addsp4_ret4_16b,
     try_call_chain_movecx_jmp_12b,
+    try_lea_this_offset_getter_4b,
+    try_int_setter_disp8_10b,
+    try_int_setter_disp32_13b,
+    try_thiscall_null_check_member_jmp_15b,
+    try_2arg_cdecl_arg_thisderef_19b,
+    try_call_then_ret8_8b,
 ]
 
 
