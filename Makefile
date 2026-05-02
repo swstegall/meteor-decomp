@@ -186,12 +186,12 @@ rosetta-bulk: setup-msvc
 	    fi; \
 	    echo ">>> objdiff $$obj vs orig"; \
 	    if $(PY) $(TOOLS)/compare.py BINARY=$(ROSETTA_BIN_STEM).exe FUNC=$$name >/tmp/.rb.$$$$ 2>&1; then \
-	        green=$$((green + 1)); cat /tmp/.rb.$$$$ | grep -E "GREEN|orig:|ours:" | head -1; \
+	        green=$$((green + 1)); grep -E "GREEN" /tmp/.rb.$$$$ | head -1; \
 	    else \
 	        rc=$$?; \
 	        if grep -q PARTIAL /tmp/.rb.$$$$; then partial=$$((partial + 1)); \
 	        else mismatch=$$((mismatch + 1)); fi; \
-	        cat /tmp/.rb.$$$$ | grep -E "PARTIAL|MISMATCH|orig:|ours:" | head -2; \
+	        grep -E "PARTIAL|MISMATCH" /tmp/.rb.$$$$ | head -1; \
 	    fi; \
 	    rm -f /tmp/.rb.$$$$; \
 	done; \
