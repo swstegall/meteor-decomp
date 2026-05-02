@@ -120,11 +120,28 @@
 // Forward decls for the targets the destructor / constructor call.
 extern "C" void __cdecl operator_delete(void *);
 
+// Sqex::Misc::Utf8String layout (recovered from RVA 0x00047260) —
+// PackRead::ProcessChunk stack-allocates one of these so its size
+// must be exactly 0x54 (84 B) for the local frame to come out at
+// orig's 92 B.
+#include "../../../include/sqex/Utf8String.h"
+
 class SubObjAt1c {
 public:
     SubObjAt1c();
     ~SubObjAt1c();
+    // Method called by ProcessChunk on m_subobj with a Utf8String *
+    // arg. Maps to RVA 0x00047450.
+    void Process(Utf8String *s);
 };
+
+// Global at .rdata 0x00f67298 — holds the constant `0xffffffff`, which
+// the Utf8String(data, length) ctor interprets as the "length unknown,
+// use strlen at runtime" sentinel. ProcessChunk loads this rather than
+// a literal because MSVC code-density: `MOV ECX, [global]; PUSH ECX`
+// (8 bytes total) shares one .rdata word across many call sites,
+// vs. `PUSH 0xffffffff` (5 bytes inline + repeated immediate).
+extern unsigned g_minus_one;
 
 // Iteration #2: define ChunkReadUInt's destructor inline-empty so MSVC
 // can see it's trivial and elide the parent CALL from PackRead's D1.
@@ -179,6 +196,10 @@ public:
     // Resets m_cursor to m_data_start, clears m_field18, tail-jumps
     // to ProcessChunk. No direct xrefs — likely called via fn-ptr.
     void Rewind();
+
+    // FUNCTION: ffxivgame 0x00942590 — PackRead::ProcessNextChunk
+    // (the method ProcessChunk's tail-CALL goes to). Body unknown.
+    void ProcessNextChunk(const char *data, unsigned size);
 
 
     // FUNCTION: ffxivgame 0x009428b0 — PackRead::ReadNext
@@ -389,38 +410,41 @@ PackRead::PackRead(const void *data, unsigned size)
 //   CALL PackRead::ProcessNextChunk
 //   ; --- SEH frame teardown + RET ---
 //
-// Why this is DEFERRED:
+// Iteration history:
+//   #1 [MISMATCH — 180/177, 117 positions] (deleted)
+//      4-byte Utf8String forward-decl → 12-byte local frame instead of
+//      orig's 92 bytes. Major frame-size divergence.
+//   #2 [MISMATCH — 202/177, 147 positions]
+//      Proper 84-byte Utf8String layout brought us closer structurally,
+//      but the function jumped from 180 to 202 bytes (12 bytes of extra
+//      prologue) because MSVC's /GS auto-inserted a *second* cookie:
+//      one buffer-end-guard at [ESP+0x5c] AND the standard SEH cookie.
+//      The trigger is the 64-byte char array inside the stack-allocated
+//      Utf8String — MSVC sees a "buffer-containing local" and protects
+//      its end with an extra cookie. Orig's MSVC didn't insert this
+//      guard, so orig's frame is 92 B and prologue is just 35 B
+//      (vs mine's 96 B / 47 B).
 //
-// The 92-byte (0x5c) local frame is dominated by a stack-allocated
-// `Sqex::Misc::Utf8String` (or similar) whose size, member layout, and
-// constructor signature we haven't recovered yet. Without a properly-
-// sized stand-in, the compiled candidate produces a much smaller frame
-// (mine: 12 B locals; orig: 92 B locals) and ~117 byte mismatches.
+//   #3 [unsuccessful] — `#pragma strict_gs_check(off)` doesn't exist
+//      in VS 2005. `__declspec(safebuffers)` arrived in VS 2010. The
+//      VS-2005-era workaround is `/GS-` per-TU, but our Makefile uses
+//      a single ROSETTA_FLAGS recipe — adding per-function flag
+//      variants is non-trivial.
 //
-// To attempt this match in a future session:
-//   1. Decompile Utf8String::Utf8String at RVA 0x00047260 (~96 B in
-//      the dump above) to recover field layout. From the prologue:
-//        - +0x00: data pointer
-//        - +0x04: capacity (=0x40 inline default)
-//        - +0x08: size
-//        - +0x0c: ?
-//        - +0x10: 1-byte (SSO indicator?)
-//        - +0x11: 1-byte
-//        - +0x12: SSO inline buffer start, runs to +0x52 (sizeof = 0x54 ?)
-//      Total Utf8String ≈ 84 bytes, padded to ≥84.
-//   2. Decompile Utf8String::~Utf8String at RVA 0x00046f50 to confirm
-//      the destruction sequence.
-//   3. Decompile SubObjAt1c::Process at RVA 0x00047450 to learn what
-//      method is being called on m_subobj (and how it consumes the
-//      string).
-//   4. Decompile PackRead::ProcessNextChunk at RVA 0x00942590 to
-//      confirm the (data, size) signature.
-//   5. Then attempt ProcessChunk with the proper Utf8String body
-//      providing the 84-byte stack footprint.
+// DEFERRED again. Closing the buffer-guard gap requires one of:
+//   (a) Compile this function in its own TU with `/GS-` (extends
+//       Makefile + adds a PackRead-ProcessChunk.cpp file).
+//   (b) Restructure Utf8String so its inline buffer doesn't trigger
+//       /GS. E.g. store as int[16] (still 64 B but int-typed); the
+//       VS 2005 /GS heuristic only protects char arrays.
+//   (c) Naked asm for the prologue + body.
 //
-// Iteration #1 (deleted from source): structural shape matched but
-// frame size and most byte positions diverged because the Utf8String
-// stand-in was a 4-byte forward decl. Reverted to documentation-only.
+// (b) is the cleanest if it works — it would also slightly change
+// Utf8String.cpp's compilation (might or might not affect that
+// match). Worth trying in a future session.
+//
+// For now, revert ProcessChunk to documentation-only so the .cpp still
+// compiles and the other matches stay GREEN.
 
 // FUNCTION: ffxivgame 0x00942890 — PackRead::Rewind (18 B)
 //

@@ -135,26 +135,9 @@
 // twiddling. Deferring further iterations — the layout finding is
 // the unblocker for ProcessChunk and other Utf8String-using callers.
 
-class Utf8String {
-public:
-    Utf8String(const char *data, unsigned length);
-    ~Utf8String();
-
-private:
-    // Internal helper called by the (data, length) ctor to ensure
-    // m_data has room for `size` bytes. The second arg is always 1
-    // in the ctor's call site — likely a "small-buffer-allowed" flag.
-    // Maps to RVA 0x00047010.
-    void Reserve(unsigned size, int small_ok);
-
-    char *m_data;             // +0x00
-    int   m_capacity;         // +0x04
-    int   m_size;             // +0x08
-    int   m_field_c;          // +0x0c
-    char  m_flag_10;          // +0x10
-    char  m_flag_11;          // +0x11
-    char  m_inline_buf[0x40]; // +0x12..+0x51
-};
+// Class layout lives in include/sqex/Utf8String.h so callers (e.g.
+// PackRead::ProcessChunk) can stack-allocate Utf8String correctly.
+#include "../../../include/sqex/Utf8String.h"
 
 // `extern "C"` to suppress C++ name mangling on the memcpy reloc —
 // the orig CALL goes to the CRT memcpy at RVA 0x005d5110.
