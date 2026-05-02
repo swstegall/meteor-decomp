@@ -1238,10 +1238,22 @@ def try_no_reloc_emit_fallback(body: bytes, va: int, n: int) -> tuple[str, str] 
     if the mask is all zeros, all the bytes are constants and we can
     safely emit them raw.
 
-    Caps body length at 80 bytes to avoid generating huge unreadable
-    templates; bigger no-reloc clusters can still get a specific deriver.
+    Caps body length at 256 bytes — this is the long tail of large
+    constant-byte clusters (SSE/FPU register-shuffle blocks, fixed
+    string-encoder loops, etc.). Beyond 256B the per-byte _emit list
+    starts to dominate the .cpp file size; specific derivers are
+    preferable for those.
+
+    Also requires cluster size ≥ 10. Tiny clusters (1-9 members) often
+    expose Ghidra-under-count bugs — e.g. a function with an `eb 03`
+    short JMP over a `8d 49 00` 3-byte NOP gets reported as 90 bytes
+    when it's really 93. The asm dump captures the 90 visible bytes
+    but compare.py reads the symbol's reported size from orig
+    (truncating just before the trailing instructions), so the 3-byte
+    NOP alignment difference shows up as a structural diff. Bigger
+    clusters self-validate (many members agreeing on bytes).
     """
-    if len(body) > 80:
+    if len(body) > 256 or n < 10:
         return None
     # Late import to avoid circular at module load.
     try:
