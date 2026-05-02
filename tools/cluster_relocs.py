@@ -106,6 +106,39 @@ def reloc_mask_for_body(body: bytes, image_base: int = 0x00400000) -> bytearray:
     n = len(body)
     while i < n:
         b = body[i]
+        # 83 modrm imm8 / 81 modrm imm32 / 80 modrm imm8 — ALU with
+        # immediate. The ModR/M byte can have values that match other
+        # opcodes (e.g. 0x83 0xe9 NN is `SUB ECX, imm8` but byte 1 = 0xe9
+        # would otherwise look like a JMP rel32 opcode). Recognise the
+        # full 3- or 6-byte form here so the linear walker doesn't get
+        # fooled.
+        if b == 0x83 and i + 3 <= n:
+            i += 3   # opcode + modrm + imm8 (no reloc — pure structural)
+            continue
+        if b == 0x81 and i + 6 <= n:
+            # imm32 form may be address-y → wildcard if so.
+            modrm = body[i + 1]
+            mod = (modrm >> 6) & 0b11
+            rm = modrm & 0b111
+            if mod == 0 and rm == 0b101:
+                # MOD=00, R/M=101 → disp32 absolute address ALU. reloc on +2.
+                for j in range(i + 2, i + 6):
+                    mask[j] = 1
+                if i + 10 <= n and _looks_address_like(
+                    body[i + 6], body[i + 7], body[i + 8], body[i + 9], image_base
+                ):
+                    for j in range(i + 6, i + 10):
+                        mask[j] = 1
+                    i += 10
+                    continue
+                i += 10
+                continue
+            # Plain register form: 1 (op) + 1 (modrm) + 4 (imm32) = 6 B.
+            i += 6
+            continue
+        if b == 0x80 and i + 3 <= n:
+            i += 3
+            continue
         # E8 — CALL rel32 ; E9 — JMP rel32
         if b in (0xE8, 0xE9) and i + 5 <= n:
             for j in range(i + 1, i + 5):

@@ -534,6 +534,81 @@ def try_push_load_call(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     return None
 
 
+def try_arg_shuffler_41b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 41B __stdcall arg-shuffler that reorders 3 dword args + 1 byte
+    # arg before tail-calling another function. Shape:
+    #
+    #   51                    PUSH ECX                  (slot for byte arg)
+    #   8b 54 24 10           MOV EDX, [ESP+0x10]       (arg3 → EDX)
+    #   c6 04 24 00           MOV byte ptr [ESP], 0     (zero the byte slot)
+    #   8b 04 24              MOV EAX, [ESP]
+    #   50                    PUSH EAX                  (push the byte arg)
+    #   8b 44 24 14           MOV EAX, [ESP+0x14]
+    #   52                    PUSH EDX
+    #   8b 54 24 10           MOV EDX, [ESP+0x10]
+    #   51                    PUSH ECX
+    #   8b 4c 24 18           MOV ECX, [ESP+0x18]
+    #   50                    PUSH EAX
+    #   51                    PUSH ECX
+    #   52                    PUSH EDX
+    #   e8 RR RR RR RR        CALL <target>
+    #   83 c4 1c              ADD ESP, 0x1c
+    #   c2 0c 00              RET 12
+    if len(body) != 41:
+        return None
+    expected = [
+        (0x51,),
+        (0x8b,), (0x54,), (0x24,), (0x10,),
+        (0xc6,), (0x04,), (0x24,), (0x00,),
+        (0x8b,), (0x04,), (0x24,),
+        (0x50,),
+        (0x8b,), (0x44,), (0x24,), (0x14,),
+        (0x52,),
+        (0x8b,), (0x54,), (0x24,), (0x10,),
+        (0x51,),
+        (0x8b,), (0x4c,), (0x24,), (0x18,),
+        (0x50,),
+        (0x51,),
+        (0x52,),
+        (0xe8,), None, None, None, None,
+        (0x83,), (0xc4,), (0x1c,),
+        (0xc2,), (0x0c,), (0x00,),
+    ]
+    for i, exp in enumerate(expected):
+        if exp is None:
+            continue
+        if body[i] != exp[0]:
+            return None
+    src = (
+        _header(va, "__stdcall arg-shuffler (3 dword args + 1 byte)",
+                "51 8b 54 24 10 c6 04 24 00 8b 04 24 50 8b 44 24 14 "
+                "52 8b 54 24 10 51 8b 4c 24 18 50 51 52 e8 RR RR RR RR "
+                "83 c4 1c c2 0c 00", n)
+        + "\nextern \"C\" int target();\n\n"
+          "extern \"C\" __declspec(naked) void arg_shuffler() {\n"
+          "    __asm {\n"
+          "        push ecx\n"
+          "        mov edx, [esp + 0x10]\n"
+          "        mov byte ptr [esp], 0\n"
+          "        mov eax, [esp]\n"
+          "        push eax\n"
+          "        mov eax, [esp + 0x14]\n"
+          "        push edx\n"
+          "        mov edx, [esp + 0x10]\n"
+          "        push ecx\n"
+          "        mov ecx, [esp + 0x18]\n"
+          "        push eax\n"
+          "        push ecx\n"
+          "        push edx\n"
+          "        call target\n"
+          "        add esp, 0x1c\n"
+          "        ret 12\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "arg-shuffler 41B")
+
+
 def try_catch_all_push_call_9b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 9B SEH Catch_All handler:
     #   6a 00 6a 00 e8 RR RR RR RR
@@ -977,6 +1052,7 @@ DERIVERS = [
     try_array_deleting_dtor_34b,
     try_unwind_flag_check_jmp_25b,
     try_catch_all_push_call_9b,
+    try_arg_shuffler_41b,
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_jmp_thunk,

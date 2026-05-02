@@ -116,26 +116,30 @@ def sync_yaml(stem: str, dry_run: bool) -> tuple[int, int, int]:
         yaml_path.write_text("".join(out))
         print(f"  {stem}: flipped {flipped} (already matched: {already})")
 
-    # Sanity check: every GREEN rva should map to a `matching` YAML row.
-    missing = sum(1 for r in green_rvas if not _yaml_has_matching(out, r))
+    # Sanity check: every GREEN rva should map to a YAML row of `type:
+    # matching`. Build a single rva → type lookup once (O(N)) instead of
+    # re-walking the YAML for every GREEN rva (O(N×M)).
+    rva_to_type = _build_yaml_index(out)
+    missing = sum(
+        1 for r in green_rvas
+        if rva_to_type.get(r) != "matching"
+    )
     return (flipped, already, missing)
 
 
-def _yaml_has_matching(lines: list[str], target_rva: int) -> bool:
-    """Check that the (regenerated) YAML has a `matching` record at this rva."""
-    target_re = re.compile(rf"^\s*-\s*rva:\s*0x0*{target_rva:x}\s*$", re.IGNORECASE)
-    in_block = False
+def _build_yaml_index(lines: list[str]) -> dict[int, str]:
+    """One-pass scan: rva → type."""
+    idx: dict[int, str] = {}
+    current_rva: int | None = None
     for line in lines:
-        if target_re.match(line):
-            in_block = True
+        m_rva = RE_RVA.match(line)
+        if m_rva:
+            current_rva = int(m_rva.group(1), 16)
             continue
-        if in_block and line.lstrip().startswith("- rva:"):
-            in_block = False
-        if in_block:
-            mt = RE_TYPE.match(line)
-            if mt and mt.group(1) == "matching":
-                return True
-    return False
+        m_type = RE_TYPE.match(line)
+        if m_type and current_rva is not None:
+            idx[current_rva] = m_type.group(1)
+    return idx
 
 
 def main() -> int:
