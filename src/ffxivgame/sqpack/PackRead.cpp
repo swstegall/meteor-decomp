@@ -135,6 +135,12 @@ public:
     ChunkReadUInt(const void *data, unsigned size);
     virtual ~ChunkReadUInt() {}
 
+    // Non-virtual API methods enumerated by xref analysis.
+    // ChunkReadUInt::ReadNextChunkHeader is at RVA 0x004ebd40 — it
+    // returns a signed int (status), <0 on EOF / error. Called by
+    // PackRead::ReadNext as the first step of fetching a chunk.
+    int ReadNextChunkHeader();
+
 protected:
     const char *m_data_start;     // +0x04
     const char *m_data_end;       // +0x08
@@ -160,6 +166,16 @@ public:
     virtual ~PackRead();
 
     void PostInit();
+
+    // FUNCTION: ffxivgame 0x009428b0 — PackRead::ReadNext
+    // 27 B; returns bool. Called from FUN_00cc6700 in a loop.
+    bool ReadNext();
+
+private:
+    // FUNCTION: ffxivgame 0x00942740 — PackRead::ProcessChunk
+    // (private helper called by ReadNext after a successful header read)
+    void ProcessChunk();
+public:
 
 private:
     SubObjAt1c m_subobj;          // +0x1c (composition; default-ctor'd)
@@ -289,4 +305,36 @@ PackRead::PackRead(const void *data, unsigned size)
       m_field7c(0)
 {
     PostInit();
+}
+
+// FUNCTION: ffxivgame 0x009428b0 — PackRead::ReadNext (27 B)
+//
+// Original bytes:
+//   009428b0: 56 8b f1 e8 ?? ?? ?? ?? 85 c0 7d 04 32 c0 5e c3
+//   009428c0: 8b ce e8 ?? ?? ?? ?? b0 01 5e c3
+//
+//   PUSH ESI
+//   MOV  ESI, ECX                         ; ESI = this
+//   CALL ChunkReadUInt::ReadNextChunkHeader
+//   TEST EAX, EAX
+//   JNL  +4                                ; if (rc >= 0) goto good
+//     XOR  AL, AL                          ; bad: return false
+//     POP  ESI; RET
+//   good:
+//     MOV  ECX, ESI                        ; ECX = this
+//     CALL PackRead::ProcessChunk
+//     MOV  AL, 1                           ; return true
+//     POP  ESI; RET
+//
+// MSVC's choice to put the false-path FIRST (fall-through) and JNL
+// to the true-path is the common branch-predictor hint for "negative
+// return = unlikely". The bool wrapper returns AL only — the high
+// bytes of EAX aren't cleared, but the caller in FUN_00cc6700 does
+// `TEST AL, AL` so only AL matters.
+bool PackRead::ReadNext() {
+    if (this->ReadNextChunkHeader() < 0) {
+        return false;
+    }
+    ProcessChunk();
+    return true;
 }
