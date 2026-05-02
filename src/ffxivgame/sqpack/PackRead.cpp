@@ -443,8 +443,36 @@ PackRead::PackRead(const void *data, unsigned size)
 // Utf8String.cpp's compilation (might or might not affect that
 // match). Worth trying in a future session.
 //
-// For now, revert ProcessChunk to documentation-only so the .cpp still
-// compiles and the other matches stay GREEN.
+// Iteration #4 [int[16] m_inline_buf in pack(2) class] → 180/177
+//   Single cookie now (the /GS buffer-guard is gone). 115 mismatches
+//   remain — but mine has NO destructor CALL for the Utf8String
+//   because `s` lives to end-of-function in my source (no scope
+//   braces), so MSVC defers the dtor.
+//
+// Iteration #5 [now]: explicit scope braces around `s` so its
+//   destructor fires immediately after Process. This should add the
+//   `LEA ECX,[ESP+0x10]; MOV [ESP+0x6c],-1; CALL ~Utf8String`
+//   sequence we see in orig.
+void PackRead::ProcessChunk() {
+    {
+        Utf8String s(m_cursor + 8, g_minus_one);
+        m_subobj.Process(&s);
+    }   // s destructs here
+
+    ReadNextChunkHeader();
+
+    unsigned size = *(unsigned *)(m_cursor + 4);
+    if (m_flag15) {
+        unsigned char swapped[4];
+        unsigned char *src = (unsigned char *)&size;
+        swapped[0] = src[3];
+        swapped[1] = src[2];
+        swapped[2] = src[1];
+        swapped[3] = src[0];
+        size = *(unsigned *)swapped;
+    }
+    ProcessNextChunk(m_cursor + 8, size);
+}
 
 // FUNCTION: ffxivgame 0x00942890 — PackRead::Rewind (18 B)
 //

@@ -149,8 +149,8 @@ Utf8String::Utf8String(const char *data, unsigned length) {
     m_field_c = 0;
     m_size    = 1;
     m_capacity = 0x40;
-    m_data    = m_inline_buf;
-    m_inline_buf[0] = 0;           // null-terminate the inline buf
+    m_data    = (char *)m_inline_buf;
+    ((char *)m_inline_buf)[0] = 0;  // null-terminate the inline buf
 
     if (length == 0xffffffff) {
         // -1 sentinel → compute strlen(data)
