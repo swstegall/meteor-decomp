@@ -121,6 +121,80 @@ def _coff_text_bytes(obj_path: Path) -> bytes:
     raise RuntimeError(f"no .text section in {obj_path}")
 
 
+def _coff_text_relocs(obj_path: Path) -> list[tuple[int, int]]:
+    """Parse the COFF relocation table for `.text` and return a list of
+    (offset, size) tuples giving the byte ranges occupied by linker
+    fixups. Used to mask relocation bytes out of the byte-level diff —
+    the .obj carries zeros at those positions while the orig binary
+    carries the actual fixed-up value.
+
+    All i386 COFF relocations cover 4 bytes (IMAGE_REL_I386_DIR32 = 6,
+    IMAGE_REL_I386_REL32 = 0x14, IMAGE_REL_I386_DIR32NB = 7, plus
+    section-relative variants that are 4 bytes wide too). Returning a
+    flat (offset, 4) tuple per entry covers them uniformly."""
+    data = obj_path.read_bytes()
+    n_sections = struct.unpack_from("<H", data, 2)[0]
+    opt_size = struct.unpack_from("<H", data, 16)[0]
+    sec_off = 20 + opt_size
+    for i in range(n_sections):
+        base = sec_off + i * 40
+        name = data[base : base + 8].rstrip(b"\0").decode("ascii", errors="replace")
+        if name != ".text":
+            continue
+        ptr_relocs = struct.unpack_from("<I", data, base + 24)[0]
+        n_relocs = struct.unpack_from("<H", data, base + 32)[0]
+        out: list[tuple[int, int]] = []
+        for j in range(n_relocs):
+            entry = ptr_relocs + j * 10
+            vaddr = struct.unpack_from("<I", data, entry)[0]
+            # Type at +8 — we treat all i386 reloc types as 4-byte fixups.
+            out.append((vaddr, 4))
+        return out
+    return []
+
+
+def _build_reloc_mask(relocs: list[tuple[int, int]], size: int) -> bytearray:
+    """Build a 1-byte-per-position mask: 1 = relocation byte (wildcard
+    in the diff), 0 = real code byte (must match orig byte-for-byte)."""
+    mask = bytearray(size)
+    for off, sz in relocs:
+        end = min(off + sz, size)
+        for i in range(off, end):
+            if 0 <= i < size:
+                mask[i] = 1
+    return mask
+
+
+def _yaml_size_override(rva: int, yaml_path: Path) -> int | None:
+    """Look up the per-function `size:` field in the work-pool YAML by
+    streaming the file (avoids a full pyyaml parse on a ~100k-entry
+    file). Returns the size as an int (decoding 0x.. literals) or None
+    if the YAML doesn't exist, doesn't have an entry for `rva`, or
+    doesn't have a `size:` key.
+
+    The YAML is the human-curated source of truth and may correct
+    Ghidra's auto-detected size when Ghidra under-counts (e.g. when a
+    function ends with XOR EAX,EAX/RET followed by INT3 padding)."""
+    if not yaml_path.exists():
+        return None
+    target = f"- rva: {rva:#010x}"
+    in_entry = False
+    for line in yaml_path.read_text().splitlines():
+        if line.startswith("- rva:"):
+            in_entry = (line.split("#", 1)[0].rstrip() == target)
+            continue
+        if not in_entry:
+            continue
+        stripped = line.strip()
+        if stripped.startswith("size:"):
+            value = stripped.split(":", 1)[1].split("#", 1)[0].strip()
+            try:
+                return int(value, 0)
+            except ValueError:
+                return None
+    return None
+
+
 def _hex_dump(b: bytes, width: int = 16) -> list[str]:
     out: list[str] = []
     for i in range(0, len(b), width):
@@ -129,27 +203,35 @@ def _hex_dump(b: bytes, width: int = 16) -> list[str]:
     return out
 
 
-def _side_by_side(orig: bytes, ours: bytes, width: int = 16) -> str:
+def _side_by_side(orig: bytes, ours: bytes, mask: bytearray, width: int = 16) -> str:
+    """Side-by-side diff. Markers:
+      `.`  bytes match (or both ends of the row are past EOF)
+      `~`  bytes differ but the position is a known relocation —
+           expected (linker fixup, .obj has zeros, .exe has the value)
+      `*`  bytes differ AND the position is real code — actual
+           structural diff that the contributor needs to fix
+      `?`  one side is past EOF (size mismatch)
+    """
     rows: list[str] = []
     rows.append(f"  {'offset':>6}  {'orig (binary)':<{width*3}}  ours (cl.exe)")
     n = max(len(orig), len(ours))
-    diffs = 0
     for i in range(0, n, width):
         o_chunk = orig[i : i + width]
         u_chunk = ours[i : i + width]
         o_hex = _hex_dump(o_chunk)[0] if o_chunk else ""
         u_hex = _hex_dump(u_chunk)[0] if u_chunk else ""
-        # Mark mismatching bytes with '*'
         marker_chars = []
         for j in range(width):
             o = o_chunk[j] if j < len(o_chunk) else None
             u = u_chunk[j] if j < len(u_chunk) else None
+            pos = i + j
             if o is None or u is None:
                 marker_chars.append("?")
-                diffs += 1
             elif o != u:
-                marker_chars.append("*")
-                diffs += 1
+                if pos < len(mask) and mask[pos]:
+                    marker_chars.append("~")
+                else:
+                    marker_chars.append("*")
             else:
                 marker_chars.append(".")
         marker = " ".join(marker_chars[: max(len(o_chunk), len(u_chunk))])
@@ -158,20 +240,39 @@ def _side_by_side(orig: bytes, ours: bytes, width: int = 16) -> str:
     return "\n".join(rows)
 
 
-def _verdict(orig: bytes, ours: bytes) -> tuple[str, int, int]:
-    """Return (verdict, mismatched_bytes, total_orig_bytes)."""
-    if len(orig) == len(ours) and orig == ours:
-        return ("GREEN", 0, len(orig))
+def _verdict(orig: bytes, ours: bytes, mask: bytearray) -> tuple[str, int, int, int]:
+    """Return (verdict, structural_diffs, reloc_diffs, total_orig_bytes).
+
+    Verdicts:
+      `GREEN`        no structural diffs (relocation diffs are expected)
+      `PARTIAL`      sizes match but >= 1 structural byte differs
+      `MISMATCH`     sizes differ — usually a missing/extra instruction
+    """
     if len(orig) != len(ours):
-        return ("MISMATCH", -1, len(orig))
-    diffs = sum(1 for a, b in zip(orig, ours) if a != b)
-    return ("PARTIAL", diffs, len(orig))
-
-
-def _first_mismatch(orig: bytes, ours: bytes) -> int | None:
+        return ("MISMATCH", -1, -1, len(orig))
+    structural = 0
+    reloc = 0
     for i, (a, b) in enumerate(zip(orig, ours)):
-        if a != b:
-            return i
+        if a == b:
+            continue
+        if i < len(mask) and mask[i]:
+            reloc += 1
+        else:
+            structural += 1
+    if structural == 0:
+        return ("GREEN", 0, reloc, len(orig))
+    return ("PARTIAL", structural, reloc, len(orig))
+
+
+def _first_mismatch(orig: bytes, ours: bytes, mask: bytearray) -> int | None:
+    """First position where orig != ours AND the position is NOT a
+    known relocation. Returns None if there are no structural diffs."""
+    for i, (a, b) in enumerate(zip(orig, ours)):
+        if a == b:
+            continue
+        if i < len(mask) and mask[i]:
+            continue
+        return i
     if len(orig) != len(ours):
         return min(len(orig), len(ours))
     return None
@@ -209,7 +310,19 @@ def main() -> int:
     if sym is None:
         print(f"error: rva {rva:#x} not in symbols.json (out of date?)", file=sys.stderr)
         return 3
-    size = int(sym["size"])
+
+    # Prefer the YAML's `size:` over symbols.json — Ghidra occasionally
+    # under-counts (e.g. trailing XOR/RET + INT3 padding). The YAML is
+    # human-curated and more reliable for known-corrected functions.
+    yaml_path = CONFIG_DIR / "ffxivgame.yaml"
+    yaml_size = _yaml_size_override(rva, yaml_path)
+    sym_size = int(sym["size"])
+    if yaml_size is not None and yaml_size != sym_size:
+        size = yaml_size
+        size_source = f"YAML ({yaml_size} B; symbols.json had {sym_size} B)"
+    else:
+        size = sym_size
+        size_source = "symbols.json"
 
     obj_path = OBJ_ROOT / f"{func_name}.obj"
     if not obj_path.exists():
@@ -218,15 +331,23 @@ def main() -> int:
 
     orig = _read_orig_bytes(rva, size)
     ours = _coff_text_bytes(obj_path)
-    verdict, diffs, total = _verdict(orig, ours)
+    relocs = _coff_text_relocs(obj_path)
+    mask = _build_reloc_mask(relocs, max(len(orig), len(ours)))
+    verdict, structural, reloc, total = _verdict(orig, ours, mask)
 
-    print(f"=== {func_name} (rva {rva:#x}, size {size} B) ===")
+    print(f"=== {func_name} (rva {rva:#x}, size {size} B from {size_source}) ===")
     print(f"  orig: {len(orig)} bytes from {ORIG_PE.relative_to(REPO_ROOT)}")
     print(f"  ours: {len(ours)} bytes from {obj_path.relative_to(REPO_ROOT)}")
+    if relocs:
+        print(f"  reloc-masked positions: {sum(1 for m in mask[:total] if m)} of {total} bytes")
     print()
 
     if verdict == "GREEN":
-        print(f"  ✅ GREEN — byte-identical ({total} of {total} bytes match)")
+        if reloc:
+            print(f"  ✅ GREEN — byte-identical modulo {reloc} relocation byte"
+                  f"{'s' if reloc != 1 else ''} (linker-filled, expected)")
+        else:
+            print(f"  ✅ GREEN — byte-identical ({total} of {total} bytes match)")
         return 0
 
     if verdict == "MISMATCH":
@@ -234,14 +355,20 @@ def main() -> int:
         delta = len(ours) - len(orig)
         print(f"     ours is {abs(delta)} byte{'s' if abs(delta)!=1 else ''} {'longer' if delta>0 else 'shorter'}")
     else:
-        pct = 100.0 * (total - diffs) / total if total else 0.0
-        print(f"  🟡 PARTIAL — {total - diffs} of {total} bytes match ({pct:.1f}%)")
+        matched = total - structural - reloc
+        pct = 100.0 * matched / total if total else 0.0
+        # The structural number is what matters for "is this a real diff"
+        print(f"  🟡 PARTIAL — {matched + reloc} of {total} bytes match modulo relocations "
+              f"({structural} structural diff{'s' if structural != 1 else ''}, "
+              f"{reloc} reloc diff{'s' if reloc != 1 else ''}; {pct:.1f}% raw match)")
 
-    fm = _first_mismatch(orig, ours)
+    fm = _first_mismatch(orig, ours, mask)
     if fm is not None:
-        print(f"  first mismatch at offset {fm:#x} (file rva {rva + fm:#x})")
+        print(f"  first STRUCTURAL mismatch at offset {fm:#x} (file rva {rva + fm:#x})")
     print()
-    print(_side_by_side(orig, ours))
+    print(_side_by_side(orig, ours, mask))
+    print()
+    print("Diff markers:  .  match  |  ~  reloc (linker fixup, expected)  |  *  STRUCTURAL diff")
     print()
     print("Iteration tips: see docs/matching-workflow.md §7. Common knobs:")
     print("  - register-allocation drift: reorder local declarations in the .cpp")
