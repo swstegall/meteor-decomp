@@ -109,7 +109,69 @@ def _ends_at_terminator(byte: int) -> int:
     return 0
 
 
-def _try_extend(data: bytes, file_off: int, old_size: int, max_extend: int = 16) -> tuple[int, str] | None:
+def _is_acceptable_boundary(data: bytes, off: int, expected_next: int | None) -> bool:
+    """Return True if `off` is a confident function-end boundary.
+
+    Confidence comes from one of:
+      - INT3 padding (`cc`) — the canonical alignment filler
+      - `off` exactly equals the next-known-function's file offset
+        (i.e., the next symbol starts here without padding — common
+        for back-to-back thunks)
+      - the byte at `off` looks like a typical function-start opcode
+        (`8b ff` hot-patch prologue, `55` PUSH EBP, `56` PUSH ESI,
+        `81 ec` SUB ESP imm, `83 ec` SUB ESP imm8, `e9`/`ff 25` JMP
+        thunks)
+    """
+    if off >= len(data):
+        return False
+    if data[off] == 0xcc:
+        return True
+    if expected_next is not None and off == expected_next:
+        return True
+    # Common first-instruction patterns of x86 functions in this binary.
+    b0 = data[off]
+    b1 = data[off + 1] if off + 1 < len(data) else None
+    if b0 == 0x55:                  # PUSH EBP (frame-pointer prologue)
+        return True
+    if b0 == 0x56:                  # PUSH ESI (single-callee-save)
+        return True
+    if b0 == 0x57:                  # PUSH EDI
+        return True
+    if b0 == 0x53:                  # PUSH EBX
+        return True
+    if b0 == 0xe9:                  # JMP rel32 (thunk start)
+        return True
+    if b0 == 0xff and b1 == 0x25:   # JMP [m32] (IAT thunk)
+        return True
+    if b0 == 0x8b and b1 == 0xff:   # MOV EDI, EDI (hot-patch prologue)
+        return True
+    if b0 == 0x83 and b1 in (0xec, 0xc4):   # SUB ESP, imm8 / ADD ESP, imm8
+        return True
+    if b0 == 0x81 and b1 in (0xec, 0xc4):   # SUB ESP, imm32 / ADD ESP, imm32
+        return True
+    if b0 == 0x33:                  # XOR (often XOR EAX,EAX prologue)
+        return True
+    if b0 == 0xb8:                  # MOV EAX, imm32
+        return True
+    if b0 == 0xb9:                  # MOV ECX, imm32 (singleton thunk)
+        return True
+    if b0 == 0x8a or b0 == 0x8b:    # MOV from memory
+        return True
+    if b0 == 0xc7:                  # MOV [m], imm32
+        return True
+    if b0 == 0x6a:                  # PUSH imm8
+        return True
+    if b0 == 0x68:                  # PUSH imm32
+        return True
+    if b0 == 0xc3:                  # RET — single-byte stub function
+        return True
+    if b0 == 0xc2:                  # RET imm16 — single stub
+        return True
+    return False
+
+
+def _try_extend(data: bytes, file_off: int, old_size: int, max_extend: int = 16,
+                expected_next_off: int | None = None) -> tuple[int, str] | None:
     """Try to detect a Ghidra under-count. Returns (new_size, reason)
     if a confident extension is found, else None."""
     n = len(data)
@@ -120,17 +182,16 @@ def _try_extend(data: bytes, file_off: int, old_size: int, max_extend: int = 16)
 
     # Case 1: pure missing terminal
     if next_byte == 0xc3:
-        # Verify INT3 padding follows.
-        if after + 1 < n and data[after + 1] == 0xcc:
+        if _is_acceptable_boundary(data, after + 1, expected_next_off):
             return (old_size + 1, "RET (c3)")
         return None
     if next_byte == 0xc2 and after + 3 <= n:
-        if after + 3 < n and data[after + 3] == 0xcc:
+        if _is_acceptable_boundary(data, after + 3, expected_next_off):
             return (old_size + 3, f"RET imm16 ({data[after + 1]:02x} {data[after + 2]:02x})")
         return None
 
     # Case 2: epilogue continuation — walk forward until we hit
-    # a terminator (c3 or c2), then verify INT3 follows.
+    # a terminator (c3 or c2), then verify boundary.
     matched_prefix = None
     for prefix in EPILOGUE_PREFIXES:
         if data[after : after + len(prefix)] == prefix:
@@ -139,7 +200,6 @@ def _try_extend(data: bytes, file_off: int, old_size: int, max_extend: int = 16)
     if matched_prefix is None:
         return None
 
-    # Walk through likely epilogue bytes up to max_extend.
     extra = 0
     while extra < max_extend and after + extra < n:
         b = data[after + extra]
@@ -153,9 +213,8 @@ def _try_extend(data: bytes, file_off: int, old_size: int, max_extend: int = 16)
     else:
         return None
 
-    # Verify INT3 padding follows the new end.
     new_end = after + extra
-    if new_end >= n or data[new_end] != 0xcc:
+    if not _is_acceptable_boundary(data, new_end, expected_next_off):
         return None
 
     return (old_size + extra, f"epilogue continuation ({matched_prefix.hex()} … terminator)")
@@ -199,12 +258,19 @@ def main() -> int:
             continue
         n_checked += 1
         file_off = text_ra + (rva - text_va)
-        result = _try_extend(data, file_off, size, max_extend=args.max_extend)
+        next_start = next_start_by_rva.get(rva)
+        next_start_file_off = (
+            text_ra + (next_start - text_va) if next_start is not None else None
+        )
+        result = _try_extend(
+            data, file_off, size,
+            max_extend=args.max_extend,
+            expected_next_off=next_start_file_off,
+        )
         if result is None:
             continue
         new_size, reason = result
         # Don't extend past the next function's start.
-        next_start = next_start_by_rva.get(rva)
         if next_start is not None and rva + new_size > next_start:
             continue
         overrides.append({

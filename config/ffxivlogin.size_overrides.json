@@ -46,5 +46,101 @@
     "old_size": 758,
     "new_size": 766,
     "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
+    "rva": 44760,
+    "rva_hex": "0x0000aed8",
+    "name": "FUN_0040aed8",
+    "old_size": 38,
+    "new_size": 43,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
+    "rva": 106259,
+    "rva_hex": "0x00019f13",
+    "name": "Catch@00419f13",
+    "old_size": 6,
+    "new_size": 16,
+    "reason": "epilogue continuation (33c0 \u2026 terminator)"
+  },
+  {
+    "rva": 147256,
+    "rva_hex": "0x00023f38",
+    "name": "_AtlVerifyStackAvailable",
+    "old_size": 85,
+    "new_size": 86,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 166592,
+    "rva_hex": "0x00028ac0",
+    "name": "_JumpToContinuation",
+    "old_size": 43,
+    "new_size": 48,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 176454,
+    "rva_hex": "0x0002b146",
+    "name": "__wcsdup",
+    "old_size": 80,
+    "new_size": 83,
+    "reason": "epilogue continuation (5d \u2026 terminator)"
+  },
+  {
+    "rva": 184370,
+    "rva_hex": "0x0002d032",
+    "name": "___heap_select",
+    "old_size": 85,
+    "new_size": 86,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 213837,
+    "rva_hex": "0x0003434d",
+    "name": "___DestructExceptionObject",
+    "old_size": 67,
+    "new_size": 76,
+    "reason": "epilogue continuation (33c0 \u2026 terminator)"
+  },
+  {
+    "rva": 214947,
+    "rva_hex": "0x000347a3",
+    "name": "___BuildCatchObject",
+    "old_size": 133,
+    "new_size": 137,
+    "reason": "epilogue continuation (33c0 \u2026 terminator)"
+  },
+  {
+    "rva": 221327,
+    "rva_hex": "0x0003608f",
+    "name": "__cftoe2_l",
+    "old_size": 362,
+    "new_size": 365,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 225389,
+    "rva_hex": "0x0003706d",
+    "name": "cvtdate",
+    "old_size": 498,
+    "new_size": 501,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 246781,
+    "rva_hex": "0x0003c3fd",
+    "name": "___set_fpsr_sse2",
+    "old_size": 68,
+    "new_size": 69,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 248870,
+    "rva_hex": "0x0003cc26",
+    "name": "__strdup",
+    "old_size": 77,
+    "new_size": 80,
+    "reason": "epilogue continuation (5d \u2026 terminator)"
   }
 ]

@@ -24,6 +24,14 @@
     "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
+    "rva": 15879,
+    "rva_hex": "0x00003e07",
+    "name": "FUN_00403e07",
+    "old_size": 102,
+    "new_size": 105,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
     "rva": 16144,
     "rva_hex": "0x00003f10",
     "name": "FUN_00403f10",
@@ -198,6 +206,14 @@
     "old_size": 90,
     "new_size": 93,
     "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
+    "rva": 72736,
+    "rva_hex": "0x00011c20",
+    "name": "FUN_00411c20",
+    "old_size": 59,
+    "new_size": 64,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 74976,
@@ -408,6 +424,14 @@
     "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
+    "rva": 174912,
+    "rva_hex": "0x0002ab40",
+    "name": "FUN_0042ab40",
+    "old_size": 1626,
+    "new_size": 1632,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
     "rva": 200528,
     "rva_hex": "0x00030f50",
     "name": "FUN_00430f50",
@@ -566,6 +590,14 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 264010,
+    "rva_hex": "0x0004074a",
+    "name": "FUN_0044074a",
+    "old_size": 110,
+    "new_size": 113,
+    "reason": "RET imm16 (08 00)"
   },
   {
     "rva": 264976,
@@ -784,6 +816,14 @@
     "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
+    "rva": 316672,
+    "rva_hex": "0x0004d500",
+    "name": "FUN_0044d500",
+    "old_size": 218,
+    "new_size": 224,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
     "rva": 317040,
     "rva_hex": "0x0004d670",
     "name": "FUN_0044d670",
@@ -805,6 +845,14 @@
     "name": "FUN_0044e240",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 321376,
+    "rva_hex": "0x0004e760",
+    "name": "FUN_0044e760",
+    "old_size": 282,
+    "new_size": 285,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -862,6 +910,14 @@
     "old_size": 324,
     "new_size": 333,
     "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
+    "rva": 355104,
+    "rva_hex": "0x00056b20",
+    "name": "FUN_00456b20",
+    "old_size": 508,
+    "new_size": 511,
+    "reason": "RET imm16 (5b 59)"
   },
   {
     "rva": 355744,
@@ -1088,6 +1144,14 @@
     "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
+    "rva": 732208,
+    "rva_hex": "0x000b2c30",
+    "name": "FUN_004b2c30",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 732384,
     "rva_hex": "0x000b2ce0",
     "name": "FUN_004b2ce0",
@@ -1117,6 +1181,14 @@
     "name": "FUN_004b43b0",
     "old_size": 337,
     "new_size": 340,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 740688,
+    "rva_hex": "0x000b4d50",
+    "name": "FUN_004b4d50",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -1312,6 +1384,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 868192,
+    "rva_hex": "0x000d3f60",
+    "name": "FUN_004d3f60",
+    "old_size": 565,
+    "new_size": 576,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
     "rva": 877520,
     "rva_hex": "0x000d63d0",
     "name": "FUN_004d63d0",
@@ -1398,6 +1478,14 @@
     "old_size": 693,
     "new_size": 699,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
+  },
+  {
+    "rva": 911360,
+    "rva_hex": "0x000de800",
+    "name": "FUN_004de800",
+    "old_size": 224,
+    "new_size": 227,
+    "reason": "RET imm16 (04 00)"
   },
   {
     "rva": 912592,
@@ -1525,6 +1613,14 @@
     "name": "FUN_004e4a30",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 937328,
+    "rva_hex": "0x000e4d70",
+    "name": "FUN_004e4d70",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -1784,6 +1880,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1192448,
+    "rva_hex": "0x00123200",
+    "name": "FUN_00523200",
+    "old_size": 655,
+    "new_size": 658,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1193152,
     "rva_hex": "0x001234c0",
     "name": "FUN_005234c0",
@@ -1904,6 +2008,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1240816,
+    "rva_hex": "0x0012eef0",
+    "name": "FUN_0052eef0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1242592,
     "rva_hex": "0x0012f5e0",
     "name": "FUN_0052f5e0",
@@ -1960,6 +2072,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1248800,
+    "rva_hex": "0x00130e20",
+    "name": "FUN_00530e20",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1249040,
     "rva_hex": "0x00130f10",
     "name": "FUN_00530f10",
@@ -1976,11 +2096,59 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1250208,
+    "rva_hex": "0x001313a0",
+    "name": "FUN_005313a0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1250304,
+    "rva_hex": "0x00131400",
+    "name": "FUN_00531400",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1250400,
     "rva_hex": "0x00131460",
     "name": "FUN_00531460",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1250432,
+    "rva_hex": "0x00131480",
+    "name": "FUN_00531480",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1250528,
+    "rva_hex": "0x001314e0",
+    "name": "FUN_005314e0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1250624,
+    "rva_hex": "0x00131540",
+    "name": "FUN_00531540",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1250720,
+    "rva_hex": "0x001315a0",
+    "name": "FUN_005315a0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -1992,11 +2160,43 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1250848,
+    "rva_hex": "0x00131620",
+    "name": "FUN_00531620",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1250944,
+    "rva_hex": "0x00131680",
+    "name": "FUN_00531680",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1251040,
     "rva_hex": "0x001316e0",
     "name": "FUN_005316e0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1251072,
+    "rva_hex": "0x00131700",
+    "name": "FUN_00531700",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1251168,
+    "rva_hex": "0x00131760",
+    "name": "FUN_00531760",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -2016,6 +2216,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1251328,
+    "rva_hex": "0x00131800",
+    "name": "FUN_00531800",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1251424,
     "rva_hex": "0x00131860",
     "name": "FUN_00531860",
@@ -2024,11 +2232,27 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1251456,
+    "rva_hex": "0x00131880",
+    "name": "FUN_00531880",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1251552,
     "rva_hex": "0x001318e0",
     "name": "FUN_005318e0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1251584,
+    "rva_hex": "0x00131900",
+    "name": "FUN_00531900",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -2048,6 +2272,30 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1251840,
+    "rva_hex": "0x00131a00",
+    "name": "FUN_00531a00",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1251936,
+    "rva_hex": "0x00131a60",
+    "name": "FUN_00531a60",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1252032,
+    "rva_hex": "0x00131ac0",
+    "name": "FUN_00531ac0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1252128,
     "rva_hex": "0x00131b20",
     "name": "FUN_00531b20",
@@ -2056,11 +2304,43 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1252160,
+    "rva_hex": "0x00131b40",
+    "name": "FUN_00531b40",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1252256,
+    "rva_hex": "0x00131ba0",
+    "name": "FUN_00531ba0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1252352,
+    "rva_hex": "0x00131c00",
+    "name": "FUN_00531c00",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1252448,
     "rva_hex": "0x00131c60",
     "name": "FUN_00531c60",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1252480,
+    "rva_hex": "0x00131c80",
+    "name": "FUN_00531c80",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -2088,11 +2368,51 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1252672,
+    "rva_hex": "0x00131d40",
+    "name": "FUN_00531d40",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1252768,
     "rva_hex": "0x00131da0",
     "name": "FUN_00531da0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1252800,
+    "rva_hex": "0x00131dc0",
+    "name": "FUN_00531dc0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1252896,
+    "rva_hex": "0x00131e20",
+    "name": "FUN_00531e20",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1252992,
+    "rva_hex": "0x00131e80",
+    "name": "FUN_00531e80",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1253088,
+    "rva_hex": "0x00131ee0",
+    "name": "FUN_00531ee0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -2120,6 +2440,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1253280,
+    "rva_hex": "0x00131fa0",
+    "name": "FUN_00531fa0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1253376,
     "rva_hex": "0x00132000",
     "name": "FUN_00532000",
@@ -2128,11 +2456,59 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1253408,
+    "rva_hex": "0x00132020",
+    "name": "FUN_00532020",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1253504,
+    "rva_hex": "0x00132080",
+    "name": "FUN_00532080",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1253600,
     "rva_hex": "0x001320e0",
     "name": "FUN_005320e0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1253632,
+    "rva_hex": "0x00132100",
+    "name": "FUN_00532100",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1253728,
+    "rva_hex": "0x00132160",
+    "name": "FUN_00532160",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1253824,
+    "rva_hex": "0x001321c0",
+    "name": "FUN_005321c0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1253920,
+    "rva_hex": "0x00132220",
+    "name": "FUN_00532220",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -2149,6 +2525,14 @@
     "name": "FUN_005322a0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1254080,
+    "rva_hex": "0x001322c0",
+    "name": "FUN_005322c0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -2368,6 +2752,14 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
+    "rva": 1306816,
+    "rva_hex": "0x0013f0c0",
+    "name": "FUN_0053f0c0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1309312,
     "rva_hex": "0x0013fa80",
     "name": "FUN_0053fa80",
@@ -2400,11 +2792,59 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1313824,
+    "rva_hex": "0x00140c20",
+    "name": "FUN_00540c20",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1313920,
+    "rva_hex": "0x00140c80",
+    "name": "FUN_00540c80",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1314016,
     "rva_hex": "0x00140ce0",
     "name": "FUN_00540ce0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1314048,
+    "rva_hex": "0x00140d00",
+    "name": "FUN_00540d00",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1314144,
+    "rva_hex": "0x00140d60",
+    "name": "FUN_00540d60",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1314240,
+    "rva_hex": "0x00140dc0",
+    "name": "FUN_00540dc0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1314336,
+    "rva_hex": "0x00140e20",
+    "name": "FUN_00540e20",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -2648,6 +3088,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1395568,
+    "rva_hex": "0x00154b70",
+    "name": "FUN_00554b70",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1396336,
     "rva_hex": "0x00154e70",
     "name": "FUN_00554e70",
@@ -2736,6 +3184,22 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1399696,
+    "rva_hex": "0x00155b90",
+    "name": "FUN_00555b90",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1399792,
+    "rva_hex": "0x00155bf0",
+    "name": "FUN_00555bf0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1399888,
     "rva_hex": "0x00155c50",
     "name": "FUN_00555c50",
@@ -2760,6 +3224,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1400224,
+    "rva_hex": "0x00155da0",
+    "name": "FUN_00555da0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1400320,
     "rva_hex": "0x00155e00",
     "name": "FUN_00555e00",
@@ -2768,11 +3240,51 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1400432,
+    "rva_hex": "0x00155e70",
+    "name": "FUN_00555e70",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1400528,
+    "rva_hex": "0x00155ed0",
+    "name": "FUN_00555ed0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1400800,
+    "rva_hex": "0x00155fe0",
+    "name": "FUN_00555fe0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1400896,
+    "rva_hex": "0x00156040",
+    "name": "FUN_00556040",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1400992,
     "rva_hex": "0x001560a0",
     "name": "FUN_005560a0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1401024,
+    "rva_hex": "0x001560c0",
+    "name": "FUN_005560c0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -2797,6 +3309,22 @@
     "name": "FUN_00556230",
     "old_size": 87,
     "new_size": 90,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1401488,
+    "rva_hex": "0x00156290",
+    "name": "FUN_00556290",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1401584,
+    "rva_hex": "0x001562f0",
+    "name": "FUN_005562f0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -2872,11 +3400,27 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1410672,
+    "rva_hex": "0x00158670",
+    "name": "FUN_00558670",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1412064,
     "rva_hex": "0x00158be0",
     "name": "FUN_00558be0",
     "old_size": 335,
     "new_size": 338,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1412416,
+    "rva_hex": "0x00158d40",
+    "name": "FUN_00558d40",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -3176,6 +3720,22 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1477120,
+    "rva_hex": "0x00168a00",
+    "name": "FUN_00568a00",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1477216,
+    "rva_hex": "0x00168a60",
+    "name": "FUN_00568a60",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1477376,
     "rva_hex": "0x00168b00",
     "name": "FUN_00568b00",
@@ -3232,6 +3792,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1489264,
+    "rva_hex": "0x0016b970",
+    "name": "FUN_0056b970",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1489472,
     "rva_hex": "0x0016ba40",
     "name": "FUN_0056ba40",
@@ -3261,6 +3829,78 @@
     "name": "FUN_0056bbf0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1490832,
+    "rva_hex": "0x0016bf90",
+    "name": "FUN_0056bf90",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1490928,
+    "rva_hex": "0x0016bff0",
+    "name": "FUN_0056bff0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1491024,
+    "rva_hex": "0x0016c050",
+    "name": "FUN_0056c050",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1491120,
+    "rva_hex": "0x0016c0b0",
+    "name": "FUN_0056c0b0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1491216,
+    "rva_hex": "0x0016c110",
+    "name": "FUN_0056c110",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1491312,
+    "rva_hex": "0x0016c170",
+    "name": "FUN_0056c170",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1491408,
+    "rva_hex": "0x0016c1d0",
+    "name": "FUN_0056c1d0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1491504,
+    "rva_hex": "0x0016c230",
+    "name": "FUN_0056c230",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1491600,
+    "rva_hex": "0x0016c290",
+    "name": "FUN_0056c290",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -3392,6 +4032,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1509760,
+    "rva_hex": "0x00170980",
+    "name": "FUN_00570980",
+    "old_size": 189,
+    "new_size": 192,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
     "rva": 1510512,
     "rva_hex": "0x00170c70",
     "name": "FUN_00570c70",
@@ -3408,6 +4056,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1510688,
+    "rva_hex": "0x00170d20",
+    "name": "FUN_00570d20",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1511024,
     "rva_hex": "0x00170e70",
     "name": "FUN_00570e70",
@@ -3421,6 +4077,30 @@
     "name": "FUN_00570f00",
     "old_size": 96,
     "new_size": 99,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1511280,
+    "rva_hex": "0x00170f70",
+    "name": "FUN_00570f70",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1511376,
+    "rva_hex": "0x00170fd0",
+    "name": "FUN_00570fd0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1511472,
+    "rva_hex": "0x00171030",
+    "name": "FUN_00571030",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -3453,6 +4133,22 @@
     "name": "FUN_00571440",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1512544,
+    "rva_hex": "0x00171460",
+    "name": "FUN_00571460",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1512640,
+    "rva_hex": "0x001714c0",
+    "name": "FUN_005714c0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -3493,6 +4189,14 @@
     "name": "FUN_005815f0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1578512,
+    "rva_hex": "0x00181610",
+    "name": "FUN_00581610",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -3640,6 +4344,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1663824,
+    "rva_hex": "0x00196350",
+    "name": "FUN_00596350",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1663920,
     "rva_hex": "0x001963b0",
     "name": "FUN_005963b0",
@@ -3720,6 +4432,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1673360,
+    "rva_hex": "0x00198890",
+    "name": "FUN_00598890",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1674272,
     "rva_hex": "0x00198c20",
     "name": "FUN_00598c20",
@@ -3792,6 +4512,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 1679424,
+    "rva_hex": "0x0019a040",
+    "name": "FUN_0059a040",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 1679520,
     "rva_hex": "0x0019a0a0",
     "name": "FUN_0059a0a0",
@@ -3821,6 +4549,14 @@
     "name": "FUN_0059be00",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 1687232,
+    "rva_hex": "0x0019bec0",
+    "name": "FUN_0059bec0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -7528,6 +8264,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 2150144,
+    "rva_hex": "0x0020cf00",
+    "name": "FUN_0060cf00",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 2150352,
     "rva_hex": "0x0020cfd0",
     "name": "FUN_0060cfd0",
@@ -8240,6 +8984,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 2361264,
+    "rva_hex": "0x002407b0",
+    "name": "FUN_006407b0",
+    "old_size": 61,
+    "new_size": 64,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
     "rva": 2372848,
     "rva_hex": "0x002434f0",
     "name": "FUN_006434f0",
@@ -8512,6 +9264,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 2555376,
+    "rva_hex": "0x0026fdf0",
+    "name": "FUN_0066fdf0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 2555856,
     "rva_hex": "0x0026ffd0",
     "name": "FUN_0066ffd0",
@@ -8541,6 +9301,14 @@
     "name": "FUN_0067ac80",
     "old_size": 28,
     "new_size": 31,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2600368,
+    "rva_hex": "0x0027adb0",
+    "name": "FUN_0067adb0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -8704,6 +9472,22 @@
     "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
+    "rva": 2668128,
+    "rva_hex": "0x0028b660",
+    "name": "FUN_0068b660",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2668224,
+    "rva_hex": "0x0028b6c0",
+    "name": "FUN_0068b6c0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 2668320,
     "rva_hex": "0x0028b720",
     "name": "FUN_0068b720",
@@ -8725,6 +9509,38 @@
     "name": "FUN_0068b7b0",
     "old_size": 28,
     "new_size": 31,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2669648,
+    "rva_hex": "0x0028bc50",
+    "name": "FUN_0068bc50",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2669744,
+    "rva_hex": "0x0028bcb0",
+    "name": "FUN_0068bcb0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2669840,
+    "rva_hex": "0x0028bd10",
+    "name": "FUN_0068bd10",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2669936,
+    "rva_hex": "0x0028bd70",
+    "name": "FUN_0068bd70",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -8848,6 +9664,22 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 2679008,
+    "rva_hex": "0x0028e0e0",
+    "name": "FUN_0068e0e0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2679104,
+    "rva_hex": "0x0028e140",
+    "name": "FUN_0068e140",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 2679296,
     "rva_hex": "0x0028e200",
     "name": "FUN_0068e200",
@@ -8952,6 +9784,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 2720672,
+    "rva_hex": "0x002983a0",
+    "name": "FUN_006983a0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 2728288,
     "rva_hex": "0x0029a160",
     "name": "FUN_0069a160",
@@ -8965,6 +9805,14 @@
     "name": "FUN_0069a500",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2729808,
+    "rva_hex": "0x0029a750",
+    "name": "FUN_0069a750",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -8984,11 +9832,27 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 2732064,
+    "rva_hex": "0x0029b020",
+    "name": "FUN_0069b020",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 2732192,
     "rva_hex": "0x0029b0a0",
     "name": "FUN_0069b0a0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2732416,
+    "rva_hex": "0x0029b180",
+    "name": "FUN_0069b180",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -9016,6 +9880,22 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 2747984,
+    "rva_hex": "0x0029ee50",
+    "name": "FUN_0069ee50",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2748432,
+    "rva_hex": "0x0029f010",
+    "name": "FUN_0069f010",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 2748528,
     "rva_hex": "0x0029f070",
     "name": "FUN_0069f070",
@@ -9029,6 +9909,54 @@
     "name": "FUN_0069f5a0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2750560,
+    "rva_hex": "0x0029f860",
+    "name": "FUN_0069f860",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2750656,
+    "rva_hex": "0x0029f8c0",
+    "name": "FUN_0069f8c0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2750752,
+    "rva_hex": "0x0029f920",
+    "name": "FUN_0069f920",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2750848,
+    "rva_hex": "0x0029f980",
+    "name": "FUN_0069f980",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2750944,
+    "rva_hex": "0x0029f9e0",
+    "name": "FUN_0069f9e0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2751040,
+    "rva_hex": "0x0029fa40",
+    "name": "FUN_0069fa40",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -9088,6 +10016,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 2754576,
+    "rva_hex": "0x002a0810",
+    "name": "FUN_006a0810",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 2754832,
     "rva_hex": "0x002a0910",
     "name": "FUN_006a0910",
@@ -9101,6 +10037,14 @@
     "name": "FUN_006a0be0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2755776,
+    "rva_hex": "0x002a0cc0",
+    "name": "FUN_006a0cc0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -9120,6 +10064,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 2758112,
+    "rva_hex": "0x002a15e0",
+    "name": "FUN_006a15e0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 2758240,
     "rva_hex": "0x002a1660",
     "name": "FUN_006a1660",
@@ -9128,11 +10080,27 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 2759136,
+    "rva_hex": "0x002a19e0",
+    "name": "FUN_006a19e0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 2759264,
     "rva_hex": "0x002a1a60",
     "name": "FUN_006a1a60",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2760208,
+    "rva_hex": "0x002a1e10",
+    "name": "FUN_006a1e10",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -9205,6 +10173,22 @@
     "name": "FUN_006a4300",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2774272,
+    "rva_hex": "0x002a5500",
+    "name": "FUN_006a5500",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2774368,
+    "rva_hex": "0x002a5560",
+    "name": "FUN_006a5560",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -9296,6 +10280,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 2778464,
+    "rva_hex": "0x002a6560",
+    "name": "FUN_006a6560",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 2778928,
     "rva_hex": "0x002a6730",
     "name": "FUN_006a6730",
@@ -9374,6 +10366,14 @@
     "old_size": 479,
     "new_size": 488,
     "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
+    "rva": 2804752,
+    "rva_hex": "0x002acc10",
+    "name": "FUN_006acc10",
+    "old_size": 973,
+    "new_size": 976,
+    "reason": "RET imm16 (08 00)"
   },
   {
     "rva": 2811184,
@@ -9544,6 +10544,22 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
+    "rva": 2917024,
+    "rva_hex": "0x002c82a0",
+    "name": "FUN_006c82a0",
+    "old_size": 157,
+    "new_size": 160,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2928096,
+    "rva_hex": "0x002cade0",
+    "name": "FUN_006cade0",
+    "old_size": 186,
+    "new_size": 192,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
     "rva": 2928784,
     "rva_hex": "0x002cb090",
     "name": "FUN_006cb090",
@@ -9597,6 +10613,14 @@
     "name": "FUN_006d0c20",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 2952400,
+    "rva_hex": "0x002d0cd0",
+    "name": "FUN_006d0cd0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -10064,6 +11088,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 3189072,
+    "rva_hex": "0x0030a950",
+    "name": "FUN_0070a950",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 3189184,
     "rva_hex": "0x0030a9c0",
     "name": "FUN_0070a9c0",
@@ -10077,6 +11109,14 @@
     "name": "FUN_0070a9f0",
     "old_size": 28,
     "new_size": 31,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 3222352,
+    "rva_hex": "0x00312b50",
+    "name": "FUN_00712b50",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -10157,6 +11197,22 @@
     "name": "FUN_007134b0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 3225104,
+    "rva_hex": "0x00313610",
+    "name": "FUN_00713610",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 3225552,
+    "rva_hex": "0x003137d0",
+    "name": "FUN_007137d0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -10392,6 +11448,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 3246160,
+    "rva_hex": "0x00318850",
+    "name": "FUN_00718850",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 3246736,
     "rva_hex": "0x00318a90",
     "name": "FUN_00718a90",
@@ -10400,11 +11464,27 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 3246768,
+    "rva_hex": "0x00318ab0",
+    "name": "FUN_00718ab0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 3246864,
     "rva_hex": "0x00318b10",
     "name": "FUN_00718b10",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 3246992,
+    "rva_hex": "0x00318b90",
+    "name": "FUN_00718b90",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -10501,6 +11581,14 @@
     "name": "FUN_00719400",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 3249184,
+    "rva_hex": "0x00319420",
+    "name": "FUN_00719420",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -10656,6 +11744,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 3257824,
+    "rva_hex": "0x0031b5e0",
+    "name": "FUN_0071b5e0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 3257920,
     "rva_hex": "0x0031b640",
     "name": "FUN_0071b640",
@@ -10781,6 +11877,14 @@
     "name": "FUN_00721370",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 3281808,
+    "rva_hex": "0x00321390",
+    "name": "FUN_00721390",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -11048,6 +12152,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 3564112,
+    "rva_hex": "0x00366250",
+    "name": "FUN_00766250",
+    "old_size": 157,
+    "new_size": 160,
+    "reason": "RET imm16 (10 00)"
+  },
+  {
     "rva": 3564432,
     "rva_hex": "0x00366390",
     "name": "FUN_00766390",
@@ -11150,6 +12262,14 @@
     "old_size": 171,
     "new_size": 177,
     "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
+    "rva": 3602160,
+    "rva_hex": "0x0036f6f0",
+    "name": "FUN_0076f6f0",
+    "old_size": 749,
+    "new_size": 752,
+    "reason": "RET imm16 (04 00)"
   },
   {
     "rva": 3602912,
@@ -11285,6 +12405,14 @@
     "name": "FUN_00776c20",
     "old_size": 94,
     "new_size": 97,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 3632528,
+    "rva_hex": "0x00376d90",
+    "name": "FUN_00776d90",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -11616,6 +12744,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 3743984,
+    "rva_hex": "0x003920f0",
+    "name": "FUN_007920f0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 3744224,
     "rva_hex": "0x003921e0",
     "name": "FUN_007921e0",
@@ -11654,6 +12790,14 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 3753088,
+    "rva_hex": "0x00394480",
+    "name": "FUN_00794480",
+    "old_size": 285,
+    "new_size": 288,
+    "reason": "RET imm16 (08 00)"
   },
   {
     "rva": 3753472,
@@ -11749,6 +12893,14 @@
     "name": "FUN_0079a030",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 3776976,
+    "rva_hex": "0x0039a1d0",
+    "name": "FUN_0079a1d0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -11936,6 +13088,14 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
+    "rva": 3907984,
+    "rva_hex": "0x003ba190",
+    "name": "FUN_007ba190",
+    "old_size": 1133,
+    "new_size": 1140,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
     "rva": 3943632,
     "rva_hex": "0x003c2cd0",
     "name": "FUN_007c2cd0",
@@ -12120,12 +13280,28 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
+    "rva": 3967952,
+    "rva_hex": "0x003c8bd0",
+    "name": "FUN_007c8bd0",
+    "old_size": 295,
+    "new_size": 298,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 3975392,
     "rva_hex": "0x003ca8e0",
     "name": "FUN_007ca8e0",
     "old_size": 251,
     "new_size": 254,
     "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 3979152,
+    "rva_hex": "0x003cb790",
+    "name": "FUN_007cb790",
+    "old_size": 183,
+    "new_size": 192,
+    "reason": "epilogue continuation (b8 \u2026 terminator)"
   },
   {
     "rva": 3989632,
@@ -12464,11 +13640,27 @@
     "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
+    "rva": 4205440,
+    "rva_hex": "0x00402b80",
+    "name": "FUN_00802b80",
+    "old_size": 253,
+    "new_size": 256,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4207664,
     "rva_hex": "0x00403430",
     "name": "FUN_00803430",
     "old_size": 282,
     "new_size": 285,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4214464,
+    "rva_hex": "0x00404ec0",
+    "name": "FUN_00804ec0",
+    "old_size": 109,
+    "new_size": 112,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -12621,6 +13813,22 @@
     "name": "FUN_00807270",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4223632,
+    "rva_hex": "0x00407290",
+    "name": "FUN_00807290",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4223728,
+    "rva_hex": "0x004072f0",
+    "name": "FUN_008072f0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -12856,6 +14064,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4269152,
+    "rva_hex": "0x00412460",
+    "name": "FUN_00812460",
+    "old_size": 228,
+    "new_size": 231,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4270624,
     "rva_hex": "0x00412a20",
     "name": "FUN_00812a20",
@@ -13008,6 +14224,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4478000,
+    "rva_hex": "0x00445430",
+    "name": "FUN_00845430",
+    "old_size": 2342,
+    "new_size": 2350,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
     "rva": 4481184,
     "rva_hex": "0x004460a0",
     "name": "FUN_008460a0",
@@ -13118,6 +14342,14 @@
     "old_size": 571,
     "new_size": 574,
     "reason": "RET imm16 (1c 00)"
+  },
+  {
+    "rva": 4522800,
+    "rva_hex": "0x00450330",
+    "name": "FUN_00850330",
+    "old_size": 335,
+    "new_size": 336,
+    "reason": "RET (c3)"
   },
   {
     "rva": 4524176,
@@ -13304,6 +14536,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4580560,
+    "rva_hex": "0x0045e4d0",
+    "name": "FUN_0085e4d0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4581360,
     "rva_hex": "0x0045e7f0",
     "name": "FUN_0085e7f0",
@@ -13368,6 +14608,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4641696,
+    "rva_hex": "0x0046d3a0",
+    "name": "FUN_0086d3a0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4641840,
     "rva_hex": "0x0046d430",
     "name": "FUN_0086d430",
@@ -13392,6 +14640,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4641936,
+    "rva_hex": "0x0046d490",
+    "name": "FUN_0086d490",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4642032,
     "rva_hex": "0x0046d4f0",
     "name": "FUN_0086d4f0",
@@ -13405,6 +14661,14 @@
     "name": "FUN_0086d510",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4642112,
+    "rva_hex": "0x0046d540",
+    "name": "FUN_0086d540",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -13432,6 +14696,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4642304,
+    "rva_hex": "0x0046d600",
+    "name": "FUN_0086d600",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4642400,
     "rva_hex": "0x0046d660",
     "name": "FUN_0086d660",
@@ -13445,6 +14717,22 @@
     "name": "FUN_0086d680",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4642464,
+    "rva_hex": "0x0046d6a0",
+    "name": "FUN_0086d6a0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4642560,
+    "rva_hex": "0x0046d700",
+    "name": "FUN_0086d700",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -13528,6 +14816,70 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4643664,
+    "rva_hex": "0x0046db50",
+    "name": "FUN_0086db50",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4643760,
+    "rva_hex": "0x0046dbb0",
+    "name": "FUN_0086dbb0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4643856,
+    "rva_hex": "0x0046dc10",
+    "name": "FUN_0086dc10",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4643952,
+    "rva_hex": "0x0046dc70",
+    "name": "FUN_0086dc70",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4644048,
+    "rva_hex": "0x0046dcd0",
+    "name": "FUN_0086dcd0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4644144,
+    "rva_hex": "0x0046dd30",
+    "name": "FUN_0086dd30",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4644240,
+    "rva_hex": "0x0046dd90",
+    "name": "FUN_0086dd90",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4644336,
+    "rva_hex": "0x0046ddf0",
+    "name": "FUN_0086ddf0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4645328,
     "rva_hex": "0x0046e1d0",
     "name": "FUN_0086e1d0",
@@ -13592,6 +14944,30 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4647648,
+    "rva_hex": "0x0046eae0",
+    "name": "FUN_0086eae0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4647744,
+    "rva_hex": "0x0046eb40",
+    "name": "FUN_0086eb40",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4647840,
+    "rva_hex": "0x0046eba0",
+    "name": "FUN_0086eba0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4648208,
     "rva_hex": "0x0046ed10",
     "name": "FUN_0086ed10",
@@ -13632,6 +15008,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4651664,
+    "rva_hex": "0x0046fa90",
+    "name": "FUN_0086fa90",
+    "old_size": 667,
+    "new_size": 670,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4664736,
     "rva_hex": "0x00472da0",
     "name": "FUN_00872da0",
@@ -13669,6 +15053,14 @@
     "name": "FUN_00874fa0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4675568,
+    "rva_hex": "0x004757f0",
+    "name": "FUN_008757f0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -13840,6 +15232,30 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4708208,
+    "rva_hex": "0x0047d770",
+    "name": "FUN_0087d770",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4708304,
+    "rva_hex": "0x0047d7d0",
+    "name": "FUN_0087d7d0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4708400,
+    "rva_hex": "0x0047d830",
+    "name": "FUN_0087d830",
+    "old_size": 169,
+    "new_size": 176,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
     "rva": 4709904,
     "rva_hex": "0x0047de10",
     "name": "FUN_0087de10",
@@ -13952,6 +15368,22 @@
     "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
+    "rva": 4717680,
+    "rva_hex": "0x0047fc70",
+    "name": "FUN_0087fc70",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4717776,
+    "rva_hex": "0x0047fcd0",
+    "name": "FUN_0087fcd0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4721216,
     "rva_hex": "0x00480a40",
     "name": "FUN_00880a40",
@@ -14040,6 +15472,30 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4729008,
+    "rva_hex": "0x004828b0",
+    "name": "FUN_008828b0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4729104,
+    "rva_hex": "0x00482910",
+    "name": "FUN_00882910",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4729200,
+    "rva_hex": "0x00482970",
+    "name": "FUN_00882970",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4729744,
     "rva_hex": "0x00482b90",
     "name": "FUN_00882b90",
@@ -14072,6 +15528,46 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4732432,
+    "rva_hex": "0x00483610",
+    "name": "FUN_00883610",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4732992,
+    "rva_hex": "0x00483840",
+    "name": "FUN_00883840",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4734128,
+    "rva_hex": "0x00483cb0",
+    "name": "FUN_00883cb0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4736672,
+    "rva_hex": "0x004846a0",
+    "name": "FUN_008846a0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4737248,
+    "rva_hex": "0x004848e0",
+    "name": "FUN_008848e0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4742544,
     "rva_hex": "0x00485d90",
     "name": "FUN_00885d90",
@@ -14085,6 +15581,14 @@
     "name": "FUN_00887440",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4748464,
+    "rva_hex": "0x004874b0",
+    "name": "FUN_008874b0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -14160,6 +15664,30 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4762464,
+    "rva_hex": "0x0048ab60",
+    "name": "FUN_0088ab60",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4762560,
+    "rva_hex": "0x0048abc0",
+    "name": "FUN_0088abc0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4762656,
+    "rva_hex": "0x0048ac20",
+    "name": "FUN_0088ac20",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4763200,
     "rva_hex": "0x0048ae40",
     "name": "FUN_0088ae40",
@@ -14200,6 +15728,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4771616,
+    "rva_hex": "0x0048cf20",
+    "name": "FUN_0088cf20",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4771936,
     "rva_hex": "0x0048d060",
     "name": "FUN_0088d060",
@@ -14216,11 +15752,35 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4773344,
+    "rva_hex": "0x0048d5e0",
+    "name": "FUN_0088d5e0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4773664,
     "rva_hex": "0x0048d720",
     "name": "FUN_0088d720",
     "old_size": 96,
     "new_size": 99,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4775168,
+    "rva_hex": "0x0048dd00",
+    "name": "FUN_0088dd00",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4775344,
+    "rva_hex": "0x0048ddb0",
+    "name": "FUN_0088ddb0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -14272,11 +15832,43 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4821360,
+    "rva_hex": "0x00499170",
+    "name": "FUN_00899170",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4821456,
+    "rva_hex": "0x004991d0",
+    "name": "FUN_008991d0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4821808,
     "rva_hex": "0x00499330",
     "name": "FUN_00899330",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4821856,
+    "rva_hex": "0x00499360",
+    "name": "FUN_00899360",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4821968,
+    "rva_hex": "0x004993d0",
+    "name": "FUN_008993d0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -14296,6 +15888,22 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 4822656,
+    "rva_hex": "0x00499680",
+    "name": "FUN_00899680",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4822752,
+    "rva_hex": "0x004996e0",
+    "name": "FUN_008996e0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 4823088,
     "rva_hex": "0x00499830",
     "name": "FUN_00899830",
@@ -14309,6 +15917,38 @@
     "name": "FUN_008998e0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4823312,
+    "rva_hex": "0x00499910",
+    "name": "FUN_00899910",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4823408,
+    "rva_hex": "0x00499970",
+    "name": "FUN_00899970",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4823520,
+    "rva_hex": "0x004999e0",
+    "name": "FUN_008999e0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4823616,
+    "rva_hex": "0x00499a40",
+    "name": "FUN_00899a40",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -14349,6 +15989,14 @@
     "name": "FUN_0089aa00",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4827680,
+    "rva_hex": "0x0049aa20",
+    "name": "FUN_0089aa20",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -14597,6 +16245,14 @@
     "name": "FUN_008a1100",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 4854048,
+    "rva_hex": "0x004a1120",
+    "name": "FUN_008a1120",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -15280,12 +16936,28 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 5045136,
+    "rva_hex": "0x004cfb90",
+    "name": "FUN_008cfb90",
+    "old_size": 214,
+    "new_size": 217,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 5045664,
     "rva_hex": "0x004cfda0",
     "name": "FUN_008cfda0",
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5046272,
+    "rva_hex": "0x004d0000",
+    "name": "FUN_008d0000",
+    "old_size": 165,
+    "new_size": 176,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 5048848,
@@ -15317,6 +16989,38 @@
     "name": "FUN_008d5b90",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5074784,
+    "rva_hex": "0x004d6f60",
+    "name": "FUN_008d6f60",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5074880,
+    "rva_hex": "0x004d6fc0",
+    "name": "FUN_008d6fc0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5074976,
+    "rva_hex": "0x004d7020",
+    "name": "FUN_008d7020",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5075072,
+    "rva_hex": "0x004d7080",
+    "name": "FUN_008d7080",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -15360,11 +17064,35 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 5077008,
+    "rva_hex": "0x004d7810",
+    "name": "FUN_008d7810",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5080912,
+    "rva_hex": "0x004d8750",
+    "name": "FUN_008d8750",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 5081008,
     "rva_hex": "0x004d87b0",
     "name": "FUN_008d87b0",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5081120,
+    "rva_hex": "0x004d8820",
+    "name": "FUN_008d8820",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -15384,11 +17112,51 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
+    "rva": 5082336,
+    "rva_hex": "0x004d8ce0",
+    "name": "FUN_008d8ce0",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5086240,
+    "rva_hex": "0x004d9c20",
+    "name": "FUN_008d9c20",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5086528,
+    "rva_hex": "0x004d9d40",
+    "name": "FUN_008d9d40",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 5089664,
     "rva_hex": "0x004da980",
     "name": "FUN_008da980",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5089856,
+    "rva_hex": "0x004daa40",
+    "name": "FUN_008daa40",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5089952,
+    "rva_hex": "0x004daaa0",
+    "name": "FUN_008daaa0",
+    "old_size": 93,
+    "new_size": 96,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -15405,6 +17173,14 @@
     "name": "FUN_008dad30",
     "old_size": 96,
     "new_size": 99,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5094208,
+    "rva_hex": "0x004dbb40",
+    "name": "FUN_008dbb40",
+    "old_size": 1213,
+    "new_size": 1216,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -15446,6 +17222,14 @@
     "old_size": 262,
     "new_size": 265,
     "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 5124784,
+    "rva_hex": "0x004e32b0",
+    "name": "FUN_008e32b0",
+    "old_size": 38,
+    "new_size": 48,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 5124832,
@@ -15512,12 +17296,44 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
+    "rva": 5133072,
+    "rva_hex": "0x004e5310",
+    "name": "FUN_008e5310",
+    "old_size": 93,
+    "new_size": 96,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5134103,
+    "rva_hex": "0x004e5717",
+    "name": "FUN_008e5717",
+    "old_size": 124,
+    "new_size": 127,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 5134352,
+    "rva_hex": "0x004e5810",
+    "name": "FUN_008e5810",
+    "old_size": 61,
+    "new_size": 64,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 5134416,
     "rva_hex": "0x004e5850",
     "name": "FUN_008e5850",
     "old_size": 60,
     "new_size": 63,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5134960,
+    "rva_hex": "0x004e5a70",
+    "name": "FUN_008e5a70",
+    "old_size": 58,
+    "new_size": 64,
+    "reason": "epilogue continuation (8bc6 \u2026 terminator)"
   },
   {
     "rva": 5138480,
@@ -15702,6 +17518,14 @@
     "old_size": 309,
     "new_size": 316,
     "reason": "epilogue continuation (32c0 \u2026 terminator)"
+  },
+  {
+    "rva": 5202608,
+    "rva_hex": "0x004f62b0",
+    "name": "FUN_008f62b0",
+    "old_size": 1086,
+    "new_size": 1087,
+    "reason": "RET (c3)"
   },
   {
     "rva": 5213712,
@@ -16552,6 +18376,22 @@
     "reason": "epilogue continuation (8bc6 \u2026 terminator)"
   },
   {
+    "rva": 5449984,
+    "rva_hex": "0x00532900",
+    "name": "FUN_00932900",
+    "old_size": 189,
+    "new_size": 192,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 5450976,
+    "rva_hex": "0x00532ce0",
+    "name": "FUN_00932ce0",
+    "old_size": 234,
+    "new_size": 237,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 5451856,
     "rva_hex": "0x00533050",
     "name": "FUN_00933050",
@@ -16654,6 +18494,14 @@
     "old_size": 1156,
     "new_size": 1162,
     "reason": "epilogue continuation (5d \u2026 terminator)"
+  },
+  {
+    "rva": 5498896,
+    "rva_hex": "0x0053e810",
+    "name": "FUN_0093e810",
+    "old_size": 61,
+    "new_size": 64,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 5499568,
@@ -16854,6 +18702,14 @@
     "old_size": 33,
     "new_size": 36,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5566512,
+    "rva_hex": "0x0054f030",
+    "name": "FUN_0094f030",
+    "old_size": 173,
+    "new_size": 176,
+    "reason": "RET imm16 (08 00)"
   },
   {
     "rva": 5568592,
@@ -17334,6 +19190,14 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5663040,
+    "rva_hex": "0x00566940",
+    "name": "FUN_00966940",
+    "old_size": 67,
+    "new_size": 80,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 5665856,
@@ -17856,6 +19720,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 5798752,
+    "rva_hex": "0x00587b60",
+    "name": "FUN_00987b60",
+    "old_size": 538,
+    "new_size": 544,
+    "reason": "epilogue continuation (5d \u2026 terminator)"
+  },
+  {
     "rva": 5800496,
     "rva_hex": "0x00588230",
     "name": "FUN_00988230",
@@ -18088,6 +19960,22 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 5850032,
+    "rva_hex": "0x005943b0",
+    "name": "FUN_009943b0",
+    "old_size": 573,
+    "new_size": 576,
+    "reason": "RET imm16 (1c 00)"
+  },
+  {
+    "rva": 5850608,
+    "rva_hex": "0x005945f0",
+    "name": "FUN_009945f0",
+    "old_size": 573,
+    "new_size": 576,
+    "reason": "RET imm16 (1c 00)"
+  },
+  {
     "rva": 5852608,
     "rva_hex": "0x00594dc0",
     "name": "FUN_00994dc0",
@@ -18222,6 +20110,14 @@
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 5878000,
+    "rva_hex": "0x0059b0f0",
+    "name": "FUN_0099b0f0",
+    "old_size": 202,
+    "new_size": 208,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 5879088,
@@ -19224,6 +21120,70 @@
     "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
+    "rva": 6096438,
+    "rva_hex": "0x005d0636",
+    "name": "FUN_009d0636",
+    "old_size": 56,
+    "new_size": 67,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
+    "rva": 6100417,
+    "rva_hex": "0x005d15c1",
+    "name": "FUN_009d15c1",
+    "old_size": 61,
+    "new_size": 62,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 6101400,
+    "rva_hex": "0x005d1998",
+    "name": "FUN_009d1998",
+    "old_size": 21,
+    "new_size": 22,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 6102317,
+    "rva_hex": "0x005d1d2d",
+    "name": "_JumpToContinuation",
+    "old_size": 43,
+    "new_size": 48,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 6104532,
+    "rva_hex": "0x005d25d4",
+    "name": "FUN_009d25d4",
+    "old_size": 110,
+    "new_size": 114,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
+    "rva": 6109868,
+    "rva_hex": "0x005d3aac",
+    "name": "__strcats",
+    "old_size": 59,
+    "new_size": 62,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
+    "rva": 6110703,
+    "rva_hex": "0x005d3def",
+    "name": "__expandlocale",
+    "old_size": 457,
+    "new_size": 468,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 6117117,
+    "rva_hex": "0x005d56fd",
+    "name": "FUN_009d56fd",
+    "old_size": 20,
+    "new_size": 21,
+    "reason": "RET (c3)"
+  },
+  {
     "rva": 6118736,
     "rva_hex": "0x005d5d50",
     "name": "shortsort",
@@ -19232,12 +21192,140 @@
     "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
+    "rva": 6122605,
+    "rva_hex": "0x005d6c6d",
+    "name": "FUN_009d6c6d",
+    "old_size": 290,
+    "new_size": 291,
+    "reason": "RET (c3)"
+  },
+  {
     "rva": 6128788,
     "rva_hex": "0x005d8494",
     "name": "_strerror",
     "old_size": 100,
     "new_size": 103,
     "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
+    "rva": 6136198,
+    "rva_hex": "0x005da186",
+    "name": "FUN_009da186",
+    "old_size": 26,
+    "new_size": 27,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 6146833,
+    "rva_hex": "0x005dcb11",
+    "name": "___DestructExceptionObject",
+    "old_size": 67,
+    "new_size": 76,
+    "reason": "epilogue continuation (33c0 \u2026 terminator)"
+  },
+  {
+    "rva": 6147962,
+    "rva_hex": "0x005dcf7a",
+    "name": "___BuildCatchObject",
+    "old_size": 133,
+    "new_size": 137,
+    "reason": "epilogue continuation (33c0 \u2026 terminator)"
+  },
+  {
+    "rva": 6153952,
+    "rva_hex": "0x005de6e0",
+    "name": "__cftoe2_l",
+    "old_size": 362,
+    "new_size": 365,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 6163147,
+    "rva_hex": "0x005e0acb",
+    "name": "___heap_select",
+    "old_size": 85,
+    "new_size": 86,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 6165606,
+    "rva_hex": "0x005e1466",
+    "name": "FUN_009e1466",
+    "old_size": 111,
+    "new_size": 115,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
+    "rva": 6171639,
+    "rva_hex": "0x005e2bf7",
+    "name": "___get_qualified_locale",
+    "old_size": 478,
+    "new_size": 483,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
+    "rva": 6177882,
+    "rva_hex": "0x005e445a",
+    "name": "FUN_009e445a",
+    "old_size": 439,
+    "new_size": 440,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 6180079,
+    "rva_hex": "0x005e4cef",
+    "name": "FUN_009e4cef",
+    "old_size": 304,
+    "new_size": 309,
+    "reason": "epilogue continuation (5d \u2026 terminator)"
+  },
+  {
+    "rva": 6188992,
+    "rva_hex": "0x005e6fc0",
+    "name": "FUN_009e6fc0",
+    "old_size": 1472,
+    "new_size": 1473,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 6199570,
+    "rva_hex": "0x005e9912",
+    "name": "FUN_009e9912",
+    "old_size": 197,
+    "new_size": 198,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 6201853,
+    "rva_hex": "0x005ea1fd",
+    "name": "cvtdate",
+    "old_size": 498,
+    "new_size": 501,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 6215693,
+    "rva_hex": "0x005ed80d",
+    "name": "___set_fpsr_sse2",
+    "old_size": 68,
+    "new_size": 69,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 6260495,
+    "rva_hex": "0x005f870f",
+    "name": "FUN_009f870f",
+    "old_size": 891,
+    "new_size": 905,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
+    "rva": 6274430,
+    "rva_hex": "0x005fbd7e",
+    "name": "__strdup",
+    "old_size": 77,
+    "new_size": 80,
+    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 6277040,
@@ -19302,6 +21390,14 @@
     "old_size": 36,
     "new_size": 52,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
+  },
+  {
+    "rva": 6294992,
+    "rva_hex": "0x00600dd0",
+    "name": "FUN_00a00dd0",
+    "old_size": 218,
+    "new_size": 224,
+    "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
     "rva": 6322048,
@@ -20096,6 +22192,14 @@
     "reason": "RET imm16 (0c 00)"
   },
   {
+    "rva": 6803808,
+    "rva_hex": "0x0067d160",
+    "name": "FUN_00a7d160",
+    "old_size": 410,
+    "new_size": 416,
+    "reason": "epilogue continuation (83c4 \u2026 terminator)"
+  },
+  {
     "rva": 6804224,
     "rva_hex": "0x0067d300",
     "name": "FUN_00a7d300",
@@ -20240,6 +22344,14 @@
     "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
+    "rva": 6869088,
+    "rva_hex": "0x0068d060",
+    "name": "FUN_00a8d060",
+    "old_size": 77,
+    "new_size": 80,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
     "rva": 6875120,
     "rva_hex": "0x0068e7f0",
     "name": "FUN_00a8e7f0",
@@ -20373,6 +22485,14 @@
     "name": "FUN_00aa4d70",
     "old_size": 28,
     "new_size": 31,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 6977008,
+    "rva_hex": "0x006a75f0",
+    "name": "FUN_00aa75f0",
+    "old_size": 397,
+    "new_size": 400,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -20592,6 +22712,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 7135808,
+    "rva_hex": "0x006ce240",
+    "name": "FUN_00ace240",
+    "old_size": 61,
+    "new_size": 64,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
     "rva": 7138464,
     "rva_hex": "0x006ceca0",
     "name": "FUN_00aceca0",
@@ -20600,12 +22728,36 @@
     "reason": "RET imm16 (0c 00)"
   },
   {
+    "rva": 7140176,
+    "rva_hex": "0x006cf350",
+    "name": "FUN_00acf350",
+    "old_size": 61,
+    "new_size": 64,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
+    "rva": 7140240,
+    "rva_hex": "0x006cf390",
+    "name": "FUN_00acf390",
+    "old_size": 61,
+    "new_size": 64,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
     "rva": 7142816,
     "rva_hex": "0x006cfda0",
     "name": "FUN_00acfda0",
     "old_size": 555,
     "new_size": 558,
     "reason": "RET imm16 (0c 00)"
+  },
+  {
+    "rva": 7145360,
+    "rva_hex": "0x006d0790",
+    "name": "FUN_00ad0790",
+    "old_size": 61,
+    "new_size": 64,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 7146464,
@@ -20880,6 +23032,14 @@
     "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
+    "rva": 7464000,
+    "rva_hex": "0x0071e440",
+    "name": "FUN_00b1e440",
+    "old_size": 5304,
+    "new_size": 5312,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
     "rva": 7469312,
     "rva_hex": "0x0071f900",
     "name": "FUN_00b1f900",
@@ -20950,6 +23110,22 @@
     "old_size": 348,
     "new_size": 351,
     "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 7532560,
+    "rva_hex": "0x0072f010",
+    "name": "FUN_00b2f010",
+    "old_size": 221,
+    "new_size": 224,
+    "reason": "RET imm16 (0c 00)"
+  },
+  {
+    "rva": 7544496,
+    "rva_hex": "0x00731eb0",
+    "name": "FUN_00b31eb0",
+    "old_size": 122,
+    "new_size": 128,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 7547872,
@@ -21024,6 +23200,22 @@
     "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
+    "rva": 7570496,
+    "rva_hex": "0x00738440",
+    "name": "FUN_00b38440",
+    "old_size": 749,
+    "new_size": 752,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 7591360,
+    "rva_hex": "0x0073d5c0",
+    "name": "FUN_00b3d5c0",
+    "old_size": 749,
+    "new_size": 752,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
     "rva": 7601008,
     "rva_hex": "0x0073fb70",
     "name": "FUN_00b3fb70",
@@ -21038,6 +23230,14 @@
     "old_size": 984,
     "new_size": 987,
     "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 7617712,
+    "rva_hex": "0x00743cb0",
+    "name": "FUN_00b43cb0",
+    "old_size": 1608,
+    "new_size": 1616,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 7663104,
@@ -21125,6 +23325,14 @@
     "name": "FUN_00b77420",
     "old_size": 586,
     "new_size": 594,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
+    "rva": 7836096,
+    "rva_hex": "0x007791c0",
+    "name": "FUN_00b791c0",
+    "old_size": 122,
+    "new_size": 128,
     "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
@@ -21584,6 +23792,14 @@
     "reason": "RET imm16 (08 00)"
   },
   {
+    "rva": 8189824,
+    "rva_hex": "0x007cf780",
+    "name": "FUN_00bcf780",
+    "old_size": 189,
+    "new_size": 192,
+    "reason": "epilogue continuation (5d \u2026 terminator)"
+  },
+  {
     "rva": 8206096,
     "rva_hex": "0x007d3710",
     "name": "FUN_00bd3710",
@@ -21878,6 +24094,14 @@
     "old_size": 948,
     "new_size": 954,
     "reason": "epilogue continuation (5d \u2026 terminator)"
+  },
+  {
+    "rva": 8347632,
+    "rva_hex": "0x007f5ff0",
+    "name": "FUN_00bf5ff0",
+    "old_size": 202,
+    "new_size": 208,
+    "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
     "rva": 8348960,
@@ -22512,6 +24736,14 @@
     "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
+    "rva": 8777728,
+    "rva_hex": "0x0085f000",
+    "name": "FUN_00c5f000",
+    "old_size": 3021,
+    "new_size": 3024,
+    "reason": "RET imm16 (cc 00)"
+  },
+  {
     "rva": 8791408,
     "rva_hex": "0x00862570",
     "name": "FUN_00c62570",
@@ -22680,9 +24912,25 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 8995408,
+    "rva_hex": "0x00894250",
+    "name": "FUN_00c94250",
+    "old_size": 637,
+    "new_size": 640,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 8996560,
     "rva_hex": "0x008946d0",
     "name": "FUN_00c946d0",
+    "old_size": 27,
+    "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 9003280,
+    "rva_hex": "0x00896110",
+    "name": "FUN_00c96110",
     "old_size": 27,
     "new_size": 30,
     "reason": "RET imm16 (04 00)"
@@ -22880,6 +25128,14 @@
     "reason": "RET imm16 (0c 00)"
   },
   {
+    "rva": 9040192,
+    "rva_hex": "0x0089f140",
+    "name": "FUN_00c9f140",
+    "old_size": 125,
+    "new_size": 128,
+    "reason": "RET imm16 (10 00)"
+  },
+  {
     "rva": 9050880,
     "rva_hex": "0x008a1b00",
     "name": "FUN_00ca1b00",
@@ -23013,6 +25269,14 @@
     "name": "FUN_00ca9030",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 9091728,
+    "rva_hex": "0x008aba90",
+    "name": "FUN_00caba90",
+    "old_size": 262,
+    "new_size": 265,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -23176,6 +25440,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 9118672,
+    "rva_hex": "0x008b23d0",
+    "name": "FUN_00cb23d0",
+    "old_size": 223,
+    "new_size": 226,
+    "reason": "RET imm16 (10 00)"
+  },
+  {
     "rva": 9123744,
     "rva_hex": "0x008b37a0",
     "name": "FUN_00cb37a0",
@@ -23197,6 +25469,14 @@
     "name": "FUN_00cb4970",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 9128336,
+    "rva_hex": "0x008b4990",
+    "name": "FUN_00cb4990",
+    "old_size": 234,
+    "new_size": 237,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -23293,6 +25573,14 @@
     "name": "FUN_00cc0650",
     "old_size": 27,
     "new_size": 30,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 9186016,
+    "rva_hex": "0x008c2ae0",
+    "name": "FUN_00cc2ae0",
+    "old_size": 173,
+    "new_size": 176,
     "reason": "RET imm16 (04 00)"
   },
   {
@@ -23454,6 +25742,14 @@
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 9235136,
+    "rva_hex": "0x008ceac0",
+    "name": "FUN_00cceac0",
+    "old_size": 493,
+    "new_size": 496,
+    "reason": "RET imm16 (0c 00)"
   },
   {
     "rva": 9267856,
@@ -23733,6 +26029,14 @@
     "name": "FUN_00cefe00",
     "old_size": 17,
     "new_size": 29,
+    "reason": "epilogue continuation (83c4 \u2026 terminator)"
+  },
+  {
+    "rva": 9371168,
+    "rva_hex": "0x008efe20",
+    "name": "FUN_00cefe20",
+    "old_size": 20,
+    "new_size": 32,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
@@ -24160,6 +26464,14 @@
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
+    "rva": 9507504,
+    "rva_hex": "0x009112b0",
+    "name": "FUN_00d112b0",
+    "old_size": 187,
+    "new_size": 192,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
     "rva": 9508624,
     "rva_hex": "0x00911710",
     "name": "FUN_00d11710",
@@ -24286,6 +26598,14 @@
     "old_size": 482,
     "new_size": 485,
     "reason": "RET imm16 (20 00)"
+  },
+  {
+    "rva": 9575936,
+    "rva_hex": "0x00921e00",
+    "name": "FUN_00d21e00",
+    "old_size": 250,
+    "new_size": 256,
+    "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
     "rva": 9582000,
@@ -24520,6 +26840,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 9652768,
+    "rva_hex": "0x00934a20",
+    "name": "FUN_00d34a20",
+    "old_size": 266,
+    "new_size": 269,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 9653248,
     "rva_hex": "0x00934c00",
     "name": "FUN_00d34c00",
@@ -24544,12 +26872,28 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 9656464,
+    "rva_hex": "0x00935890",
+    "name": "FUN_00d35890",
+    "old_size": 61,
+    "new_size": 64,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 9659920,
     "rva_hex": "0x00936610",
     "name": "FUN_00d36610",
     "old_size": 63,
     "new_size": 66,
     "reason": "epilogue continuation (33c0 \u2026 terminator)"
+  },
+  {
+    "rva": 9661584,
+    "rva_hex": "0x00936c90",
+    "name": "FUN_00d36c90",
+    "old_size": 108,
+    "new_size": 112,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 9661712,
@@ -24598,6 +26942,14 @@
     "old_size": 28,
     "new_size": 31,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 9678544,
+    "rva_hex": "0x0093aed0",
+    "name": "FUN_00d3aed0",
+    "old_size": 317,
+    "new_size": 320,
+    "reason": "RET imm16 (10 00)"
   },
   {
     "rva": 9680064,
@@ -24654,6 +27006,14 @@
     "old_size": 36,
     "new_size": 39,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 9690144,
+    "rva_hex": "0x0093dc20",
+    "name": "FUN_00d3dc20",
+    "old_size": 237,
+    "new_size": 240,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
   },
   {
     "rva": 9690592,
@@ -25968,6 +28328,14 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 10234976,
+    "rva_hex": "0x009c2c60",
+    "name": "FUN_00dc2c60",
+    "old_size": 423,
+    "new_size": 430,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
     "rva": 10235424,
     "rva_hex": "0x009c2e20",
     "name": "FUN_00dc2e20",
@@ -26014,6 +28382,22 @@
     "old_size": 33,
     "new_size": 36,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 10239792,
+    "rva_hex": "0x009c3f30",
+    "name": "FUN_00dc3f30",
+    "old_size": 203,
+    "new_size": 206,
+    "reason": "RET imm16 (0c 00)"
+  },
+  {
+    "rva": 10246613,
+    "rva_hex": "0x009c59d5",
+    "name": "FUN_00dc59d5",
+    "old_size": 305,
+    "new_size": 306,
+    "reason": "RET (c3)"
   },
   {
     "rva": 10264080,
@@ -26213,6 +28597,30 @@
     "name": "FUN_00e065b0",
     "old_size": 821,
     "new_size": 827,
+    "reason": "epilogue continuation (83c4 \u2026 terminator)"
+  },
+  {
+    "rva": 10526080,
+    "rva_hex": "0x00a09d80",
+    "name": "FUN_00e09d80",
+    "old_size": 637,
+    "new_size": 640,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 10526720,
+    "rva_hex": "0x00a0a000",
+    "name": "FUN_00e0a000",
+    "old_size": 298,
+    "new_size": 304,
+    "reason": "epilogue continuation (83c4 \u2026 terminator)"
+  },
+  {
+    "rva": 10527024,
+    "rva_hex": "0x00a0a130",
+    "name": "FUN_00e0a130",
+    "old_size": 298,
+    "new_size": 304,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
   },
   {
@@ -26456,6 +28864,14 @@
     "reason": "RET imm16 (0c 00)"
   },
   {
+    "rva": 10650240,
+    "rva_hex": "0x00a28280",
+    "name": "FUN_00e28280",
+    "old_size": 301,
+    "new_size": 304,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
     "rva": 10652736,
     "rva_hex": "0x00a28c40",
     "name": "FUN_00e28c40",
@@ -26544,12 +28960,28 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 10750768,
+    "rva_hex": "0x00a40b30",
+    "name": "FUN_00e40b30",
+    "old_size": 43,
+    "new_size": 46,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
     "rva": 10763568,
     "rva_hex": "0x00a43d30",
     "name": "FUN_00e43d30",
     "old_size": 71,
     "new_size": 72,
     "reason": "RET (c3)"
+  },
+  {
+    "rva": 10799696,
+    "rva_hex": "0x00a4ca50",
+    "name": "FUN_00e4ca50",
+    "old_size": 666,
+    "new_size": 670,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
   },
   {
     "rva": 11557585,
@@ -26589,6 +29021,14 @@
     "name": "Unwind@00f05b68",
     "old_size": 11,
     "new_size": 21,
+    "reason": "epilogue continuation (b8 \u2026 terminator)"
+  },
+  {
+    "rva": 11557760,
+    "rva_hex": "0x00b05b80",
+    "name": "Unwind@00f05b80",
+    "old_size": 8,
+    "new_size": 18,
     "reason": "epilogue continuation (b8 \u2026 terminator)"
   }
 ]

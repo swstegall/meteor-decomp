@@ -24,6 +24,14 @@
     "reason": "epilogue continuation (8bc6 \u2026 terminator)"
   },
   {
+    "rva": 6834,
+    "rva_hex": "0x00001ab2",
+    "name": "FUN_00401ab2",
+    "old_size": 102,
+    "new_size": 105,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
     "rva": 8064,
     "rva_hex": "0x00001f80",
     "name": "FUN_00401f80",
@@ -46,6 +54,14 @@
     "old_size": 106,
     "new_size": 109,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 11770,
+    "rva_hex": "0x00002dfa",
+    "name": "FUN_00402dfa",
+    "old_size": 110,
+    "new_size": 113,
+    "reason": "RET imm16 (08 00)"
   },
   {
     "rva": 12656,
@@ -102,6 +118,14 @@
     "old_size": 236,
     "new_size": 242,
     "reason": "epilogue continuation (83c4 \u2026 terminator)"
+  },
+  {
+    "rva": 38288,
+    "rva_hex": "0x00009590",
+    "name": "FUN_00409590",
+    "old_size": 67,
+    "new_size": 80,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
   },
   {
     "rva": 42288,
@@ -208,6 +232,14 @@
     "reason": "epilogue continuation (5d \u2026 terminator)"
   },
   {
+    "rva": 91056,
+    "rva_hex": "0x000163b0",
+    "name": "FUN_004163b0",
+    "old_size": 218,
+    "new_size": 224,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
     "rva": 92944,
     "rva_hex": "0x00016b10",
     "name": "FUN_00416b10",
@@ -280,6 +312,126 @@
     "reason": "RET imm16 (04 00)"
   },
   {
+    "rva": 119861,
+    "rva_hex": "0x0001d435",
+    "name": "FUN_0041d435",
+    "old_size": 21,
+    "new_size": 22,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 122804,
+    "rva_hex": "0x0001dfb4",
+    "name": "_JumpToContinuation",
+    "old_size": 43,
+    "new_size": 48,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 125188,
+    "rva_hex": "0x0001e904",
+    "name": "FUN_0041e904",
+    "old_size": 110,
+    "new_size": 114,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
+    "rva": 132199,
+    "rva_hex": "0x00020467",
+    "name": "FUN_00420467",
+    "old_size": 305,
+    "new_size": 306,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 140901,
+    "rva_hex": "0x00022665",
+    "name": "FUN_00422665",
+    "old_size": 26,
+    "new_size": 27,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 143449,
+    "rva_hex": "0x00023059",
+    "name": "FUN_00423059",
+    "old_size": 439,
+    "new_size": 440,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 151537,
+    "rva_hex": "0x00024ff1",
+    "name": "FUN_00424ff1",
+    "old_size": 304,
+    "new_size": 309,
+    "reason": "epilogue continuation (5d \u2026 terminator)"
+  },
+  {
+    "rva": 152514,
+    "rva_hex": "0x000253c2",
+    "name": "___heap_select",
+    "old_size": 85,
+    "new_size": 86,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 153592,
+    "rva_hex": "0x000257f8",
+    "name": "___DestructExceptionObject",
+    "old_size": 67,
+    "new_size": 76,
+    "reason": "epilogue continuation (33c0 \u2026 terminator)"
+  },
+  {
+    "rva": 154702,
+    "rva_hex": "0x00025c4e",
+    "name": "___BuildCatchObject",
+    "old_size": 133,
+    "new_size": 137,
+    "reason": "epilogue continuation (33c0 \u2026 terminator)"
+  },
+  {
+    "rva": 165430,
+    "rva_hex": "0x00028636",
+    "name": "FUN_00428636",
+    "old_size": 1472,
+    "new_size": 1473,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 172406,
+    "rva_hex": "0x0002a176",
+    "name": "FUN_0042a176",
+    "old_size": 197,
+    "new_size": 198,
+    "reason": "RET (c3)"
+  },
+  {
+    "rva": 183931,
+    "rva_hex": "0x0002ce7b",
+    "name": "cvtdate",
+    "old_size": 498,
+    "new_size": 501,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 193969,
+    "rva_hex": "0x0002f5b1",
+    "name": "FUN_0042f5b1",
+    "old_size": 891,
+    "new_size": 905,
+    "reason": "epilogue continuation (5e \u2026 terminator)"
+  },
+  {
+    "rva": 198923,
+    "rva_hex": "0x0003090b",
+    "name": "__strdup",
+    "old_size": 77,
+    "new_size": 80,
+    "reason": "epilogue continuation (5d \u2026 terminator)"
+  },
+  {
     "rva": 220944,
     "rva_hex": "0x00035f10",
     "name": "FUN_00435f10",
@@ -318,5 +470,21 @@
     "old_size": 91,
     "new_size": 94,
     "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 275186,
+    "rva_hex": "0x000432f2",
+    "name": "__cftoe2_l",
+    "old_size": 362,
+    "new_size": 365,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 290203,
+    "rva_hex": "0x00046d9b",
+    "name": "___set_fpsr_sse2",
+    "old_size": 68,
+    "new_size": 69,
+    "reason": "RET (c3)"
   }
 ]
