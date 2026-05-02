@@ -534,6 +534,101 @@ def try_push_load_call(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     return None
 
 
+def try_unwind_2arg_call_17b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 17B 2-arg call helper:
+    #   8b 45 e4              MOV EAX, [EBP-0x1c]
+    #   50                    PUSH EAX
+    #   8b 4d e8              MOV ECX, [EBP-0x18]
+    #   51                    PUSH ECX
+    #   e8 RR RR RR RR        CALL extern
+    #   83 c4 08              ADD ESP, 8
+    #   c3                    RET
+    if len(body) != 17:
+        return None
+    expected = [
+        (0x8b,), (0x45,), None,             # disp8 varies between cluster members? no — fixed
+        (0x50,),
+        (0x8b,), (0x4d,), None,             # ditto
+        (0x51,),
+        (0xe8,), None, None, None, None,
+        (0x83,), (0xc4,), (0x08,),
+        (0xc3,),
+    ]
+    # The disp8 bytes ARE part of the cluster identity (not relocs), so
+    # they're constant across the cluster — read them from this rep.
+    if not (body[0] == 0x8b and body[1] == 0x45
+            and body[3] == 0x50
+            and body[4] == 0x8b and body[5] == 0x4d
+            and body[7] == 0x51 and body[8] == 0xe8
+            and body[13:17] == b"\x83\xc4\x08\xc3"):
+        return None
+    arg1_disp_u = body[2]
+    arg2_disp_u = body[6]
+    arg1_signed = arg1_disp_u - 256 if arg1_disp_u >= 0x80 else arg1_disp_u
+    arg2_signed = arg2_disp_u - 256 if arg2_disp_u >= 0x80 else arg2_disp_u
+    a1_sign = "-" if arg1_signed < 0 else "+"
+    a2_sign = "-" if arg2_signed < 0 else "+"
+    a1_mag = abs(arg1_signed)
+    a2_mag = abs(arg2_signed)
+    src = (
+        _header(va, f"unwind helper — 2-arg PUSH+PUSH+CALL "
+                    f"([EBP{a1_sign}0x{a1_mag:x}]+[EBP{a2_sign}0x{a2_mag:x}])",
+                f"8b 45 {arg1_disp_u:02x} 50 8b 4d {arg2_disp_u:02x} 51 "
+                f"e8 RR RR RR RR 83 c4 08 c3", n)
+        + "\nextern \"C\" int target();\n\n"
+          "extern \"C\" __declspec(naked) void unwind_2arg() {\n"
+          "    __asm {\n"
+        + f"        mov eax, [ebp {a1_sign} {a1_mag}]\n"
+          "        push eax\n"
+        + f"        mov ecx, [ebp {a2_sign} {a2_mag}]\n"
+          "        push ecx\n"
+          "        call target\n"
+          "        add esp, 8\n"
+          "        ret\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, f"unwind 2-arg-call EBP{a1_sign}{a1_mag},EBP{a2_sign}{a2_mag}")
+
+
+def try_vtbl_dispatch_25b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 25B vtable-dispatch trampoline (MSVC scalar deleting destructor
+    # forwarder). Shape:
+    #
+    #   8b 4c 24 04                  MOV ECX, [ESP+4]
+    #   85 c9                        TEST ECX, ECX
+    #   74 0e                        JZ +14
+    #   8b 01                        MOV EAX, [ECX]      (vtable ptr)
+    #   8b 10                        MOV EDX, [EAX]      (slot 0 = ~)
+    #   c7 44 24 04 01 00 00 00      MOV [ESP+4], 1     (set delete flag)
+    #   ff e2                        JMP EDX            (tail to dtor)
+    #   c2 04 00                     RET 4
+    expected = bytes.fromhex(
+        "8b4c2404 85c9 740e 8b01 8b10 c7442404 01000000 ffe2 c20400".replace(" ", "")
+    )
+    if body == expected:
+        src = (
+            _header(va, "vtable-dispatch trampoline (~scalar-deleting forwarder)",
+                    "8b 4c 24 04 85 c9 74 0e 8b 01 8b 10 c7 44 24 04 "
+                    "01 00 00 00 ff e2 c2 04 00", n)
+            + "\nextern \"C\" __declspec(naked) void vtbl_forwarder() {\n"
+              "    __asm {\n"
+              "        mov ecx, [esp + 4]\n"
+              "        test ecx, ecx\n"
+              "        jz no_call\n"
+              "        mov eax, [ecx]\n"
+              "        mov edx, [eax]\n"
+              "        mov dword ptr [esp + 4], 1\n"
+              "        jmp edx\n"
+              "    no_call:\n"
+              "        ret 4\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, "vtbl-forwarder 25B")
+    return None
+
+
 def try_arg_shuffler_41b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 41B __stdcall arg-shuffler that reorders 3 dword args + 1 byte
     # arg before tail-calling another function. Shape:
@@ -1053,6 +1148,8 @@ DERIVERS = [
     try_unwind_flag_check_jmp_25b,
     try_catch_all_push_call_9b,
     try_arg_shuffler_41b,
+    try_unwind_2arg_call_17b,
+    try_vtbl_dispatch_25b,
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_jmp_thunk,
