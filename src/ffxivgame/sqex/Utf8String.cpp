@@ -143,6 +143,43 @@
 // the orig CALL goes to the CRT memcpy at RVA 0x005d5110.
 extern "C" void *memcpy(void *dst, const void *src, unsigned n);
 
+// External cdecl helper at RVA 0x0004d350 — frees m_data when the
+// string is in heap mode. Signature `(void *data, int capacity, int
+// flag=0xb)` per the args pushed by the destructor below. The 0xb
+// flag presumably selects which size-class / allocator slot to use
+// for the free.
+extern "C" void Utf8StringFree(void *data, int capacity, int flag);
+
+// FUNCTION: ffxivgame 0x00046f50 — Sqex::Misc::Utf8String::~Utf8String (24 B)
+//
+// Original bytes:
+//   00046f50: 80 79 11 00 75 11 8b 41 04 8b 09 6a 0b 50 51 e8
+//   00046f60: ?? ?? ?? ?? 83 c4 0c c3
+//
+// Decoded:
+//   CMP byte ptr [ECX+0x11], 0     ; m_flag_11 == 0?
+//   JNZ +0x11 (= 0x00046f67)        ; if (m_flag_11 != 0) → return
+//   MOV EAX, [ECX+4]                ; EAX = m_capacity
+//   MOV ECX, [ECX]                  ; ECX = m_data
+//   PUSH 0xb                         ; arg3: allocator-class flag
+//   PUSH EAX                         ; arg2: capacity
+//   PUSH ECX                         ; arg1: data
+//   CALL Utf8StringFree              ; cdecl (orig RVA 0x0004d350)
+//   ADD ESP, 0xc                     ; clean 3 args
+//   RET
+//
+// Semantics: when m_flag_11 == 1 (SSO, set by ctor), do nothing —
+// data lives in m_inline_buf and there's no heap to free. When
+// m_flag_11 == 0 (after Reserve grew the string past 0x40 bytes),
+// call the heap-class-aware free helper. The MSVC clever bit:
+// uses two PUSH-reg ops (EAX, ECX) instead of the equivalent stack
+// `[ECX+...]` reads — saves ~6 bytes vs a direct PUSH `[ECX+4]`.
+Utf8String::~Utf8String() {
+    if (m_flag_11 == 0) {
+        Utf8StringFree(m_data, m_capacity, 0xb);
+    }
+}
+
 Utf8String::Utf8String(const char *data, unsigned length) {
     m_flag_10 = 1;
     m_flag_11 = 1;
