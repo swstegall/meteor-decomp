@@ -28,6 +28,7 @@
 #pragma pack(push, 2)
 class Utf8String {
 public:
+    Utf8String();
     Utf8String(const char *data, unsigned length);
     ~Utf8String();
 

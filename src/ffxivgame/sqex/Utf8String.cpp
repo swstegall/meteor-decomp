@@ -273,6 +273,13 @@ Utf8String::~Utf8String() {
 // Iteration #1: best-effort C++ candidate. Closing this match
 // to GREEN is ambitious (153 B with multi-branch + several CALLs
 // + register/scheduling sensitivity).
+// Iteration #2 (2026-05-02): tried do/while + goto-forward to flip
+// fast/grow path layout, no change. The 9-byte gap is purely a
+// MSVC reg-allocator choice — orig spills `saved_size` to a
+// dedicated stack slot (`SUB ESP, 8`, 2 locals); mine keeps it in
+// EBX (`PUSH ECX`, 1 local). Both are valid optimizations of
+// equivalent C++; without inline asm there's no portable way to
+// override MSVC's spill decision. Accepting 94% PARTIAL.
 void Utf8String::Reserve(unsigned size, int small_ok) {
     if (small_ok) {
         m_flag_10 = 0;
@@ -302,6 +309,37 @@ void Utf8String::Reserve(unsigned size, int small_ok) {
     m_capacity = (int)size;
     m_flag_11  = 0;
     m_size     = saved_size;
+}
+
+// FUNCTION: ffxivgame 0x00045cf0 — Utf8String::Utf8String() default (39 B)
+//
+// Recovered from byte pattern 2026-05-02. Initializes a Utf8String to
+// SSO-empty state — same field values as the (data, length) ctor's
+// initial setup, minus the data copy:
+//   m_flag_10 = 1, m_flag_11 = 1, m_size = 1, m_field_c = 0,
+//   m_capacity = 0x40, m_data = &m_inline_buf, m_inline_buf[0] = 0.
+//
+// MSVC emits a tight 39-byte sequence that piggybacks ECX=1 across the
+// three fields that hold value 1 (flag_10, flag_11, m_size) before
+// re-using ECX to hold &m_inline_buf for the data + null terminator.
+//
+// Original bytes (39 B):
+//   00045cf0: 8b c1 b9 01 00 00 00 88 48 10 88 48 11 89 48 08
+//   00045d00: 8d 48 12 c7 40 0c 00 00 00 00 c7 40 04 40 00 00
+//   00045d10: 00 89 08 c6 01 00 c3
+//
+// Field-store order matters for the byte match. m_size must be set
+// AFTER the flags (so CL=1 is reused) but BEFORE m_field_c (so MSVC
+// can clobber ECX with the LEA).
+
+Utf8String::Utf8String() {
+    m_flag_10 = 1;
+    m_flag_11 = 1;
+    m_size    = 1;
+    m_field_c = 0;
+    m_capacity = 0x40;
+    m_data    = (char *)m_inline_buf;
+    ((char *)m_inline_buf)[0] = 0;
 }
 
 Utf8String::Utf8String(const char *data, unsigned length) {
