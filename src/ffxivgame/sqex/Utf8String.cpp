@@ -145,10 +145,13 @@ extern "C" void *memcpy(void *dst, const void *src, unsigned n);
 
 // External cdecl helper at RVA 0x0004d350 — frees m_data when the
 // string is in heap mode. Signature `(void *data, int capacity, int
-// flag=0xb)` per the args pushed by the destructor below. The 0xb
-// flag presumably selects which size-class / allocator slot to use
-// for the free.
+// flag=0xb)` per the args pushed by the destructor below.
 extern "C" void Utf8StringFree(void *data, int capacity, int flag);
+
+// External cdecl helper at RVA 0x0004d500 — counterpart for
+// allocation. Args: (alloc_class=0xb, zero_fill=0, size). Returns
+// pointer to new buffer.
+extern "C" void *Utf8StringAlloc(int alloc_class, int zero_fill, unsigned size);
 
 // FUNCTION: ffxivgame 0x00046f50 — Sqex::Misc::Utf8String::~Utf8String (24 B)
 //
@@ -178,6 +181,120 @@ Utf8String::~Utf8String() {
     if (m_flag_11 == 0) {
         Utf8StringFree(m_data, m_capacity, 0xb);
     }
+}
+
+// FUNCTION: ffxivgame 0x00047010 — Sqex::Misc::Utf8String::Reserve (153 B)
+//
+// Ensures m_data has capacity >= `size` bytes. If `size` exceeds the
+// current m_capacity, allocates a new buffer (rounded up to a 32-byte
+// alignment), copies the existing m_size bytes if old data was non-
+// null, frees the old heap buffer if `m_flag_11 == 0` (heap mode),
+// updates the fields, and marks the string as heap-owned.
+//
+// Original bytes (153 B):
+//   00047010: 83 ec 08 80 7c 24 10 00 56 57 8b f1 74 04 c6 46
+//   00047020: 10 00 8b 46 04 8b 7c 24 14 3b f8 89 44 24 0c 76
+//   00047030: 6d 8b 46 08 53 55 8b 2e 83 c7 1f 6a 0b 83 e7 e0
+//   00047040: 80 7e 11 00 6a 00 57 0f 94 44 24 2c 89 44 24 1c
+//   00047050: e8 ?? ?? ?? ?? 83 c4 0c 85 ed 8b d8 74 26 8b 4c
+//   00047060: 24 10 51 55 53 e8 ?? ?? ?? ?? 83 c4 0c 80 7c 24
+//   00047070: 20 00 74 10 8b 54 24 14 6a 0b 52 55 e8 ?? ?? ??
+//   00047080: ?? 83 c4 0c 8b 44 24 1c 5d 89 1e 5b 89 7e 04 5f
+//   00047090: c6 46 11 00 89 46 08 5e 83 c4 08 c2 08 00 89 7e
+//   000470a0: 08 5f 5e 83 c4 08 c2 08 00
+//
+// Decoded:
+//   SUB  ESP, 8                          ; locals
+//   CMP  byte ptr [ESP+0x10], 0          ; arg2 (small_ok) == 0?
+//   PUSH ESI; PUSH EDI
+//   MOV  ESI, ECX                         ; ESI = this
+//   JZ   skip_clear_flag10                  ; (flags from CMP above)
+//     MOV  byte ptr [ESI+0x10], 0          ; m_flag_10 = 0
+//   skip_clear_flag10:
+//   MOV  EAX, [ESI+4]                    ; EAX = m_capacity
+//   MOV  EDI, [ESP+0x14]                 ; EDI = arg1 (size)
+//   CMP  EDI, EAX
+//   MOV  [ESP+0xc], EAX                   ; save capacity in local
+//   JBE  fast_path                         ; if size <= capacity → skip grow
+//   ; --- grow path ---
+//   MOV  EAX, [ESI+8]                    ; EAX = m_size
+//   PUSH EBX; PUSH EBP
+//   MOV  EBP, [ESI]                       ; EBP = m_data (old)
+//   ADD  EDI, 0x1f                        ; round size up to 32 alignment
+//   PUSH 0xb                              ; arg1 to alloc: alloc class
+//   AND  EDI, ~0x1f
+//   CMP  byte ptr [ESI+0x11], 0           ; was SSO (m_flag_11 == 1)?
+//   PUSH 0                                ; arg2 to alloc: zero_fill = 0
+//   PUSH EDI                              ; arg3 to alloc: size
+//   SETZ byte ptr [ESP+0x2c]              ; was_heap = (m_flag_11 == 0)
+//   MOV  [ESP+0x1c], EAX                  ; save m_size
+//   CALL Utf8StringAlloc                   ; cdecl → returns new buf in EAX
+//   ADD  ESP, 0xc                         ; clean 3 args
+//   TEST EBP, EBP                         ; old data null?
+//   MOV  EBX, EAX                         ; EBX = new buffer
+//   JZ   skip_copy_free                    ; if no old data, skip
+//   ; --- copy old data into new buffer ---
+//   MOV  ECX, [ESP+0x10]                  ; ECX = saved m_size
+//   PUSH ECX                              ; bytes
+//   PUSH EBP                              ; src (old data)
+//   PUSH EBX                              ; dst (new buffer)
+//   CALL memcpy
+//   ADD  ESP, 0xc
+//   CMP  byte ptr [ESP+0x20], 0           ; was_heap flag (saved by SETZ)
+//   JZ   skip_copy_free                    ; if was SSO, no free needed
+//   ; --- free old heap buffer ---
+//   MOV  EDX, [ESP+0x14]                  ; old capacity
+//   PUSH 0xb
+//   PUSH EDX
+//   PUSH EBP                              ; old data
+//   CALL Utf8StringFree
+//   ADD  ESP, 0xc
+//   skip_copy_free:
+//   MOV  EAX, [ESP+0x1c]                  ; reload m_size
+//   POP  EBP
+//   MOV  [ESI], EBX                       ; m_data = new buffer
+//   POP  EBX
+//   MOV  [ESI+4], EDI                     ; m_capacity = (rounded) new size
+//   POP  EDI
+//   MOV  byte ptr [ESI+0x11], 0           ; m_flag_11 = 0 (heap-owned)
+//   MOV  [ESI+8], EAX                     ; m_size = saved
+//   POP  ESI
+//   ADD  ESP, 8
+//   RET  8
+//   ; --- fast path: size <= capacity ---
+//   fast_path:
+//   MOV  [ESI+8], EDI                     ; m_size = new size (in-place)
+//   POP  EDI; POP ESI
+//   ADD  ESP, 8
+//   RET  8
+//
+// Iteration #1: best-effort C++ candidate. Closing this match
+// to GREEN is ambitious (153 B with multi-branch + several CALLs
+// + register/scheduling sensitivity).
+void Utf8String::Reserve(unsigned size, int small_ok) {
+    if (small_ok) {
+        m_flag_10 = 0;
+    }
+    unsigned old_capacity = m_capacity;
+    if (size <= old_capacity) {
+        m_size = size;
+        return;
+    }
+    int saved_size = m_size;
+    char *old_data = m_data;
+    size = (size + 0x1f) & ~0x1fu;          // round up to 32-byte alignment
+    int was_heap = (m_flag_11 == 0);
+    char *new_data = (char *)Utf8StringAlloc(0xb, 0, size);
+    if (old_data) {
+        memcpy(new_data, old_data, saved_size);
+        if (was_heap) {
+            Utf8StringFree(old_data, old_capacity, 0xb);
+        }
+    }
+    m_data     = new_data;
+    m_capacity = (int)size;
+    m_flag_11  = 0;
+    m_size     = saved_size;
 }
 
 Utf8String::Utf8String(const char *data, unsigned length) {
