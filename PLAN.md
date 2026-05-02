@@ -633,14 +633,41 @@ surface we expect to recover for each:
   and re-derive matching codegen via `make rosetta`-style iteration.
   The functional source we ship now is the starting C, not the final.
 
-### Phase 4 — Sqpack / ZiPatch (matching target)
-- Decompile `Sqpack::Hash` — single-function landmark, easy to
-  verify against known input/output pairs.
-- Decompile index lookup, decompression (zlib wrapped).
-- Decompile ZiPatch unpacker.
-- **Exit criterion**: `tools/sqpack-cat <path>` extracts a known
-  file from the install's `.dat` archives, byte-identical to what
-  the original game produces.
+### Phase 4 — Pack / ChunkRead / ZiPatch (matching target) ▶ in progress
+
+See [`docs/sqpack.md`](docs/sqpack.md) for the full reconnaissance
+write-up. Key correction: 1.x is **resource-id-addressed**, not
+string-path-hashed (the ARR-era Sqpack hash was added later for
+DQX/ARR). There is no `Sqpack::Hash` in 1.x — files live at
+`<game>/data/<b3>/<b2>/<b1>/<b0>.DAT` where `b3..b0` are the bytes
+of a 32-bit `resource_id`. The class hierarchy on the read side is
+`Sqex::Data::PackRead : Sqex::Data::ChunkRead<u32, u32>`.
+
+Work pool (in dependency order):
+
+- ✅ **Reconnaissance complete** — anchor functions identified
+  (`PackRead::~PackRead` @ 0x008c6670 / 107 B, ctor @ 0x00942800 /
+  132 B, path-builder @ 0x0004b3a0 / 615 B), class hierarchy
+  recovered, struct layout sketched.
+- 🔲 **Match `PackRead::~PackRead`** — first concrete matching
+  target. Smallest unit (107 B, single-call cleanup, clean SEH
+  frame). Lands as `src/ffxivgame/sqpack/PackRead.cpp`.
+- 🔲 **Match the PackRead constructor** at 0x00942800.
+- 🔲 **Functional re-derive of the path builder** at 0x0004b3a0.
+  Verifiable by feeding known resource_ids and string-comparing
+  the output against a Python reference (single line of
+  `f"{(rid >> 24) & 0xFF:02X}/.../{(rid) & 0xFF:02X}.DAT"`).
+- 🔲 **Walk PackRead's non-virtual interface** via xref analysis
+  (vtables only have the destructor; the public methods aren't
+  exposed through RTTI).
+- 🔲 **Decompression layer** — locate via zlib magic / `inflate`
+  call sites.
+- 🔲 **ZiPatch unpacker** — separate target in `ffxivupdater.exe`,
+  block types FHDR / APLY / APFS / ETRY / ADIR / DELD.
+
+**Exit criterion**: `tools/sqpack-cat <resource_id>` opens the
+right DAT file and dumps the file bytes, with `PackRead::~PackRead`
++ ctor + at least one read method byte-matched.
 
 ### Phase 5 — Actor + Battle (functional target)
 - Decompile Actor base class (vtable from RTTI), ActorParam tables.
