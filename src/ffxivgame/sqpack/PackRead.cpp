@@ -180,6 +180,7 @@ public:
     // to ProcessChunk. No direct xrefs — likely called via fn-ptr.
     void Rewind();
 
+
     // FUNCTION: ffxivgame 0x009428b0 — PackRead::ReadNext
     // 27 B; returns bool. Called from FUN_00cc6700 in a loop.
     bool ReadNext();
@@ -319,6 +320,107 @@ PackRead::PackRead(const void *data, unsigned size)
 {
     PostInit();
 }
+
+// FUNCTION: ffxivgame 0x00942740 — PackRead::ProcessChunk (177 B)  [DEFERRED]
+//
+// Constructs a temporary Utf8String from (cursor + 8, g_allocator),
+// passes it to m_subobj.Process(), then destructs the string. Calls
+// ChunkReadUInt::ReadNextChunkHeader to advance the cursor. Optionally
+// byte-swaps the next chunk's size field (depending on m_flag15) and
+// finally calls ProcessNextChunk(cursor + 8, size) on `this`.
+//
+// Original bytes (177 B):
+//   00942740: 6a ff 68 ?? ?? ?? ?? 64 a1 00 00 00 00 50 83 ec
+//   00942750: 5c 56 a1 ?? ?? ?? ?? 33 c4 50 8d 44 24 64 64 a3
+//   00942760: 00 00 00 00 8b f1 8b 0d ?? ?? ?? ?? 8b 46 0c 51
+//   00942770: 83 c0 08 50 8d 4c 24 18 e8 ?? ?? ?? ?? 50 8d 4e
+//   00942780: 1c c7 44 24 70 00 00 00 00 e8 ?? ?? ?? ?? 8d 4c
+//   00942790: 24 10 c7 44 24 6c ff ff ff ff e8 ?? ?? ?? ?? 8b
+//   009427a0: ce e8 ?? ?? ?? ?? 80 7e 15 00 8b 46 0c 8b 48 04
+//   009427b0: 89 4c 24 0c 74 1e 0f b6 54 24 0f 88 54 24 08 0f
+//   009427c0: b6 54 24 0e 88 54 24 09 88 6c 24 0a 88 4c 24 0b
+//   009427d0: 8b 4c 24 08 51 83 c0 08 50 8b ce e8 ?? ?? ?? ??
+//   009427e0: 8b 4c 24 64 64 89 0d 00 00 00 00 59 5e 83 c4 68
+//   009427f0: c3
+//
+// 5 reloc-bearing CALL/data sites (orig RVAs):
+//   - SEH handler @ .data 0x00f01558    (offset 0x03)
+//   - __security_cookie @ 0x012ea8b0    (offset 0x14)
+//   - g_pack_allocator @ .data 0x00f67298  (offset 0x28)
+//   - Utf8String::Utf8String @ 0x00047260  (offset 0x39)
+//   - SubObjAt1c::Process @ 0x00047450     (offset 0x4a)
+//   - Utf8String::~Utf8String @ 0x00046f50 (offset 0x5b)
+//   - ChunkReadUInt::ReadNextChunkHeader @ 0x000ebd40 (offset 0x62)
+//   - PackRead::ProcessNextChunk @ 0x00942590 (offset 0x9c)
+//
+// Decoded body (after MOV ESI, ECX):
+//   ECX = g_pack_allocator        ; load global into ECX
+//   EAX = m_cursor                 ; this->m_cursor
+//   PUSH g_allocator
+//   EAX = cursor + 8
+//   PUSH cursor + 8
+//   ECX = &local_string at [ESP+0x18]
+//   CALL Utf8String::Utf8String    ; constructs string from (cursor+8, alloc)
+//   PUSH return-of-CALL            ; (Utf8String * — `this` echoed by ctor)
+//   ECX = &this->m_subobj
+//   SEH state = 0
+//   CALL m_subobj.Process          ; with the Utf8String *
+//   ECX = &local_string ([ESP+0x10])  (offset shifted by 8 from PUSHes)
+//   SEH state = -1
+//   CALL Utf8String::~Utf8String   ; destruct local
+//   ECX = this
+//   CALL ChunkReadUInt::ReadNextChunkHeader  ; advances cursor; ret unused
+//   ; --- read size of NEXT chunk + optional byte-swap ---
+//   CMP byte ptr [ESI+0x15], 0     ; m_flag15
+//   EAX = m_cursor (now post-advance)
+//   ECX = *(uint32 *)(cursor+4)    ; next chunk size
+//   [ESP+0xc] = ECX                ; save
+//   JZ skip_swap
+//     [ESP+8] = byte_3 (high)      ; same byte-swap idiom as RNCH
+//     [ESP+9] = byte_2
+//     [ESP+0xa] = CH (byte_1)
+//     [ESP+0xb] = CL (byte_0)
+//     ECX = [ESP+8]                ; reload swapped value
+//   skip_swap:
+//   PUSH ECX                        ; arg2: size (possibly swapped)
+//   EAX += 8                        ; cursor + 8
+//   PUSH EAX                        ; arg1: cursor + 8
+//   ECX = this
+//   CALL PackRead::ProcessNextChunk
+//   ; --- SEH frame teardown + RET ---
+//
+// Why this is DEFERRED:
+//
+// The 92-byte (0x5c) local frame is dominated by a stack-allocated
+// `Sqex::Misc::Utf8String` (or similar) whose size, member layout, and
+// constructor signature we haven't recovered yet. Without a properly-
+// sized stand-in, the compiled candidate produces a much smaller frame
+// (mine: 12 B locals; orig: 92 B locals) and ~117 byte mismatches.
+//
+// To attempt this match in a future session:
+//   1. Decompile Utf8String::Utf8String at RVA 0x00047260 (~96 B in
+//      the dump above) to recover field layout. From the prologue:
+//        - +0x00: data pointer
+//        - +0x04: capacity (=0x40 inline default)
+//        - +0x08: size
+//        - +0x0c: ?
+//        - +0x10: 1-byte (SSO indicator?)
+//        - +0x11: 1-byte
+//        - +0x12: SSO inline buffer start, runs to +0x52 (sizeof = 0x54 ?)
+//      Total Utf8String ≈ 84 bytes, padded to ≥84.
+//   2. Decompile Utf8String::~Utf8String at RVA 0x00046f50 to confirm
+//      the destruction sequence.
+//   3. Decompile SubObjAt1c::Process at RVA 0x00047450 to learn what
+//      method is being called on m_subobj (and how it consumes the
+//      string).
+//   4. Decompile PackRead::ProcessNextChunk at RVA 0x00942590 to
+//      confirm the (data, size) signature.
+//   5. Then attempt ProcessChunk with the proper Utf8String body
+//      providing the 84-byte stack footprint.
+//
+// Iteration #1 (deleted from source): structural shape matched but
+// frame size and most byte positions diverged because the Utf8String
+// stand-in was a 4-byte forward decl. Reverted to documentation-only.
 
 // FUNCTION: ffxivgame 0x00942890 — PackRead::Rewind (18 B)
 //
