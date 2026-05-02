@@ -199,6 +199,138 @@ def reloc_mask_for_body(body: bytes, image_base: int = 0x00400000) -> bytearray:
                         mask[j] = 1
             i += instr_len
             continue
+        # 69/6b — IMUL r32, r/m, imm (imm32 / imm8 respectively).
+        # 69 modrm imm32 = 6+ B, 6b modrm imm8 = 3+ B, plus ModR/M extras.
+        if b == 0x69 and i + 2 <= n:
+            modrm = body[i + 1]
+            extra = modrm_extra_len(modrm, n - i - 2)
+            instr_len = 2 + extra + 4
+            if i + instr_len > n:
+                i += 1
+                continue
+            i += instr_len
+            continue
+        if b == 0x6b and i + 2 <= n:
+            modrm = body[i + 1]
+            extra = modrm_extra_len(modrm, n - i - 2)
+            instr_len = 2 + extra + 1
+            if i + instr_len > n:
+                i += 1
+                continue
+            i += instr_len
+            continue
+        # c0/c1 — shift/rotate r/m, imm8.  c6/c7 — MOV r/m, imm.  d0-d3
+        # — shift/rotate r/m, [1|CL].  fe/ff — INC/DEC/CALL/JMP r/m.
+        # f6/f7 — TEST/NOT/NEG/MUL/IMUL/DIV/IDIV r/m (f6 may have +imm8,
+        # f7 may have +imm32 when the /reg field encodes TEST).
+        if b in (0xc0, 0xc1, 0xc6) and i + 2 <= n:
+            modrm = body[i + 1]
+            extra = modrm_extra_len(modrm, n - i - 2)
+            instr_len = 2 + extra + 1   # +imm8
+            mod = (modrm >> 6) & 0b11
+            rm = modrm & 0b111
+            if i + instr_len > n:
+                i += 1
+                continue
+            if mod == 0 and rm == 0b101:
+                for j in range(i + 2, i + 6):
+                    mask[j] = 1
+            i += instr_len
+            continue
+        if b == 0xc7 and i + 2 <= n:
+            # MOV r/m32, imm32. The (already-existing) absolute-m32 form
+            # `c7 05 RR RR RR RR imm32` is handled below; this is the
+            # general modrm form for register or stack operands.
+            modrm = body[i + 1]
+            mod = (modrm >> 6) & 0b11
+            rm = modrm & 0b111
+            extra = modrm_extra_len(modrm, n - i - 2)
+            instr_len = 2 + extra + 4
+            if i + instr_len > n:
+                i += 1
+                continue
+            if mod == 0 and rm == 0b101:
+                for j in range(i + 2, i + 6):
+                    mask[j] = 1
+                # Trailing imm32 may be address-y.
+                imm_off = i + 6
+                if imm_off + 4 <= n and _looks_address_like(
+                    body[imm_off], body[imm_off + 1],
+                    body[imm_off + 2], body[imm_off + 3], image_base,
+                ):
+                    for j in range(imm_off, imm_off + 4):
+                        mask[j] = 1
+            i += instr_len
+            continue
+        if b in (0xd0, 0xd1, 0xd2, 0xd3, 0xfe) and i + 2 <= n:
+            modrm = body[i + 1]
+            extra = modrm_extra_len(modrm, n - i - 2)
+            instr_len = 2 + extra
+            mod = (modrm >> 6) & 0b11
+            rm = modrm & 0b111
+            if i + instr_len > n:
+                i += 1
+                continue
+            if mod == 0 and rm == 0b101:
+                for j in range(i + 2, i + 6):
+                    mask[j] = 1
+            i += instr_len
+            continue
+        # 0xff — group: 0=INC r/m, 1=DEC r/m, 2=CALL r/m, 3=CALL m far,
+        # 4=JMP r/m, 5=JMP m far, 6=PUSH r/m. Modrm-bearing.  The
+        # `ff 15`/`ff 25` absolute-m32 forms (CALL/JMP) are reloc-bearing
+        # and were already handled; here we just need correct length so
+        # later opcodes don't get misread.
+        if b == 0xff and i + 2 <= n:
+            modrm = body[i + 1]
+            mod = (modrm >> 6) & 0b11
+            rm = modrm & 0b111
+            extra = modrm_extra_len(modrm, n - i - 2)
+            instr_len = 2 + extra
+            if i + instr_len > n:
+                i += 1
+                continue
+            # absolute-m32 forms (mod=00 r/m=101) already mask the
+            # displacement above for /2 (CALL) and /4 (JMP). For other
+            # /reg fields the disp32 is still address-y if it's the
+            # pointer of an INC/DEC/PUSH on a global.
+            if mod == 0 and rm == 0b101:
+                for j in range(i + 2, i + 6):
+                    mask[j] = 1
+            i += instr_len
+            continue
+        # f6 — TEST/NOT/NEG/MUL/IMUL/DIV/IDIV r/m8 ; with /0 = TEST + imm8
+        # f7 — same but for r/m32 ; /0 = TEST + imm32
+        if b == 0xf6 and i + 2 <= n:
+            modrm = body[i + 1]
+            reg = (modrm >> 3) & 0b111
+            extra = modrm_extra_len(modrm, n - i - 2)
+            instr_len = 2 + extra + (1 if reg == 0 else 0)
+            mod = (modrm >> 6) & 0b11
+            rm = modrm & 0b111
+            if i + instr_len > n:
+                i += 1
+                continue
+            if mod == 0 and rm == 0b101:
+                for j in range(i + 2, i + 6):
+                    mask[j] = 1
+            i += instr_len
+            continue
+        if b == 0xf7 and i + 2 <= n:
+            modrm = body[i + 1]
+            reg = (modrm >> 3) & 0b111
+            extra = modrm_extra_len(modrm, n - i - 2)
+            instr_len = 2 + extra + (4 if reg == 0 else 0)
+            mod = (modrm >> 6) & 0b11
+            rm = modrm & 0b111
+            if i + instr_len > n:
+                i += 1
+                continue
+            if mod == 0 and rm == 0b101:
+                for j in range(i + 2, i + 6):
+                    mask[j] = 1
+            i += instr_len
+            continue
         # E8 — CALL rel32 ; E9 — JMP rel32
         if b in (0xE8, 0xE9) and i + 5 <= n:
             for j in range(i + 1, i + 5):
