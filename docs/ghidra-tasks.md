@@ -10,6 +10,26 @@ into this file and a future session can write the matchers.
 
 ---
 
+## Status snapshot — 2026-05-02
+
+All Phase 4 IAT entries identified. Worker-pipeline allocator + chunk-
+queue subsystem mapped. Recent identifications:
+
+- `[0x00f3e148]`  `InterlockedExchange`           ✓
+- `[0x00f3e1a0]`  `InterlockedCompareExchange`    ✓ (2026-05-01)
+- `[0x00f3e1a4]`  `InterlockedExchangeAdd`        ✓
+- `[0x00f3e1c8]`  `Sleep`                         ✓ (2026-05-02)
+- `[0x00f3e2cc]`  `InterlockedIncrement`          ✓ (2026-05-02)
+- `[0x00f3e2d4]`  `SwitchToThread`                ✓
+
+Phase 4 matches landed: 6 GREEN (PackRead ctor/ReadNext/Rewind/dtor,
+Utf8String dtor, WaitForReady) + 4 PARTIAL @ 99% (ProcessChunk,
+SlabFree, SlabAlloc, ReleaseChunk, AcquireChunk) + Reserve PARTIAL
+@ 94%. Next blocker: `FUN_008edbf0` (122 B `WaitablePredicate::TryReady`)
+— now writable since all IAT entries known.
+
+---
+
 ## Phase 4 — Sqpack / Utf8String allocator pair
 
 The Sqex::Misc::Utf8String class delegates allocation to two cdecl

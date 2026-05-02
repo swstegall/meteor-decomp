@@ -122,7 +122,7 @@ class Component::Install::InstallUnpacker {
 | 0x113 | `FUN_00d22b4` | CRT-like helper (signed div?) |
 | 0x143 | `FUN_00cc6620` (71 B) | Wait-for-ready spin |
 | 0x14b | `EDI` | Atomic add |
-| 0x154 | `[0x00f3e1c8]` | Different IAT entry — possibly `Sleep` or `SwitchToThread` |
+| 0x154 | `[0x00f3e1c8]` = `KERNEL32.DLL::Sleep` | Yield/sleep in wait loop (confirmed via Ghidra 2026-05-02) |
 | 0x15d | `EDI` | Atomic add |
 | 0x168 | `PackRead::ReadNext` (✅ matched GREEN) | Loop step |
 | 0x17a | `EDI` | Atomic add |
@@ -143,8 +143,15 @@ To match `FUN_00cc6700`, we'd need:
    at 71 B is the most tractable).
 3. **The "alt" Utf8String at 0x00445cf0** — distinct from
    `Sqex::Misc::Utf8String::Utf8String @ 0x00047260` we matched.
-4. **The IAT entry at `[0x00f3e1c8]`** — Ghidra would name it. Likely
-   `Sleep` or `SwitchToThread` based on the wait-loop context.
+4. **IAT entries** — all confirmed via Ghidra GUI 2026-05-02:
+   ```
+   [0x00f3e148]  InterlockedExchange
+   [0x00f3e1a0]  InterlockedCompareExchange
+   [0x00f3e1a4]  InterlockedExchangeAdd
+   [0x00f3e1c8]  Sleep                  ← used in Unpack wait loop @ 0x154
+   [0x00f3e2cc]  InterlockedIncrement   ← used in FUN_008edbf0 @ 0xc52
+   [0x00f3e2d4]  SwitchToThread
+   ```
 
 Each of these is a separate Ghidra GUI task. Once they're recovered,
 `FUN_00cc6700` becomes a multi-iteration matching candidate (490 B

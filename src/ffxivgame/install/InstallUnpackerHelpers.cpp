@@ -17,6 +17,14 @@ extern "C" __declspec(dllimport) int __stdcall SwitchToThread();
 extern "C" __declspec(dllimport) long __stdcall InterlockedIncrement(long *target);
 extern "C" __declspec(dllimport) long __stdcall InterlockedExchangeAdd(long *target, long add);
 extern "C" __declspec(dllimport) long __stdcall InterlockedCompareExchange(long *target, long exch, long cmp);
+extern "C" __declspec(dllimport) void __stdcall Sleep(unsigned long ms);
+// IAT layout (Ghidra-confirmed 2026-05-02):
+//   [0x00f3e148]  InterlockedExchange
+//   [0x00f3e1a0]  InterlockedCompareExchange
+//   [0x00f3e1a4]  InterlockedExchangeAdd
+//   [0x00f3e1c8]  Sleep
+//   [0x00f3e2cc]  InterlockedIncrement
+//   [0x00f3e2d4]  SwitchToThread
 
 // Each entry in ChunkSource::m_entries is 12 bytes. State machine:
 //   1 = released (just freed by consumer)
