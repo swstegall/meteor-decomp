@@ -20,6 +20,7 @@ help:
 	@echo "  make setup-msvc           Phase 2: verify VS 2005 SP1 + Wine setup"
 	@echo "  make find-rosetta         Phase 2: pick best Rosetta-Stone candidate"
 	@echo "  make rosetta              Phase 2: compile + diff staged Rosetta function"
+	@echo "  make rosetta-bulk         Phase 2: like rosetta, but never bails — for stamped clusters"
 	@echo "  make extract-net          Phase 3: net-class vtable → fn_rva map"
 	@echo "  make extract-gam          Phase 3: GAM property registry (id → type)"
 	@echo "  make emit-gam-header      Phase 3: include/net/gam_registry.h from GAM"
@@ -156,6 +157,41 @@ rosetta: setup-msvc
 	    echo ">>> objdiff $$obj vs orig"; \
 	    $(PY) $(TOOLS)/compare.py FUNC=$$name || exit $$?; \
 	done
+
+# Like `rosetta` but never bails on a non-GREEN verdict — useful for
+# bulk validation across hundreds of stamped cluster siblings, where a
+# single PARTIAL or MISMATCH shouldn't stop the whole sweep. The
+# verdict per file is still printed; aggregate counts come from the
+# log via `grep -c GREEN/PARTIAL/MISMATCH`. The tally is also written
+# to build/logs/rosetta_bulk_summary.txt for quick review.
+.PHONY: rosetta-bulk
+rosetta-bulk: setup-msvc
+	@if ! ls src/ffxivgame/_rosetta/*.cpp >/dev/null 2>&1; then \
+	    echo "no rosetta source staged in src/ffxivgame/_rosetta/"; \
+	    exit 1; \
+	fi
+	mkdir -p $(BUILD)/obj/_rosetta $(BUILD)/logs
+	@green=0; partial=0; mismatch=0; cl_fail=0; \
+	for cpp in src/ffxivgame/_rosetta/*.cpp; do \
+	    name=$$(basename $$cpp .cpp); \
+	    obj=$(BUILD)/obj/_rosetta/$$name.obj; \
+	    echo ">>> cl $$cpp -> $$obj"; \
+	    if ! $(TOOLS)/cl-wine.sh $(ROSETTA_FLAGS) /Fo$$obj $$cpp; then \
+	        cl_fail=$$((cl_fail + 1)); echo "  ⚠️  cl failed (continuing)"; continue; \
+	    fi; \
+	    echo ">>> objdiff $$obj vs orig"; \
+	    if $(PY) $(TOOLS)/compare.py FUNC=$$name >/tmp/.rb.$$$$ 2>&1; then \
+	        green=$$((green + 1)); cat /tmp/.rb.$$$$ | grep -E "GREEN|orig:|ours:" | head -1; \
+	    else \
+	        rc=$$?; \
+	        if grep -q PARTIAL /tmp/.rb.$$$$; then partial=$$((partial + 1)); \
+	        else mismatch=$$((mismatch + 1)); fi; \
+	        cat /tmp/.rb.$$$$ | grep -E "PARTIAL|MISMATCH|orig:|ours:" | head -2; \
+	    fi; \
+	    rm -f /tmp/.rb.$$$$; \
+	done; \
+	echo; echo "rosetta-bulk summary  GREEN=$$green  PARTIAL=$$partial  MISMATCH=$$mismatch  cl_failed=$$cl_fail"; \
+	{ echo "GREEN=$$green"; echo "PARTIAL=$$partial"; echo "MISMATCH=$$mismatch"; echo "cl_failed=$$cl_fail"; } > $(BUILD)/logs/rosetta_bulk_summary.txt
 
 diff:
 	@if [ -z "$(FUNC)" ]; then echo "usage: make diff FUNC=Symbol::Name"; exit 1; fi
