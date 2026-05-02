@@ -104,6 +104,27 @@ def reloc_mask_for_body(body: bytes, image_base: int = 0x00400000) -> bytearray:
     mask = bytearray(len(body))
     i = 0
     n = len(body)
+
+    def modrm_extra_len(modrm: int, n_avail: int) -> int:
+        """Return the number of extra bytes after the ModR/M byte for a
+        general register/memory operand. Returns -1 if encoding spills
+        past `n_avail`."""
+        mod = (modrm >> 6) & 0b11
+        rm = modrm & 0b111
+        if mod == 0b11:
+            return 0  # register-direct, no displacement
+        # Memory form. SIB present iff rm == 100 (and mod != 0b11).
+        sib = 1 if rm == 0b100 else 0
+        if mod == 0b00:
+            if rm == 0b101:
+                return 4  # disp32 absolute
+            return sib  # no displacement
+        if mod == 0b01:
+            return sib + 1  # disp8
+        if mod == 0b10:
+            return sib + 4  # disp32
+        return 0
+
     while i < n:
         b = body[i]
         # 83 modrm imm8 / 81 modrm imm32 / 80 modrm imm8 — ALU with
@@ -164,18 +185,28 @@ def reloc_mask_for_body(body: bytes, image_base: int = 0x00400000) -> bytearray:
                     mask[j] = 1
             i += 5
             continue
-        # 8B / 89 — MOV r32,m / MOV m,r32 ; with ModRM mod=00 r/m=101
-        # (absolute m32 form). Second byte mask: top 2 bits = 00, low 3
-        # bits = 101 → values 05, 0D, 15, 1D, 25, 2D, 35, 3D.
-        if b in (0x8B, 0x89) and i + 6 <= n:
+        # 8B / 89 / 8A / 88 / 8D — MOV r,m / MOV m,r / MOV r8,m8 / MOV m8,r8 / LEA.
+        # All take a ModR/M byte with optional SIB + displacement.
+        # The mod=00 r/m=101 form is the disp32-absolute m32 case (reloc-
+        # bearing); other forms use disp8/disp32/SIB. Without proper
+        # length decoding, the linear walker mistakes the disp8 byte
+        # (which can equal 0xe8/0xe9) for a CALL/JMP opcode.
+        if b in (0x88, 0x89, 0x8A, 0x8B, 0x8D) and i + 2 <= n:
             modrm = body[i + 1]
             mod = (modrm >> 6) & 0b11
             rm = modrm & 0b111
+            extra = modrm_extra_len(modrm, n - i - 2)
+            instr_len = 2 + extra
+            if i + instr_len > n:
+                # Truncated tail — fall through to single-byte advance.
+                i += 1
+                continue
             if mod == 0 and rm == 0b101:
+                # disp32 absolute m32 — reloc on the 4-byte displacement.
                 for j in range(i + 2, i + 6):
                     mask[j] = 1
-                i += 6
-                continue
+            i += instr_len
+            continue
         # C7 — MOV r/m32, imm32 ; with ModRM mod=00 r/m=101 covers
         # `MOV [moff32], imm32` (10-byte form). reloc at +2 (the m32
         # operand); the trailing imm32 may also be address-y.
