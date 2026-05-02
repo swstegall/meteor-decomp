@@ -297,7 +297,7 @@ surface we expect to recover for each:
   function with status=`unmatched` (or `matched` for auto-classified
   middleware).
 
-### Phase 2 — Toolchain pinning ▶ working toolchain; matching iteration ongoing
+### Phase 2 — Toolchain pinning ✅ COMPLETE 2026-05-01 (first GREEN)
 - ✅ `tools/find_rosetta.py` scans the binary for the best Rosetta
   Stone candidate. For ffxivgame.exe the top pick is
   `FUN_00b361b0` at RVA 0x007361b0 (86 bytes, 31 integer ops, no
@@ -331,26 +331,72 @@ surface we expect to recover for each:
   the function's RVA, and prints a side-by-side hex diff with
   GREEN/PARTIAL/MISMATCH verdict + first-mismatch offset.
   Exit codes 0/1/2 let Make and CI gate on match status.
-- ▶ **Matching iteration on `FUN_00b361b0` ongoing** —
-  three iterations done so far. Toolchain is confirmed
-  working (every iteration compiles cleanly to a valid 32-bit
-  COFF i386 object); the matching gap is in the C source's
-  ability to coax MSVC into the original's two-pointer
-  addressing pattern (`EAX = dest, EDX = dest + 0x10` both
-  advancing by 0x20 each iteration). Iteration history
-  preserved in the .cpp file's leading comment.
+- ✅ **Platform SDK 2003 R2 installed** —
+  `vstudio2005-workspace/install-psdk.sh` extracts
+  `PSDK-x86.msi` via `msiextract` (same Wine-bypass
+  technique as `install.sh`), unblocking Win32-touching
+  matches. `sdk/PSDK/Include/` + `sdk/PSDK/Lib/` populated.
+- ✅ **First GREEN match landed 2026-05-01** —
+  `FUN_004165b0` (28-byte int setter), the first byte-
+  identical recompilation. The full recipe (Ghidra-decompiler-
+  assist + 3 MSVC-2005 source-pattern tricks: element-wide
+  pointers, two-pointer w/ both deref, count > 0 vs != 0)
+  is in
+  `~/.claude/projects/-Users-swstegall-Documents-Programming-server-workspace/memory/reference_meteor_decomp_rosetta_match.md`.
+- ✅ **Matching at scale** — by 2026-05-02, **38,400 GREEN-
+  status functions in YAML across 5 binaries** + **65,595
+  `_rosetta/*.cpp` files** (1.86 % by YAML status, 3.61 % by
+  rosetta count). The jump came from the
+  template-derivation pipeline (Phase 2.5 below), not from
+  hand-writing one function at a time.
 - **Note on RTM vs SP1**: cl.exe `.42` is RTM, not SP1
   (`.762`). The FFXIV binary's linker version 8.0 is
-  consistent with both. If the iteration loop doesn't reach
-  GREEN under RTM, install SP1 separately and switch
-  `MSVC_TOOLCHAIN_DIR` to its `sdk/`.
-- **Exit criterion**: revised — Phase 2's exit is "the
-  matching iteration loop is fully wired up and produces
-  actionable diffs," not "the first Rosetta candidate is
-  green on first try." Achieving a byte-matched function
-  is now ongoing decomp work, not a Phase-2 blocker. Future
-  matching wins land as individual commits to the relevant
-  module's `.cpp` files.
+  consistent with both — RTM has been sufficient for
+  every match landed so far.
+- **Exit criterion**: ✅ met (working toolchain + first
+  byte-matched function). Future matching wins land as
+  individual commits to the relevant module's `.cpp` files
+  or via the template pipeline.
+
+### Phase 2.5 — Template-derivation pipeline ✅ live
+
+The single-function loop (write C++, compile, diff, iterate) takes
+~10–60 minutes per function. At 75k+ functions in `ffxivgame.exe`
+alone, that's the wrong rhythm. The **template-derivation pipeline**
+scales matching by an order of magnitude.
+
+The insight: most functions in a Win32 game binary are not unique.
+They are dozens of copies of the same compile-time pattern (getter /
+setter trampolines, scalar deleting destructors, vtable trampolines,
+SEH catch handlers, bool-nonzero predicates). If we can recover *one*
+C++ source for the cluster, we stamp every member GREEN at once.
+
+Pipeline stages (full detail in [`docs/decomp-status.md`](docs/decomp-status.md)):
+
+- `tools/cluster_shapes.py` — group by byte-shape modulo relocations.
+- `tools/cluster_relocs.py` — decode ModR/M / SIB at every reloc site
+  (full ALU + MOV/LEA + IMUL families).
+- `tools/recompute_sizes.py` — re-derive true function ends.
+- `tools/seed_templates.py --reloc` — per-cluster seed-and-stamp;
+  cross-binary multipliers fold ffxivboot / ffxivconfig copies in too.
+- `tools/derive_templates.py` — naked-asm `_emit` templates for
+  clusters that resist source matching (~75 patterns hand-written
+  covering D2/D3 destructors, SEH `Catch_All`, push-call wrappers,
+  chained-pointer getters, vtable trampolines, etc.).
+- `tools/stamp_clusters.py` — run a template against every cluster
+  member; stamp matches.
+- `tools/validate_clusters.py` — re-validate stamped templates
+  against the binary; catches regressions when toolchain changes.
+- `tools/update_yaml_status.py` — fold per-file results into YAML.
+- `tools/find_easy_wins.py` — auto-rank single-function matching
+  candidates (smallest unmatched function with the most cross-binary
+  copies, fewest relocations).
+
+Cumulative effect through 2026-05-02: from ~10 hand-matched functions
+to 38,400 GREEN-status functions in YAML across all 5 binaries. The
+single largest landings: 1,552-sibling stamped cluster (`780c628c3`)
+and the auto-template pass that emitted 10,577 GREEN templates in one
+go (`d9f64cf19`).
 
 ### Phase 3 — Net layer ▶ in progress (functional track; matching deferred)
 - ✅ Wire architecture documented at
@@ -633,33 +679,59 @@ surface we expect to recover for each:
   and re-derive matching codegen via `make rosetta`-style iteration.
   The functional source we ship now is the starting C, not the final.
 
-### Phase 4 — Pack / ChunkRead / ZiPatch (matching target) ▶ in progress
+### Phase 4 — Pack / ChunkRead / InstallUnpacker (matching target) ▶ active matching
 
-See [`docs/sqpack.md`](docs/sqpack.md) for the full reconnaissance
-write-up. Key correction: 1.x is **resource-id-addressed**, not
-string-path-hashed (the ARR-era Sqpack hash was added later for
-DQX/ARR). There is no `Sqpack::Hash` in 1.x — files live at
-`<game>/data/<b3>/<b2>/<b1>/<b0>.DAT` where `b3..b0` are the bytes
-of a 32-bit `resource_id`. The class hierarchy on the read side is
-`Sqex::Data::PackRead : Sqex::Data::ChunkRead<u32, u32>`.
+See [`docs/sqpack.md`](docs/sqpack.md) (file system) and
+[`docs/install-unpacker.md`](docs/install-unpacker.md) (consumer)
+for the full reconnaissance write-ups. Key correction: 1.x is
+**resource-id-addressed**, not string-path-hashed (the ARR-era
+Sqpack hash was added later for DQX/ARR). There is no `Sqpack::Hash`
+in 1.x — files live at `<game>/data/<b3>/<b2>/<b1>/<b0>.DAT` where
+`b3..b0` are the bytes of a 32-bit `resource_id`. The class
+hierarchy on the read side is
+`Sqex::Data::PackRead : Sqex::Data::ChunkRead<u32, u32>`. The only
+direct in-game consumer of `PackRead` is `Component::Install::
+InstallUnpacker::Unpack` (slot 2 of vtable RVA `0x00d0d53c`).
 
-Work pool (in dependency order):
+Status snapshot (2026-05-02) — the bytewise heat map for Phase 4:
 
-- ✅ **Reconnaissance complete** — anchor functions identified
-  (`PackRead::~PackRead` @ 0x008c6670 / 107 B, ctor @ 0x00942800 /
-  132 B, path-builder @ 0x0004b3a0 / 615 B), class hierarchy
-  recovered, struct layout sketched.
-- 🔲 **Match `PackRead::~PackRead`** — first concrete matching
-  target. Smallest unit (107 B, single-call cleanup, clean SEH
-  frame). Lands as `src/ffxivgame/sqpack/PackRead.cpp`.
-- 🔲 **Match the PackRead constructor** at 0x00942800.
-- 🔲 **Functional re-derive of the path builder** at 0x0004b3a0.
-  Verifiable by feeding known resource_ids and string-comparing
-  the output against a Python reference (single line of
-  `f"{(rid >> 24) & 0xFF:02X}/.../{(rid) & 0xFF:02X}.DAT"`).
-- 🔲 **Walk PackRead's non-virtual interface** via xref analysis
-  (vtables only have the destructor; the public methods aren't
-  exposed through RTTI).
+| Group | GREEN | PARTIAL | Source |
+|---|---:|---:|---|
+| Sqex::Data (PackRead / ChunkRead) | 3 (~155 B) | 3 (~485 B) | [`src/ffxivgame/sqpack/`](src/ffxivgame/sqpack/) |
+| Sqex::Misc::Utf8String | 2 (63 B) | 2 (~316 B) | [`src/ffxivgame/sqex/Utf8String.cpp`](src/ffxivgame/sqex/Utf8String.cpp) |
+| Sqex slab allocator | 0 | 2 (~327 B) | [`src/ffxivgame/sqex/Allocator.cpp`](src/ffxivgame/sqex/Allocator.cpp) |
+| Component::Install::InstallUnpacker | 3 (~317 B) | 1 (144 B) + 1 deferred (490 B) | [`src/ffxivgame/install/`](src/ffxivgame/install/) |
+| CRT helper sweep | 32+ (across 5 binaries) | — | [`src/ffxivgame/crt/`](src/ffxivgame/crt/) |
+
+Work pool (in dependency order — the rest):
+
+- ✅ **Reconnaissance complete** — anchor functions identified,
+  class hierarchy recovered, struct layout sketched.
+- ✅ **`PackRead::~PackRead` GREEN** (first Phase-4 match,
+  `26369ae5`) + `PackRead::ReadNext` GREEN + `PackRead::Rewind`
+  GREEN + `Utf8String::~Utf8String` GREEN + `Utf8String` default
+  ctor GREEN + `InstallUnpacker::WaitForReady` GREEN +
+  `ResourceQueue::TryEnqueue` GREEN + `ChunkSource::ReleaseChunk`
+  GREEN + `_invalid_parameter_noinfo` GREEN.
+- 🟡 **`PackRead` ctor PARTIAL** (130/132 B, 98 %).
+- 🟡 **`PackRead::ProcessChunk` PARTIAL** (180/177 B; buffer-guard
+  cookie blocker — `/GS` epilogue ordering sensitive to local layout).
+- 🟡 **`ChunkReadUInt::ReadNextChunkHeader` PARTIAL** (74/81 B, 91 %).
+- 🟡 **`Sqex slab Utf8StringAlloc/Free` PARTIAL** (222/225 + 104/105 B,
+  99 %; pending Ghidra-GUI on slab descriptor / mutex globals).
+- 🟡 **`Utf8String::Reserve` PARTIAL** (144/153 B, 94 %).
+- 🟡 **`ChunkSource::AcquireChunk` PARTIAL** (144/144 with 21 byte
+  mismatches — close to GREEN, just needs cookie / register-allocation
+  iteration).
+- 🟡 **`InstallUnpacker::Unpack` (FUN_00cc6700) Iteration #1 PARTIAL**
+  (428/490, 249 mismatches). The biggest remaining Phase-4 target.
+  Deferred pending parent-class layout recovery + helper signatures —
+  see [`docs/install-unpacker.md`](docs/install-unpacker.md) and
+  [`docs/ghidra-tasks.md`](docs/ghidra-tasks.md).
+- 🔲 **Functional re-derive of the path builder** at 0x0004b3a0
+  (615 B). Verifiable by feeding known resource_ids and
+  string-comparing the output against a Python reference (single
+  line of `f"{(rid >> 24) & 0xFF:02X}/.../{(rid) & 0xFF:02X}.DAT"`).
 - 🔲 **Decompression layer** — locate via zlib magic / `inflate`
   call sites.
 - 🔲 **ZiPatch unpacker** — separate target in `ffxivupdater.exe`,
@@ -667,7 +739,9 @@ Work pool (in dependency order):
 
 **Exit criterion**: `tools/sqpack-cat <resource_id>` opens the
 right DAT file and dumps the file bytes, with `PackRead::~PackRead`
-+ ctor + at least one read method byte-matched.
++ ctor + at least one read method byte-matched. (PackRead destructor
++ Rewind + ReadNext now GREEN; the missing piece is matching ctor
++ ProcessChunk.)
 
 ### Phase 5 — Actor + Battle (functional target)
 - Decompile Actor base class (vtable from RTTI), ActorParam tables.

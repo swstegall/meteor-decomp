@@ -12,19 +12,34 @@ architectural model of the network layer.
 
 ## Status — at a glance
 
-This is a hybrid effort: pure matching decomp (Phase 2, byte-identical
-recompilation) is gated on a complete VS 2005 SP1 toolchain procurement;
-in the meantime, the **functional/static-analysis track** (Phase 3) has
+This is a hybrid effort. The pure matching track (Phase 2 — byte-
+identical recompilation) is **operational** as of 2026-05-01 (first
+GREEN landed) and **scaling** via the template-derivation pipeline
+(Phase 2.5). The functional/static-analysis track (Phase 3) has
 already produced enough wire-level ground truth to validate
-`garlemald-server` (the Rust port) byte-for-byte against the binary in
-several subsystems.
+`garlemald-server` (the Rust port) byte-for-byte in several subsystems.
 
 | Area | Status | Output |
 |---|---|---|
 | **Phase 0 — bootstrap** | ✅ done | `make bootstrap`: PE structure dump |
-| **Phase 1 — Ghidra import + work pool** | ✅ done | 9,729 vtable slots / 576 net-relevant classes (`config/<bin>.*.json`, `asm/<bin>/*.s`) |
-| **Phase 2 — matching toolchain** | 🟡 partial | `cl.exe` runs under CrossOver Wine 9 on Apple Silicon (`make rosetta` produces real diffs); waiting on Platform SDK 2003 R2 + libcmt MUMSI variant for byte-identical matches. Rosetta candidate `FUN_00b361b0` staged. |
-| **Phase 3 — functional decomp** | 🟢 substantial — see below | `tools/extract_*.py`, `build/wire/*.md`, `include/net/*.h` |
+| **Phase 1 — Ghidra import + work pool** | ✅ done | 9,729 vtable slots / 576 net-relevant classes |
+| **Phase 2 — matching toolchain** | ✅ working | VS 2005 RTM + PSDK 2003 R2 under CrossOver Wine 9; first GREEN match landed 2026-05-01 |
+| **Phase 2.5 — template-derivation pipeline** | ✅ live | `cluster_shapes.py` + `cluster_relocs.py` + `derive_templates.py` + `seed_templates.py` + `stamp_clusters.py` |
+| **Phase 3 — functional / wire decomp** | 🟢 substantial — see below | `tools/extract_*.py`, `build/wire/*.md`, `include/net/*.h` |
+| **Phase 4 — Pack / ChunkRead / InstallUnpacker** | ▶ active matching | 11+ GREEN, 8 PARTIAL across `src/ffxivgame/{sqpack,sqex,install,crt}/` |
+
+### Headline numbers (2026-05-02)
+
+`make progress` summary:
+
+| Binary | YAML matched | `_rosetta/*.cpp` files |
+|---|---:|---:|
+| `ffxivgame.exe` | 23,106 / 210,648 B | 38,593 |
+| `ffxivboot.exe` | 14,330 / 125,304 B | 26,103 |
+| `ffxivlogin.exe` | 357 / 8,326 B | 281 |
+| `ffxivupdater.exe` | 431 / 5,975 B | 433 |
+| `ffxivconfig.exe` | 176 / 1,715 B | 185 |
+| **Total** | **38,400 / 351,968 B (1.86 %)** | **65,595 / 683,986 B (3.61 %)** |
 
 ### Phase 3 — what's been recovered
 
@@ -47,13 +62,16 @@ several subsystems.
 - **32-byte alignment quirk** (lobby slots 6/7 round length DOWN to multiples of 32): benign in practice. Trailing 0–31 bytes the client fails to decrypt always fall inside the over-provisioned trailing zero padding of fixed-capacity buffers (`MemoryStream(0x98)`, `vec![0u8; 0x280]`, etc.). Garlemald's 8-aligned `encipher` is correct as-written.
 - **BasePacketHeader layout**: 16 bytes, byte-for-byte aligned with garlemald's `common/src/packet.rs::BasePacketHeader`. The CPB::BuildHeader writes `[0]=0x14, [1]=0x00, [2..4]=connection_type, [8..12]=u32 timestamp` (Lobby/Zone) or `[8]=0x0A` (Chat hardcodes). Bytes 4..7 (packet_size + num_subpackets) and 12..15 are caller-populated.
 
-### Remaining Phase 3 work (open)
+### Remaining Phase 3 / 4 work (open, in priority order)
 
+- **Push `InstallUnpacker::Unpack` (FUN_00cc6700) GREEN** — biggest remaining Phase-4 target (490 B, 428/490 at Iteration #1). Needs four Ghidra-GUI deliverables (parent-class layout, helper signatures, alt-Utf8String identification, `WaitablePredicate::TryReady`); see [`docs/install-unpacker.md`](docs/install-unpacker.md) and [`docs/ghidra-tasks.md`](docs/ghidra-tasks.md).
+- **Push `ChunkSource::AcquireChunk` GREEN** — 144/144 with 21 byte mismatches; cookie / register-allocation iteration.
+- **Push `Utf8String::Reserve` + `Utf8StringAlloc/Free` GREEN** — pending Ghidra GUI on slab-allocator globals.
+- **Sweep more cluster patterns** in `derive_templates.py` — every new pattern unlocks 13–406 GREEN templates.
 - **CharacterListPacket byte-layout decompilation** — the abstract `LobbyProtoDownCallbackInterface` has only ONE concrete subclass in the binary: `LobbyProtoDownDummyCallback@LobbyClient` (RTTI confirmed), whose slot 5 (where opcode 0x0D would dispatch) is a `RET 0xc` no-op stub. The real chara-list deserializer is reachable but not anchorable through purely-static Python xref scans — likely lives behind indirect calls in the lobby state machine (`MyGameLoginCallback`-adjacent code). Two paths forward: GUI-Ghidra interactive xref walk, or capture-and-decrypt empirical observation. See [docs/decomp-status.md](docs/decomp-status.md).
 - **Apply 4 surfaced chara-make bugs** to garlemald-server (`build/wire/<bin>.chara_make_validation.md § Suggested patch`).
 - **Full Up-opcode enumeration** — current pass validates that all garlemald `OP_RX_*` constants appear as PUSH immediates in `.text`, but per-callsite arg propagation (the canonical mapping) is deferred pending Ghidra-driven analysis.
 - **`LobbyCryptEngine::vtable[6/7]` callsite trace** — would close out the alignment quirk by definitively showing what `len` arg is passed in retail.
-- **Phase 2 closure** — VS 2005 SP1 + Platform SDK 2003 R2 procurement (legal copy required); once installed, iterate `MSVC_FLAGS` until `objdiff` reports zero delta on `FUN_00b361b0`.
 
 ## Quickstart
 
@@ -99,30 +117,43 @@ After Phase 3 extractions:
   to `#include` from garlemald-server / garlemald-client to pin field
   offsets against the binary
 
-## Phase 2 — matching toolchain
+## Phase 2 — matching toolchain (operational)
 
-Phase 2 needs VS 2005 SP1 `cl.exe` (linker version 8.0 — see
-[`docs/compiler-detection.md`](docs/compiler-detection.md)). Microsoft
-no longer redistributes it; obtain from MSDN subscription, archive.org,
-or LEGO-Island-decomp's recipe (see
-[`docs/msvc-setup.md`](docs/msvc-setup.md)). Once installed:
+Toolchain installation handled by `vstudio2005-workspace/install.sh`
+(VS 2005 Express RTM via msitools, bypassing Wine's broken msiexec)
++ `install-psdk.sh` (Platform SDK 2003 R2). Detail in
+[`docs/msvc-setup.md`](docs/msvc-setup.md). Once installed:
 
 ```sh
 # 1. Configure (one-time):
-echo 'export MSVC_TOOLCHAIN_DIR="$HOME/sdk/msvc-2005-sp1"' \
+echo 'export MSVC_TOOLCHAIN_DIR="$HOME/sdk/msvc-2005"' \
     > ~/.config/meteor-decomp.env
 
 # 2. Verify:
-make setup-msvc                # all checks should pass
+make setup-msvc                # cl.exe + PSDK + objdiff reachable
 
-# 3. First match attempt:
+# 3. Match attempts:
 make rosetta                   # compiles src/ffxivgame/_rosetta/*.cpp,
                                # diffs against the binary slice
+make rosetta-bulk              # never-bails variant for stamped sweeps
 ```
 
-Iterate `MSVC_FLAGS` in `Makefile` until `objdiff` reports zero delta
-on the staged Rosetta function (currently `FUN_00b361b0` — 86 bytes,
-unrolled 32-byte block-copy loop, no calls or FP).
+The match-or-iterate loop is documented in
+[`docs/matching-workflow.md`](docs/matching-workflow.md). The recipe
+that landed the first GREEN match (`FUN_004165b0`) — Ghidra-decompiler-
+assist + 3 MSVC-2005 source-pattern tricks — is in
+[`reference_meteor_decomp_rosetta_match.md`](../../../.claude/projects/-Users-swstegall-Documents-Programming-server-workspace/memory/reference_meteor_decomp_rosetta_match.md).
+
+For batch matching, the **template-derivation pipeline** (Phase 2.5):
+
+```sh
+make cluster-shapes            # group functions by byte-shape mod relocs
+make stamp-clusters            # apply matching templates to all members
+make validate-clusters         # re-validate against the binary
+```
+
+See [`docs/decomp-status.md § Phase 2.5`](docs/decomp-status.md) for the
+full pipeline.
 
 ## Why "meteor-decomp"?
 
