@@ -1725,6 +1725,207 @@ def try_global_eq_arg_setcc_15b(body: bytes, va: int, n: int) -> tuple[str, str]
     return None
 
 
+def try_thiscall_vtable_slot_disp32_call_17b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 17B `8b 4c 24 04 8b 01 8b 90 NN NN NN NN ff d2 c2 04 00` —
+    #   MOV ECX, [ESP+4]    (load arg = pointer)
+    #   MOV EAX, [ECX]      (load arg's vtable)
+    #   MOV EDX, [EAX+disp32] (load vtable slot)
+    #   CALL EDX
+    #   RET 4
+    # Wrapper that forwards a single arg into a virtual call on it,
+    # via a vtable slot with disp32 (so slot ≥ 0x80/4 = slot 32+).
+    if (len(body) == 17 and body[0:4] == b"\x8b\x4c\x24\x04"
+            and body[4:6] == b"\x8b\x01"
+            and body[6:8] == b"\x8b\x90"
+            and body[12:14] == b"\xff\xd2"
+            and body[14:17] == b"\xc2\x04\x00"):
+        slot_off = int.from_bytes(body[8:12], "little", signed=False)
+        # MSVC will only emit the disp32 form when offset is > 127. If
+        # we tried with offset ≤ 127 it would emit the disp8 form (3
+        # bytes shorter). Bail to avoid mismatched encoding.
+        if slot_off <= 0x7f:
+            return None
+        src = (
+            _header(va, f"vtable-slot tail-call wrapper (slot disp32 = 0x{slot_off:x})",
+                    "8b 4c 24 04 8b 01 8b 90 NN NN NN NN ff d2 c2 04 00", n)
+            + "\nextern \"C\" __declspec(naked) void vtbl_slot_disp32_wrapper(void *) {\n"
+              "    __asm {\n"
+              "        mov ecx, [esp + 4]\n"
+              "        mov eax, [ecx]\n"
+            + f"        mov edx, [eax + 0x{slot_off:x}]\n"
+              "        call edx\n"
+              "        ret 4\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"vtbl-slot-disp32 call [+0x{slot_off:x}]")
+    return None
+
+
+def try_thiscall_advance_push_call_pop_ret_11b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 11B `83 c1 NN 51 e8 RR RR RR RR 59 c3` —
+    #   ADD ECX, disp8; PUSH ECX; CALL rel32; POP ECX; RET
+    # Wrapper that re-bases `this` to `this+disp8` and passes that as
+    # the first cdecl arg. POP ECX cleans the pushed arg (1-arg cdecl).
+    if (len(body) == 11 and body[0:2] == b"\x83\xc1"
+            and body[3] == 0x51 and body[4] == 0xe8
+            and body[9:11] == b"\x59\xc3"):
+        disp = body[2]
+        if disp == 0:
+            return None
+        src = (
+            _header(va, f"thiscall→cdecl (this + 0x{disp:x}) wrapper (ADD ECX,N; PUSH; CALL; POP; RET)",
+                    f"83 c1 {disp:02x} 51 e8 RR RR RR RR 59 c3", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void thiscall_advance_call() {\n"
+              "    __asm {\n"
+            + f"        add ecx, {disp}\n"
+              "        push ecx\n"
+              "        call target\n"
+              "        pop ecx\n"
+              "        ret\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"thiscall-advance+call+pop-ret [+0x{disp:x}]")
+    return None
+
+
+def try_thiscall_set_field0_ret_self_11b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 11B `8b c1 8b 4c 24 04 89 08 c2 04 00` —
+    #   MOV EAX, ECX        (return *this in EAX — copy preserved across
+    #                        the field load below since we use [ESP+4])
+    #   MOV ECX, [ESP+4]    (load arg)
+    #   MOV [EAX], ECX      (store at this+0)
+    #   RET 4
+    # `__thiscall` setter that writes its arg to `*this` (offset 0) and
+    # returns `this`. Common in fluent-builder / pImpl assignment paths.
+    if body == bytes.fromhex("8bc1 8b4c2404 8908 c20400".replace(" ", "")):
+        src = (
+            _header(va, "thiscall set-field0 returning *this",
+                    "8b c1 8b 4c 24 04 89 08 c2 04 00", n)
+            + "\nclass C { public: C *set_field0(void *p); };\n\n"
+              "C *C::set_field0(void *p) {\n"
+              "    *(void **)this = p;\n"
+              "    return this;\n"
+              "}\n"
+        )
+        return (src, "thiscall set-field0 ret-self")
+    return None
+
+
+def try_unwind_2arg_field_local_call_20b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 20B `8b 45 AA 8b 48 BB 51 8b 55 CC 52 e8 RR RR RR RR 83 c4 08 c3`
+    #   MOV EAX, [EBP+arg1_disp8]      (load arg-on-frame)
+    #   MOV ECX, [EAX+field_disp8]     (deref to struct field)
+    #   PUSH ECX
+    #   MOV EDX, [EBP+local_disp8]     (load second arg from frame)
+    #   PUSH EDX
+    #   CALL rel32
+    #   ADD ESP, 8
+    #   RET
+    # Two-arg cdecl wrapper that loads one arg from a struct field
+    # (one indirection through an EBP-local pointer), the other
+    # directly from the EBP frame.
+    if not (len(body) == 20
+            and body[0:2] == b"\x8b\x45"
+            and body[3:5] == b"\x8b\x48"
+            and body[6] == 0x51
+            and body[7:9] == b"\x8b\x55"
+            and body[10] == 0x52
+            and body[11] == 0xe8
+            and body[16:20] == b"\x83\xc4\x08\xc3"):
+        return None
+    arg1_u = body[2]
+    field_u = body[5]
+    local_u = body[9]
+    arg1_s = arg1_u - 256 if arg1_u >= 0x80 else arg1_u
+    field_s = field_u - 256 if field_u >= 0x80 else field_u
+    local_s = local_u - 256 if local_u >= 0x80 else local_u
+    a1_sign, a1_mag = ("-" if arg1_s < 0 else "+", abs(arg1_s))
+    fl_sign, fl_mag = ("-" if field_s < 0 else "+", abs(field_s))
+    lc_sign, lc_mag = ("-" if local_s < 0 else "+", abs(local_s))
+    src = (
+        _header(va, f"2-arg call: deref [EBP{a1_sign}0x{a1_mag:x}]+0x{fl_mag:x} + [EBP{lc_sign}0x{lc_mag:x}]",
+                f"8b 45 {arg1_u:02x} 8b 48 {field_u:02x} 51 8b 55 {local_u:02x} 52 e8 RR RR RR RR 83 c4 08 c3", n)
+        + "\nextern \"C\" int target();\n\n"
+          "extern \"C\" __declspec(naked) void wrapper_2arg_field_local() {\n"
+          "    __asm {\n"
+        + f"        mov eax, [ebp {a1_sign} {a1_mag}]\n"
+          f"        mov ecx, [eax {fl_sign} {fl_mag}]\n"
+          "        push ecx\n"
+        + f"        mov edx, [ebp {lc_sign} {lc_mag}]\n"
+          "        push edx\n"
+          "        call target\n"
+          "        add esp, 8\n"
+          "        ret\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, f"2arg field+local call [EBP{a1_sign}0x{a1_mag:x}+0x{fl_mag:x}, EBP{lc_sign}0x{lc_mag:x}]")
+
+
+def try_seh_push_ecx_local_call_9b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 9B `8b 4d NN 51 e8 RR RR RR RR` —
+    #   MOV ECX, [EBP+disp8]; PUSH ECX; CALL rel32 (no RET — unwinder
+    #   handles return). Sister of try_push_load_call (which uses
+    #   PUSH EAX); this variant pushes ECX after loading it.
+    if (len(body) == 9 and body[0:2] == b"\x8b\x4d"
+            and body[3] == 0x51 and body[4] == 0xe8):
+        disp_u = body[2]
+        disp_s = disp_u - 256 if disp_u >= 0x80 else disp_u
+        sign = "-" if disp_s < 0 else "+"
+        mag = abs(disp_s)
+        src = (
+            _header(va, f"unwind helper (MOV ECX, [EBP{sign}0x{mag:x}]; PUSH ECX; CALL)",
+                    f"8b 4d {disp_u:02x} 51 e8 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+              "extern \"C\" __declspec(naked) void seh_push_ecx_local() {\n"
+              "    __asm {\n"
+            + f"        mov ecx, [ebp {sign} {mag}]\n"
+              "        push ecx\n"
+              "        call target\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"seh-push-ecx [EBP{sign}{mag}]")
+    return None
+
+
+def try_push_imm_call_addret_14b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 14B `68 II II II II e8 RR RR RR RR 83 c0 NN c3` —
+    #   PUSH imm32           (push a constant — typically a string or
+    #                         global pointer; the imm32 IS a relocation
+    #                         in cluster-reloc view)
+    #   CALL rel32
+    #   ADD EAX, imm8
+    #   RET
+    # Common "call X then offset the returned pointer" pattern, e.g.
+    # when X returns a struct and the wrapper exposes a pointer to a
+    # specific field.
+    if (len(body) == 14 and body[0] == 0x68 and body[5] == 0xe8
+            and body[10:12] == b"\x83\xc0" and body[13] == 0xc3):
+        adj = body[12]
+        if adj == 0:
+            return None
+        src = (
+            _header(va, f"push-imm32 + call + ADD EAX,0x{adj:x} + ret",
+                    f"68 II II II II e8 RR RR RR RR 83 c0 {adj:02x} c3", n)
+            + "\nextern \"C\" int target(int);\n"
+              "extern \"C\" int the_imm;\n\n"
+              "extern \"C\" __declspec(naked) void wrapper_push_call_addret() {\n"
+              "    __asm {\n"
+              "        push offset the_imm\n"
+              "        call target\n"
+            + f"        add eax, {adj}\n"
+              "        ret\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"push-imm32+call+add 0x{adj:x}+ret")
+    return None
+
+
 def try_2arg_passthrough_wrapper_21b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 21B `__stdcall` 2-arg passthrough wrapper:
     #   8b 44 24 08              MOV EAX, [ESP+8]    (arg2)
@@ -1774,6 +1975,12 @@ DERIVERS[_late_idx:_late_idx] = [
     try_push_ebp_arg1_call_pop_ret_10b,
     try_push_esp_arg1_call_pop_ret4_14b,
     try_global_eq_arg_setcc_15b,
+    try_thiscall_vtable_slot_disp32_call_17b,
+    try_thiscall_advance_push_call_pop_ret_11b,
+    try_thiscall_set_field0_ret_self_11b,
+    try_unwind_2arg_field_local_call_20b,
+    try_seh_push_ecx_local_call_9b,
+    try_push_imm_call_addret_14b,
 ]
 
 
