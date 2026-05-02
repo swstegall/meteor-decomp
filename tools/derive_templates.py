@@ -2614,6 +2614,188 @@ def try_arg_addimm8_passthrough_10b(body: bytes, va: int, n: int) -> tuple[str, 
     return None
 
 
+def try_int_getter_disp32_7b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 7B `8b 81 NN NN NN NN c3` — MOV EAX, [ECX+disp32]; RET.
+    # Int field getter at offset > 0x7f. (The 4B `8b 41 NN c3` form
+    # for disp8 is already covered by try_int_getter.)
+    if (len(body) == 7 and body[0:2] == b"\x8b\x81"
+            and body[6] == 0xc3):
+        offset = int.from_bytes(body[2:6], "little", signed=False)
+        if offset <= 0x7f:
+            return None
+        if offset % 4 != 0:
+            return None
+        pad = _padding_for_offset(offset, "int")
+        src = (
+            _header(va, f"int field getter at offset 0x{offset:x} (disp32)",
+                    f"8b 81 NN NN NN NN c3  (offset=0x{offset:x})", n)
+            + f"\nclass C {{\n"
+            + (f"    {pad}\n" if pad else "")
+            + f"    int field;\npublic:\n    int get_field();\n}};\n\n"
+              f"int C::get_field() {{ return field; }}\n"
+        )
+        return (src, f"int getter disp32 @ 0x{offset:x}")
+    return None
+
+
+def try_thiscall_vtable_tailjmp_edx_7b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 7B `8b 01 8b 50 NN ff e2` —
+    #   MOV EAX, [ECX]      (vtable)
+    #   MOV EDX, [EAX+slot]
+    #   JMP EDX             (tail-call slot)
+    # Direct vtable tail-call (no member re-base). Most common form
+    # in the binary — every "this->virtual_method()" tail-call.
+    if (len(body) == 7 and body[0:4] == b"\x8b\x01\x8b\x50"
+            and body[5:7] == b"\xff\xe2"):
+        slot = body[4]
+        if slot == 0:
+            return None
+        src = (
+            _header(va, f"vtable tail-jmp via EDX (slot 0x{slot:x})",
+                    f"8b 01 8b 50 {slot:02x} ff e2", n)
+            + "\nextern \"C\" __declspec(naked) void vtable_tailjmp_edx() {\n"
+              "    __asm {\n"
+              "        mov eax, [ecx]\n"
+            + f"        mov edx, [eax + 0x{slot:x}]\n"
+              "        jmp edx\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"vtable tailjmp EDX [+0x{slot:x}]")
+    return None
+
+
+def try_thiscall_vtable_tailjmp_eax_7b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 7B `8b 01 8b 40 NN ff e0` — MOV EAX,[ECX]; MOV EAX,[EAX+slot];
+    # JMP EAX. Same as try_thiscall_vtable_tailjmp_edx_7b but reuses
+    # EAX for both vtable-load and slot-load (saves register pressure).
+    if (len(body) == 7 and body[0:4] == b"\x8b\x01\x8b\x40"
+            and body[5:7] == b"\xff\xe0"):
+        slot = body[4]
+        if slot == 0:
+            return None
+        src = (
+            _header(va, f"vtable tail-jmp via EAX (slot 0x{slot:x})",
+                    f"8b 01 8b 40 {slot:02x} ff e0", n)
+            + "\nextern \"C\" __declspec(naked) void vtable_tailjmp_eax() {\n"
+              "    __asm {\n"
+              "        mov eax, [ecx]\n"
+            + f"        mov eax, [eax + 0x{slot:x}]\n"
+              "        jmp eax\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"vtable tailjmp EAX [+0x{slot:x}]")
+    return None
+
+
+def try_clear_self_field0_ret_self_9b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 9B `8b c1 c7 00 00 00 00 00 c3` —
+    #   MOV EAX, ECX                  (preserve this for return)
+    #   MOV DWORD PTR [ECX], 0
+    #   RET
+    # Sets `*this` to 0 (zero-init for whatever data lives there) and
+    # returns `this`. Common in fluent-builder reset() methods.
+    if body == bytes.fromhex("8bc1c70000000000c3"):
+        src = (
+            _header(va, "thiscall: *this = 0; return this",
+                    "8b c1 c7 00 00 00 00 00 c3", n)
+            + "\nclass C { public: C *clear(); };\n\n"
+              "C *C::clear() {\n"
+              "    *(int *)this = 0;\n"
+              "    return this;\n"
+              "}\n"
+        )
+        return (src, "clear *this ret-self")
+    return None
+
+
+def try_return_one_float_3b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 3B `d9 e8 c3` — FLD1; RET. Returns 1.0f via the FPU stack.
+    if body == b"\xd9\xe8\xc3":
+        src = (
+            _header(va, "return 1.0f (FLD1)", "d9 e8 c3", n)
+            + "\nclass C { public: float one(); };\n\n"
+              "float C::one() { return 1.0f; }\n"
+        )
+        return (src, "return 1.0f")
+    return None
+
+
+def try_return_zero_float_3b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 3B `d9 ee c3` — FLDZ; RET. Returns 0.0f via the FPU stack.
+    if body == b"\xd9\xee\xc3":
+        src = (
+            _header(va, "return 0.0f (FLDZ)", "d9 ee c3", n)
+            + "\nclass C { public: float zero(); };\n\n"
+              "float C::zero() { return 0.0f; }\n"
+        )
+        return (src, "return 0.0f")
+    return None
+
+
+def try_field_gt_zero_predicate_8b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 8B `83 79 NN 00 0f 9f c0 c3` —
+    #   CMP DWORD PTR [ECX+disp8], 0
+    #   SETG AL
+    #   RET
+    # `bool C::field_positive() { return field > 0; }`. SETG = signed
+    # greater. AL high bits not cleared but typical MSVC output.
+    if (len(body) == 8 and body[0:2] == b"\x83\x79"
+            and body[3] == 0x00
+            and body[4:7] == b"\x0f\x9f\xc0"
+            and body[7] == 0xc3):
+        offset = body[2]
+        if offset == 0:
+            return None
+        # Naked asm so we get the compact `83 79 NN 00` form (4B CMP
+        # against imm). The C source `return field > 0` would emit
+        # the 5B `33 c0 39 41 NN` form (XOR + register CMP), which is
+        # 9B total — distinct cluster.
+        src = (
+            _header(va, f"predicate: field@0x{offset:x} > 0 (CMP-imm form)",
+                    f"83 79 {offset:02x} 00 0f 9f c0 c3", n)
+            + "\nextern \"C\" __declspec(naked) unsigned char field_gt_zero() {\n"
+              "    __asm {\n"
+            + f"        cmp dword ptr [ecx + 0x{offset:x}], 0\n"
+              "        setg al\n"
+              "        ret\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"predicate field@0x{offset:x} > 0")
+    return None
+
+
+def try_call_with_imm8_arg_pop_ret_9b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 9B `6a NN e8 RR RR RR RR 59 c3` —
+    #   PUSH imm8 (sign-ext); CALL rel32; POP ECX; RET
+    # 1-arg cdecl wrapper that hard-codes a small literal arg. NN
+    # is sign-extended to 32 bits by PUSH imm8.
+    if (len(body) == 9 and body[0] == 0x6a
+            and body[2] == 0xe8 and body[7:9] == b"\x59\xc3"):
+        imm = body[1]
+        # Don't bother with imm=0 — that'd typically use PUSH 0
+        # (`6a 00`) inside larger SEH patterns, and we want this for
+        # genuine 1-arg literal calls.
+        imm_signed = imm - 256 if imm >= 0x80 else imm
+        src = (
+            _header(va, f"call(imm8={imm_signed}) — PUSH imm8; CALL; POP ECX; RET",
+                    f"6a {imm:02x} e8 RR RR RR RR 59 c3", n)
+            + "\nextern \"C\" int target(int);\n\n"
+              "extern \"C\" __declspec(naked) void wrapper_imm8_call() {\n"
+              "    __asm {\n"
+            + f"        push {imm_signed}\n"
+              "        call target\n"
+              "        pop ecx\n"
+              "        ret\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"call+imm8={imm_signed}+pop+ret")
+    return None
+
+
 def try_2arg_passthrough_wrapper_21b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 21B `__stdcall` 2-arg passthrough wrapper:
     #   8b 44 24 08              MOV EAX, [ESP+8]    (arg2)
@@ -2693,6 +2875,14 @@ DERIVERS[_late_idx:_late_idx] = [
     try_thiscall_member_vtable_tailjmp_eax_10b,
     try_int_setter_disp0_9b,
     try_arg_addimm8_passthrough_10b,
+    try_int_getter_disp32_7b,
+    try_thiscall_vtable_tailjmp_edx_7b,
+    try_thiscall_vtable_tailjmp_eax_7b,
+    try_clear_self_field0_ret_self_9b,
+    try_return_one_float_3b,
+    try_return_zero_float_3b,
+    try_field_gt_zero_predicate_8b,
+    try_call_with_imm8_arg_pop_ret_9b,
 ]
 
 
