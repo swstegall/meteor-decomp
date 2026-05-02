@@ -1119,6 +1119,51 @@ def _chained_ptr_naked(body: bytes, va: int, n: int, outer: int, inner: int) -> 
     return (src, f"chained ptr (naked) @ {outer_sign}0x{outer_mag:x}/{inner_sign}0x{inner_mag:x}")
 
 
+def try_no_reloc_emit_fallback(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    """Universal fallback for clusters with NO reloc bytes — just emit
+    every byte via `_emit`. Only fires when no specific deriver above
+    matched, so it's the catch-all for shapes with constant bytes
+    (constant stores, register shuffles, fixed sequences).
+
+    Constraint: the body must NOT contain any opcode that *would* require
+    a reloc (CALL/JMP/PUSH-imm32/MOV-moff32/etc.). Those need actual
+    inline-asm forms; pure _emit can't produce a reloc. We approximate
+    "no relocs needed" by reusing the cluster_relocs reloc_mask logic —
+    if the mask is all zeros, all the bytes are constants and we can
+    safely emit them raw.
+
+    Caps body length at 80 bytes to avoid generating huge unreadable
+    templates; bigger no-reloc clusters can still get a specific deriver.
+    """
+    if len(body) > 80:
+        return None
+    # Late import to avoid circular at module load.
+    try:
+        from cluster_relocs import reloc_mask_for_body  # type: ignore
+    except ImportError:
+        sys.path.insert(0, str(REPO_ROOT / "tools"))
+        from cluster_relocs import reloc_mask_for_body  # type: ignore
+    mask = reloc_mask_for_body(body)
+    if any(mask):
+        return None
+    # Last sanity: function must end with RET (c2/c3) or a clean tail
+    # (e.g. ff e2 register-indirect JMP), otherwise it likely has a
+    # reloc-bearing terminator we missed.
+    if body[-1] not in (0xc3, 0xc2) and body[-2:] not in (b"\xff\xe2", b"\xff\xe0", b"\xff\xe1", b"\xff\xe3"):
+        return None
+    emit_lines = "\n".join(f"        _emit 0x{b:02x}" for b in body)
+    src = (
+        _header(va, f"no-reloc cluster member ({len(body)}B raw _emit)",
+                " ".join(f"{b:02x}" for b in body), n)
+        + f"\nextern \"C\" __declspec(naked) void no_reloc_member() {{\n"
+          f"    __asm {{\n"
+          f"{emit_lines}\n"
+          f"    }}\n"
+          f"}}\n"
+    )
+    return (src, f"no-reloc emit {len(body)}B")
+
+
 # Order matters: most specific first.
 DERIVERS = [
     try_empty_void,
@@ -1153,6 +1198,7 @@ DERIVERS = [
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_jmp_thunk,
+    try_no_reloc_emit_fallback,  # last-resort catch-all (no relocs only)
 ]
 
 
