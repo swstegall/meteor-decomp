@@ -2446,6 +2446,174 @@ def try_push_arg_push_imm32_call_addsp8_ret_19b(body: bytes, va: int, n: int) ->
     return None
 
 
+def try_int_getter_disp0_3b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 3B `8b 01 c3` — MOV EAX, [ECX]; RET. Int getter at offset 0.
+    if body == b"\x8b\x01\xc3":
+        src = (
+            _header(va, "int field getter at offset 0", "8b 01 c3", n)
+            + "\nclass C { int field; public: int get_field(); };\n\n"
+              "int C::get_field() { return field; }\n"
+        )
+        return (src, "int getter @ 0")
+    return None
+
+
+def try_byte_getter_al_disp8_4b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 4B `8a 41 NN c3` — MOV AL, [ECX+disp8]; RET.
+    # Byte field getter that returns AL directly (not zero/sign-ext).
+    # The C++ source `unsigned char C::get()` produces this when the
+    # caller doesn't widen — typically when the return value is
+    # immediately stored to another byte location.
+    if len(body) == 4 and body[0:2] == b"\x8a\x41" and body[3] == 0xc3:
+        offset = body[2]
+        if offset == 0:
+            return None
+        pad = _padding_for_offset(offset, "char")
+        src = (
+            _header(va, f"byte field getter (AL) at offset 0x{offset:x}",
+                    f"8a 41 {offset:02x} c3", n)
+            + f"\nclass C {{\n"
+            + (f"    {pad}\n" if pad else "")
+            + f"    unsigned char field;\npublic:\n    unsigned char get();\n}};\n\n"
+              f"unsigned char C::get() {{ return field; }}\n"
+        )
+        return (src, f"byte AL getter @ 0x{offset:x}")
+    return None
+
+
+def try_float_getter_fld_disp8_4b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 4B `d9 41 NN c3` — FLD DWORD PTR [ECX+disp8]; RET.
+    # Float field getter. Caller pulls return value off the FPU stack.
+    if len(body) == 4 and body[0:2] == b"\xd9\x41" and body[3] == 0xc3:
+        offset = body[2]
+        if offset == 0:
+            return None
+        if offset % 4 != 0:
+            return None
+        pad = _padding_for_offset(offset, "int")
+        src = (
+            _header(va, f"float field getter at offset 0x{offset:x}",
+                    f"d9 41 {offset:02x} c3", n)
+            + f"\nclass C {{\n"
+            + (f"    {pad}\n" if pad else "")
+            + f"    float field;\npublic:\n    float get();\n}};\n\n"
+              f"float C::get() {{ return field; }}\n"
+        )
+        return (src, f"float getter @ 0x{offset:x}")
+    return None
+
+
+def try_return_minus_one_int_4b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 4B `83 c8 ff c3` — OR EAX, 0xffffffff; RET. (= return -1)
+    # MSVC encodes `return -1;` this way (3 bytes for OR EAX,imm8 with
+    # sign-extension) instead of `MOV EAX, -1` (5 bytes for the imm32
+    # form). Saves 2 bytes.
+    if body == b"\x83\xc8\xff\xc3":
+        src = (
+            _header(va, "return -1 (int) — encoded as OR EAX, 0xff (sign-ext)",
+                    "83 c8 ff c3", n)
+            + "\nclass C { public: int neg_one(); };\n\n"
+              "int C::neg_one() { return -1; }\n"
+        )
+        return (src, "return -1 (int)")
+    return None
+
+
+def try_thiscall_member_vtable_tailjmp_edx_10b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 10B `8b 49 04 8b 01 8b 50 NN ff e2` —
+    #   MOV ECX, [ECX+4]   (re-base this to a member at +4)
+    #   MOV EAX, [ECX]     (load member's vtable)
+    #   MOV EDX, [EAX+slot]
+    #   JMP EDX            (tail-call vtable slot)
+    # this->m_member->virtual_method() forwarder.
+    if (len(body) == 10 and body[0:5] == b"\x8b\x49\x04\x8b\x01"
+            and body[5:7] == b"\x8b\x50"
+            and body[8:10] == b"\xff\xe2"):
+        slot = body[7]
+        if slot == 0:
+            return None
+        src = (
+            _header(va, f"member-vtable tail-jmp via EDX (slot 0x{slot:x})",
+                    f"8b 49 04 8b 01 8b 50 {slot:02x} ff e2", n)
+            + "\nextern \"C\" __declspec(naked) void member_vtable_tailjmp_edx() {\n"
+              "    __asm {\n"
+              "        mov ecx, [ecx + 4]\n"
+              "        mov eax, [ecx]\n"
+            + f"        mov edx, [eax + 0x{slot:x}]\n"
+              "        jmp edx\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"member-vtable tailjmp EDX [+0x{slot:x}]")
+    return None
+
+
+def try_thiscall_member_vtable_tailjmp_eax_10b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 10B `8b 49 04 8b 01 8b 40 NN ff e0` —
+    #   MOV ECX, [ECX+4]
+    #   MOV EAX, [ECX]
+    #   MOV EAX, [EAX+slot]
+    #   JMP EAX           (tail-call via reused EAX)
+    # MSVC sometimes reuses EAX as the slot-loaded address rather
+    # than EDX — saves one register but otherwise equivalent.
+    if (len(body) == 10 and body[0:5] == b"\x8b\x49\x04\x8b\x01"
+            and body[5:7] == b"\x8b\x40"
+            and body[8:10] == b"\xff\xe0"):
+        slot = body[7]
+        if slot == 0:
+            return None
+        src = (
+            _header(va, f"member-vtable tail-jmp via EAX (slot 0x{slot:x})",
+                    f"8b 49 04 8b 01 8b 40 {slot:02x} ff e0", n)
+            + "\nextern \"C\" __declspec(naked) void member_vtable_tailjmp_eax() {\n"
+              "    __asm {\n"
+              "        mov ecx, [ecx + 4]\n"
+              "        mov eax, [ecx]\n"
+            + f"        mov eax, [eax + 0x{slot:x}]\n"
+              "        jmp eax\n"
+              "    }\n"
+              "}\n"
+        )
+        return (src, f"member-vtable tailjmp EAX [+0x{slot:x}]")
+    return None
+
+
+def try_int_setter_disp0_9b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 9B `8b 44 24 04 89 01 c2 04 00` —
+    #   MOV EAX, [ESP+4]; MOV [ECX], EAX; RET 4. int setter at offset 0.
+    if body == b"\x8b\x44\x24\x04\x89\x01\xc2\x04\x00":
+        src = (
+            _header(va, "int field setter at offset 0",
+                    "8b 44 24 04 89 01 c2 04 00", n)
+            + "\nclass C { int field; public: void set_field(int); };\n\n"
+              "void C::set_field(int v) { field = v; }\n"
+        )
+        return (src, "int setter @ 0")
+    return None
+
+
+def try_arg_addimm8_passthrough_10b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 10B `8b 44 24 04 83 c0 NN c2 04 00` —
+    #   MOV EAX, [ESP+4]; ADD EAX, imm8 (sign-ext); RET 4
+    # `int wrap(int x) { return x + N; }` — common arg-adjusting
+    # passthrough. NN = 0x01 → +1, 0xff → -1.
+    if (len(body) == 10 and body[0:4] == b"\x8b\x44\x24\x04"
+            and body[4:6] == b"\x83\xc0"
+            and body[7:10] == b"\xc2\x04\x00"):
+        adj_u = body[6]
+        adj_s = adj_u - 256 if adj_u >= 0x80 else adj_u
+        sign = "-" if adj_s < 0 else "+"
+        mag = abs(adj_s)
+        src = (
+            _header(va, f"arg adjustment passthrough (return arg {sign} 0x{mag:x})",
+                    f"8b 44 24 04 83 c0 {adj_u:02x} c2 04 00", n)
+            + "\nclass C { public: int adjust(int); };\n\n"
+            + f"int C::adjust(int v) {{ return v {sign} {mag}; }}\n"
+        )
+        return (src, f"arg adjust {sign}{mag}")
+    return None
+
+
 def try_2arg_passthrough_wrapper_21b(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 21B `__stdcall` 2-arg passthrough wrapper:
     #   8b 44 24 08              MOV EAX, [ESP+8]    (arg2)
@@ -2517,6 +2685,14 @@ DERIVERS[_late_idx:_late_idx] = [
     try_sso_accessor_20b,
     try_push_imm_indirect_call_ret_12b,
     try_push_arg_push_imm32_call_addsp8_ret_19b,
+    try_int_getter_disp0_3b,
+    try_byte_getter_al_disp8_4b,
+    try_float_getter_fld_disp8_4b,
+    try_return_minus_one_int_4b,
+    try_thiscall_member_vtable_tailjmp_edx_10b,
+    try_thiscall_member_vtable_tailjmp_eax_10b,
+    try_int_setter_disp0_9b,
+    try_arg_addimm8_passthrough_10b,
 ]
 
 
