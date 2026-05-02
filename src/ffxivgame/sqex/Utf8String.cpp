@@ -151,7 +151,9 @@ extern "C" void Utf8StringFree(void *data, int capacity, int flag);
 // External cdecl helper at RVA 0x0004d500 — counterpart for
 // allocation. Args: (alloc_class=0xb, zero_fill=0, size). Returns
 // pointer to new buffer.
-extern "C" void *Utf8StringAlloc(int alloc_class, int zero_fill, unsigned size);
+// Utf8StringAlloc actually only reads its first arg (size); the other
+// two are caller-side cdecl extras that the callee ignores.
+extern "C" void *Utf8StringAlloc(unsigned size, int /*unused*/, int /*unused*/);
 
 // FUNCTION: ffxivgame 0x00046f50 — Sqex::Misc::Utf8String::~Utf8String (24 B)
 //
@@ -284,7 +286,12 @@ void Utf8String::Reserve(unsigned size, int small_ok) {
     char *old_data = m_data;
     size = (size + 0x1f) & ~0x1fu;          // round up to 32-byte alignment
     int was_heap = (m_flag_11 == 0);
-    char *new_data = (char *)Utf8StringAlloc(0xb, 0, size);
+    // Note: Utf8StringAlloc only reads its first arg (size). The other
+    // two are caller-side leftovers — orig still pushes them as cdecl
+    // expects 3, but the order is (size, 0, 0xb) NOT the inverse. This
+    // matters for matching because cdecl pushes right-to-left, so the
+    // PUSH order is "0xb, 0, size" in the asm.
+    char *new_data = (char *)Utf8StringAlloc(size, 0, 0xb);
     if (old_data) {
         memcpy(new_data, old_data, saved_size);
         if (was_heap) {
