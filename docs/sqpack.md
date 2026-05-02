@@ -105,6 +105,29 @@ class PackRead : public ChunkRead_uint_uint {
 };
 ```
 
+## PackRead's complete external API surface
+
+Mapped by an xref-scan + per-caller analysis pass on 2026-05-02. The
+class has a surprisingly small consumer footprint for an FFXIV 1.x
+file-system reader:
+
+| Consumer | Calls into | Role |
+|---|---|---|
+| `FUN_00cc66e0` (30 B) | PackRead::~PackRead | Vtable slot 0 — the canonical MSVC scalar deleting destructor (D2). Auto-matched GREEN by the deriver's `try_scalar_deleting_dtor_30b` pattern. |
+| `FUN_00cc6700` (490 B) | PackRead::PackRead, ReadNext, ~PackRead | The only direct consumer in `ffxivgame.exe`. Stack-allocates a PackRead at `[ESP+0x1c]`, constructs it from a buffer slice, drives `ReadNext` in a chunk-iteration loop, destructs at end of scope. Not yet matched (490 B with multi-chunk SEH frame). |
+
+Earlier xref-scan hits at `0x00d31xxx..0x00d33xxx` turned out to be
+`Sqex::Input::RepeatCounter` users (a different class whose code
+lives interleaved in the same `.text` range due to MSVC COMDAT
+ordering). The reliable filter for "PackRead consumer" is
+**xref-to-PackRead-vtable** (only 2 sites — the ctor + dtor) plus
+**xref-to-PackRead's-known-methods** (Rewind / ReadNext / ProcessChunk
+/ destructor).
+
+The conclusion: PackRead's API surface is now fully accounted for in
+this binary — anyone needing to read 1.x pack data goes through
+either the D2 vtable slot or the FUN_00cc6700 wrapper.
+
 ## Phase 4 work pool
 
 In dependency order — start with the smallest verifiable unit:
