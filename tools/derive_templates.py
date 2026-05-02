@@ -425,6 +425,115 @@ def try_unwind_lea_ebp_jmp(body: bytes, va: int, n: int) -> tuple[str, str] | No
     return None
 
 
+def try_unwind_lea_ebp_disp32_jmp(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 8d 8d NN NN NN NN e9 RR RR RR RR (11 bytes)
+    # LEA ECX, [EBP+disp32]; JMP rel32 — disp32 form, used when the
+    # frame offset is outside int8 range.
+    if len(body) == 11 and body[0:2] == b"\x8d\x8d" and body[6] == 0xe9:
+        disp_u = int.from_bytes(body[2:6], "little", signed=False)
+        disp_s = int.from_bytes(body[2:6], "little", signed=True)
+        sign = "-" if disp_s < 0 else "+"
+        mag = abs(disp_s)
+        src = (
+            _header(va, f"SEH unwind helper (LEA ECX, [EBP{sign}0x{mag:x}]; JMP) — disp32",
+                    f"8d 8d {disp_u:08x} e9 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+            + "extern \"C\" __declspec(naked) void unwind_thunk() {\n"
+            + "    __asm {\n"
+            + f"        lea ecx, [ebp {sign} {mag}]\n"
+            + "        jmp target\n"
+            + "    }\n"
+            + "}\n"
+        )
+        return (src, f"unwind LEA ECX,[EBP{sign}{mag}] disp32")
+    return None
+
+
+def try_unwind_mov_ebp_disp32_jmp(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 8b 8d NN NN NN NN e9 RR RR RR RR (11 bytes)
+    # MOV ECX, [EBP+disp32]; JMP rel32 — disp32 form.
+    if len(body) == 11 and body[0:2] == b"\x8b\x8d" and body[6] == 0xe9:
+        disp_u = int.from_bytes(body[2:6], "little", signed=False)
+        disp_s = int.from_bytes(body[2:6], "little", signed=True)
+        sign = "-" if disp_s < 0 else "+"
+        mag = abs(disp_s)
+        src = (
+            _header(va, f"SEH unwind helper (MOV ECX, [EBP{sign}0x{mag:x}]; JMP) — disp32",
+                    f"8b 8d {disp_u:08x} e9 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+            + "extern \"C\" __declspec(naked) void unwind_thunk() {\n"
+            + "    __asm {\n"
+            + f"        mov ecx, [ebp {sign} {mag}]\n"
+            + "        jmp target\n"
+            + "    }\n"
+            + "}\n"
+        )
+        return (src, f"unwind MOV ECX,[EBP{sign}{mag}] disp32")
+    return None
+
+
+def try_clear_flag_in_global(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # a1 GG GG GG GG 83 e0 MM a3 GG GG GG GG c3   (14 bytes)
+    # MOV EAX, [global]; AND EAX, imm8 (sign-extended); MOV [global], EAX; RET
+    # Same global address loaded and stored — clears bits in a global flag.
+    if (len(body) == 14 and body[0] == 0xa1 and body[5:7] == b"\x83\xe0"
+            and body[8] == 0xa3 and body[13] == 0xc3):
+        global_load = int.from_bytes(body[1:5], "little")
+        global_store = int.from_bytes(body[9:13], "little")
+        if global_load != global_store:
+            return None
+        mask = body[7]
+        # The 0x83 e0 encoding takes a *signed* int8 immediate that
+        # sign-extends to 32 bits. We must express the C++ source value
+        # the same way, otherwise MSVC's inline assembler picks the
+        # 32-bit imm encoding (`25 imm32`) which is 16 bytes total —
+        # we want 14. Use the signed decimal form so the assembler
+        # recognises it as a signed byte.
+        mask_signed = mask - 256 if mask >= 0x80 else mask
+        src = (
+            _header(va, f"global flag clear (AND imm8 0x{mask:x} = {mask_signed})",
+                    f"a1 GG GG GG GG 83 e0 {mask:02x} a3 GG GG GG GG c3", n)
+            + "\nextern \"C\" int the_global;\n\n"
+            + "extern \"C\" __declspec(naked) void clear_flag() {\n"
+            + "    __asm {\n"
+            + "        mov eax, dword ptr [the_global]\n"
+            + f"        and eax, {mask_signed}\n"
+            + "        mov dword ptr [the_global], eax\n"
+            + "        ret\n"
+            + "    }\n"
+            + "}\n"
+        )
+        return (src, f"global AND-clear 0x{mask:x}")
+    return None
+
+
+def try_push_load_call(body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 8b 45 NN 50 e8 RR RR RR RR (9 bytes)
+    # MOV EAX, [EBP+disp8]; PUSH EAX; CALL rel32
+    # Common SEH unwind helper — push a stack-saved object pointer and
+    # call its destructor / cleanup function. Falls through (no RET) so
+    # caller's RET drives control flow.
+    if len(body) == 9 and body[0:2] == b"\x8b\x45" and body[3] == 0x50 and body[4] == 0xe8:
+        disp_u = body[2]
+        disp_s = disp_u - 256 if disp_u >= 0x80 else disp_u
+        sign = "-" if disp_s < 0 else "+"
+        mag = abs(disp_s)
+        src = (
+            _header(va, f"unwind helper (MOV EAX, [EBP{sign}0x{mag:x}]; PUSH EAX; CALL)",
+                    f"8b 45 {disp_u:02x} 50 e8 RR RR RR RR", n)
+            + "\nextern \"C\" int target();\n\n"
+            + "extern \"C\" __declspec(naked) void push_call_helper() {\n"
+            + "    __asm {\n"
+            + f"        mov eax, [ebp {sign} {mag}]\n"
+            + "        push eax\n"
+            + "        call target\n"
+            + "    }\n"
+            + "}\n"
+        )
+        return (src, f"push-call EBP{sign}{mag}")
+    return None
+
+
 def try_unwind_mov_ebp_add_jmp(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 8b 4d NN 83 c1 MM e9 RR RR RR RR (11 bytes)
     # MOV ECX, [EBP+disp8]; ADD ECX, imm8; JMP rel32
@@ -555,7 +664,11 @@ DERIVERS = [
     try_adjustor_thunk_sub_imm32,
     try_unwind_mov_ebp_jmp,
     try_unwind_lea_ebp_jmp,
+    try_unwind_lea_ebp_disp32_jmp,
+    try_unwind_mov_ebp_disp32_jmp,
     try_unwind_mov_ebp_add_jmp,
+    try_clear_flag_in_global,
+    try_push_load_call,
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_jmp_thunk,
