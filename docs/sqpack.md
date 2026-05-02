@@ -1,6 +1,6 @@
 # Phase 4 — Pack / ChunkRead / ZiPatch architecture
 
-> Last updated: 2026-05-02 — initial reconnaissance.
+> Last updated: 2026-05-02 — active matching, multiple GREEN.
 
 This document captures what's been recovered about the FFXIV 1.x file
 system from `ffxivgame.exe` and `ffxivupdater.exe`, and steers the
@@ -128,37 +128,52 @@ The conclusion: PackRead's API surface is now fully accounted for in
 this binary — anyone needing to read 1.x pack data goes through
 either the D2 vtable slot or the FUN_00cc6700 wrapper.
 
-## Phase 4 work pool
+## Phase 4 work pool — current state
 
-In dependency order — start with the smallest verifiable unit:
+Status as of 2026-05-02. See
+[`decomp-status.md § Phase 4`](decomp-status.md) for the consolidated
+status snapshot and [`install-unpacker.md`](install-unpacker.md) for
+the consumer-side write-up.
 
-1. **`PackRead::~PackRead` @ 0x008c6670** — 107 B, single-call to free,
-   clean SEH frame. Matching target. (Confirmed no string-path hash
-   needed for verification; correctness is "produces identical 107
-   bytes" diff.) Goal: first byte-matched function in `src/ffxivgame/sqpack/`.
+### Sqex::Data layer
 
-2. **`PackRead` constructor @ 0x00942800** — 132 B, sets the vtable and
-   initialises the heap buffer. Pairs with the destructor for a complete
-   ctor/dtor unit.
+| Function | RVA | Size | Status | File |
+|---|---|---:|---|---|
+| `PackRead::~PackRead` | `0x008c6670` | 110 B | ✅ GREEN | [`src/ffxivgame/sqpack/PackRead.cpp`](../src/ffxivgame/sqpack/PackRead.cpp) |
+| `PackRead::PackRead` (ctor) | `0x00942800` | 132 B | 🟡 130/132 PARTIAL | same |
+| `PackRead::ReadNext` | (tiny) | 27 B | ✅ GREEN | same |
+| `PackRead::Rewind` | (tiny) | 18 B | ✅ GREEN | same |
+| `PackRead::ProcessChunk` | (mid) | 177 B | 🟡 180/177 PARTIAL | [`src/ffxivgame/_partial/`](../src/ffxivgame/_partial/) — buffer-guard cookie blocker |
+| `ChunkReadUInt::ReadNextChunkHeader` | (mid) | 81 B | 🟡 74/81 PARTIAL | [`src/ffxivgame/sqpack/ChunkRead.cpp`](../src/ffxivgame/sqpack/ChunkRead.cpp) |
 
-3. **The path builder @ 0x0004b3a0** — 615 B. Functional target (too
-   big for a comfortable first match). Re-derive into clean C++, verify
-   by feeding known resource_ids and string-comparing the output.
+PackRead's vtable D2 dtor (slot 0, RVA `0x00cbea90`, 30 B) is matched
+GREEN by the deriver's `try_scalar_deleting_dtor_30b` template (auto-
+stamped via Phase 2.5 cluster pipeline).
 
-4. **PackRead's read API** — the non-virtual read methods aren't yet
-   identified. Walk xrefs to the PackRead constructor's call sites and
-   look for `MOV ECX, <packread*>; CALL <method>` patterns to enumerate
-   the public interface.
+### Remaining work
 
-5. **ChunkRead<u32,u32> base methods** — same approach via vtable RVA
-   0xb931c8.
-
-6. **Decompression layer** — locate by xref to standard zlib magic
-   (`78 9c` / `78 da`) or zlib symbol names if any survive in `.rdata`.
-
-7. **ZiPatch unpacker** — lives in `ffxivupdater.exe`. Block types from
-   the wiki: FHDR, APLY, APFS, ETRY, ADIR, DELD. Tackle separately
-   under `src/ffxivupdater/sqpack/` after the game-side reader works.
+- 🟡 **Push the PackRead ctor (130/132) to GREEN** — two-byte off in
+  cookie/SEH frame setup; same shape as the destructor. Likely needs
+  Ghidra GUI to confirm exact `__security_cookie` ordering against the
+  2-byte trailing INT3 padding the linker inserted between functions.
+- 🟡 **Push `ProcessChunk` (180/177) to GREEN** — the
+  `__security_check_cookie` epilogue is sensitive to local layout;
+  needs a one-byte buffer reordering or a `/GS`-trigger local rearrange.
+- 🟡 **Push `ReadNextChunkHeader` (74/81) to GREEN** — 91 % match;
+  inner-loop register allocation differs by one MOV.
+- 🔲 **Functional re-derive of the path builder @ `0x0004b3a0`** —
+  615 B. Verifiable by feeding known resource_ids and string-comparing
+  the output against a Python reference (single line of
+  `f"{(rid >> 24) & 0xFF:02X}/.../{(rid) & 0xFF:02X}.DAT"`).
+- 🔲 **Walk PackRead's full non-virtual interface** — confirmed
+  consumer surface is the FUN_00cc6700 (InstallUnpacker::Unpack) +
+  FUN_00cc66e0 (D2 trampoline) pair. ChunkRead<u32,u32> base methods
+  may have additional callers — xref-walk vtable RVA `0xb931c8`.
+- 🔲 **Decompression layer** — locate by xref to standard zlib magic
+  (`78 9c` / `78 da`) or zlib symbol names if any survive in `.rdata`.
+- 🔲 **ZiPatch unpacker** — lives in `ffxivupdater.exe`. Block types
+  from the wiki: FHDR, APLY, APFS, ETRY, ADIR, DELD. Tackle separately
+  under `src/ffxivupdater/sqpack/` after the game-side reader works.
 
 ## Exit criterion (revised)
 

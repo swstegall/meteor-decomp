@@ -2,11 +2,31 @@
 
 A running record of what's been recovered from `ffxivgame.exe`, what's
 been validated against `garlemald-server` (the Rust port), and where
-the open questions are. Last update: 2026-05-01.
+the open questions are. Last update: 2026-05-02.
 
 For the strategic plan and exit criteria, see [PLAN.md](../PLAN.md).
 For per-subsystem detail, see the auto-generated reports under
 `build/wire/<binary>.*.md` (regenerable via `make`).
+
+## Headline numbers (2026-05-02)
+
+`make progress` summary across all five binaries:
+
+| Binary | YAML matched (count / bytes) | _rosetta/*.cpp files | Notes |
+|---|---|---|---|
+| `ffxivgame.exe` | 23,106 / 210,648 B | 38,593 | Primary target |
+| `ffxivboot.exe` | 14,330 / 125,304 B | 26,103 | Cross-binary template multiplier |
+| `ffxivlogin.exe` | 357 / 8,326 B | 281 | |
+| `ffxivupdater.exe` | 431 / 5,975 B | 433 | ZiPatch home |
+| `ffxivconfig.exe` | 176 / 1,715 B | 185 | |
+| **Overall** | **38,400 / 351,968 B (1.86 %)** | **65,595 files / 683,986 B (3.61 %)** | |
+
+The jump from "single-digit functions matched" to "tens of thousands"
+came from the **template-derivation pipeline** (§ Phase 2.5 below)
+landed across late April and early May: rather than match one function
+at a time, cluster shape-equivalent functions, derive a
+relocation-aware template per cluster, and stamp every cluster member
+GREEN in one pass.
 
 ## Phase 0 — bootstrap (✅)
 
@@ -48,35 +68,127 @@ Notable named classes recovered:
 - `Sqex::Socket::RUDP2`, `RUDPSocket`, `PollerWinsock`, `PollerImpl`
   — RUDP2 transport stack.
 
-## Phase 2 — matching toolchain (🟡 partial)
+## Phase 2 — matching toolchain (✅ working)
 
 The goal is byte-identical recompilation: take the binary's matched
 function, hand-write equivalent C++, compile with the original
-toolchain, and confirm `objdiff` reports zero delta. This proves the
-hand-written C++ is semantically and bit-exactly the source.
+toolchain, and confirm `compare.py`/`objdiff` reports zero delta. This
+proves the hand-written C++ is semantically and bit-exactly the source.
 
 What works today:
-- **Detection**: `tools/setup-msvc.sh` confirms the toolchain layout
-  is VS 2005 SP1 (linker 8.0, `cl.exe` version banner matches).
-- **CrossOver Wine 9 on Apple Silicon**: `tools/cl-wine.sh` runs
-  `cl.exe` under wow64 mode (no `WINEARCH=win32`) with the
-  `DYLD_FALLBACK_LIBRARY_PATH` shim that the workspace's install env
-  needs. `make rosetta` produces real byte-level diffs.
-- **Rosetta candidate staged**: `FUN_00b361b0` — 86 bytes, an
-  unrolled 32-byte block-copy loop with no calls and no FP. Picked
-  by `find_rosetta.py` as easiest-first.
+- **VS 2005 Express RTM operational** under CrossOver Wine 9 on Apple
+  Silicon. `vstudio2005-workspace/install.sh` extracts cl.exe / link.exe
+  / c1.dll / c1xx.dll / c2.dll / mspdb80.dll + headers + libs from the
+  official VS2005EE ISO via msitools (bypassing Wine's broken msiexec).
+  `cl.exe Version 14.00.50727.42 for 80x86`. `make setup-msvc` passes.
+- **Platform SDK 2003 R2** also installed via
+  `vstudio2005-workspace/install-psdk.sh` — `PSDK-x86.msi` extracted
+  via msiextract (same Wine-bypass technique), giving us the full PSDK
+  tree (`sdk/PSDK/Include/` + `sdk/PSDK/Lib/`). This unblocked
+  Win32-touching matches; previously they failed at link time.
+- **`tools/cl-wine.sh`**: runs cl.exe under wow64 mode (no
+  `WINEARCH=win32`) with the `DYLD_FALLBACK_LIBRARY_PATH` shim and
+  reads `MSVC_TOOLCHAIN_DIR` from `~/.config/meteor-decomp.env`.
+- **`tools/compare.py`**: relocation-aware byte-level diff. Reads the
+  `.text` section from the staged `.obj`, slices the corresponding RVA
+  range from `orig/<bin>.exe`, and prints GREEN/PARTIAL/MISMATCH +
+  per-byte diff with first-mismatch offset. Exit codes 0/1/2 gate Make
+  / CI on match status.
+- **First GREEN match**: `FUN_004165b0` (28-byte int setter) landed
+  2026-05-01 — see [`reference_meteor_decomp_rosetta_match.md`](../../../.claude/projects/-Users-swstegall-Documents-Programming-server-workspace/memory/reference_meteor_decomp_rosetta_match.md)
+  for the recipe (Ghidra-decompiler-assist + 3 MSVC-2005 source-pattern
+  tricks: element-wide pointers, two-pointer w/ both deref, count > 0
+  vs != 0).
 
-What's blocked:
-- Iterating `MSVC_FLAGS` to drive the Rosetta delta to zero needs
-  the **Platform SDK 2003 R2** (libcmt MUMSI variant headers and
-  the SE-style preprocessor flags). VS 2005 SP1 alone produces
-  diffs that are close but not identical. Procurement of a legal
-  copy is pending.
+The original blocker ("waiting on Platform SDK") is now resolved — both
+toolchains are installed and matches are landing. **Phase 2's exit
+criterion is met**; matching is now ongoing decomp work, not a
+toolchain blocker.
 
-When Phase 2 unblocks, the strategy in `PLAN.md` is to use the
-matched Rosetta as a calibrated `MSVC_FLAGS` reference, then expand
-to functional `.cpp` files in `src/ffxivgame/net/` (incremental
-porting of named classes).
+## Phase 2.5 — template-derivation pipeline (✅ scaling matching)
+
+The single-function matching loop (write C++, compile, diff, iterate)
+takes ~10–60 minutes per function. At 75k+ functions in `ffxivgame.exe`
+alone, that's not the right rhythm. The **template-derivation
+pipeline** scales matching by an order of magnitude.
+
+The insight: most functions in a Win32 game binary are not unique. They
+are dozens of copies of the same compile-time pattern — getter/setter
+trampolines, scalar deleting destructors, vtable trampolines, SEH catch
+handlers, bool-nonzero predicates, etc. — instantiated once per type by
+MSVC. If we can recover *one* C++ source for the cluster, we can stamp
+every member GREEN simultaneously.
+
+Pipeline stages:
+
+1. **`tools/cluster_shapes.py`** — group functions by *byte-shape modulo
+   relocations*: replace each rel32/rel8 with a placeholder, then bucket
+   by the resulting fingerprint. Output: clusters of "structurally
+   identical" functions across all five binaries.
+2. **`tools/cluster_relocs.py`** — within each cluster, decode the
+   ModR/M / SIB at every relocation site so the template knows what
+   kind of operand each placeholder represents (a function pointer, a
+   global address, a stack offset, etc.). Handles the full ALU
+   `0x80/0x81/0x83`, `0x88/0x89/0x8a/0x8b/0x8d` (MOV/LEA),
+   `0xc0/0xc1/0xc6/0xc7/0xd0..0xd3/0xfe/0xff` (rotates / immediate
+   stores / arithmetic), and `0x69/0x6b` (IMUL imm) opcode families
+   with proper length decoding.
+3. **`tools/recompute_sizes.py`** — Ghidra sometimes drops mid-function
+   bytes (epilogue mis-detection, single-byte INT3 padding); this pass
+   walks the binary and re-derives true function ends, accepting
+   "next-function-starts" as the boundary signal.
+4. **`tools/seed_templates.py --reloc`** — for each cluster, pick the
+   smallest member as the seed, generate a `.cpp` that compiles to the
+   same shape, and verify the seed matches. If GREEN, stamp every
+   cluster sibling.
+5. **`tools/derive_templates.py`** — when the seed approach can't
+   generate a working `.cpp` (some MSVC idioms don't have a clean
+   C-source equivalent), drop down to a **naked-asm template**: emit
+   `_emit` byte sequences with `__asm` blocks and patch the relocation
+   slots from a per-instance manifest. ~75 patterns hand-written so
+   far covering scalar deleting destructors (D2), array deleting
+   destructors (D3), SEH `Catch_All` handlers, push-call wrappers,
+   chained-pointer getters, vtable trampolines, MOV/LEA disp32,
+   constant-byte clusters, etc.
+6. **`tools/stamp_clusters.py`** — runs the matching template against
+   every member of a cluster, validating each individually with
+   `compare.py`. Members that match are stamped GREEN in
+   `_rosetta/<rva>.cpp`.
+7. **`tools/validate_clusters.py`** — a separate pass that re-validates
+   already-stamped templates against the binary; catches regressions
+   when the toolchain or pipeline changes.
+8. **`tools/update_yaml_status.py`** — folds per-file validate results
+   back into the YAML work pool (`status: matched`).
+9. **`tools/find_easy_wins.py`** — scans the work pool for high-value
+   single-function matching candidates not yet covered by a template
+   (smallest unmatched function with the most cross-binary copies,
+   fewest relocations, etc.).
+10. **`tools/verify_asm_vs_orig.py`** + **`verify_by_symbol.py`** —
+    universal ASM-vs-orig sanity check; catches mid-function Ghidra
+    drops that would otherwise let a bogus template "match" against
+    truncated bytes.
+
+Cumulative effect (commit history through 2026-05-02): going from ~10
+hand-matched functions to **38,400 GREEN-status functions in YAML
+across 5 binaries** + **65,595 durable `_rosetta/*.cpp` files**. The
+single largest individual landings were the 1,552-sibling stamped
+cluster (`780c628c3`) and the auto-template pass that emitted 10,577
+GREEN templates in one go (`d9f64cf19`).
+
+## Phase 2 / 2.5 — open work
+
+- **Sweep more cluster patterns** — every new `derive_templates.py`
+  pattern unlocks a new family of trivial functions (the per-pattern
+  yields range from 13 to 406 GREEN templates each). Look at unmatched
+  clusters of size ≥ 10 that share a structural fingerprint and write
+  the matching template.
+- **Cross-binary multipliers** — when a template matches in
+  `ffxivgame.exe` it usually multiplies into the small binaries too
+  (`seed_templates.py --reloc` has been delivering ~700 ffxivboot +
+  3 ffxivconfig per pass). Re-run after every fresh template.
+- **Tighten epilogue detection** — `recompute_sizes.py` still has edge
+  cases where a function's true end gets misidentified; auditing
+  remaining mismatches in stamped clusters is the way in.
 
 ## Phase 3 — functional decomp (🟢 substantial)
 
@@ -401,36 +513,206 @@ and the lobby uses a different dispatch mechanism.
 
 Either approach resolves the 5 schema flags definitively.
 
+## Phase 4 — Pack / ChunkRead / InstallUnpacker (▶ active matching)
+
+Phase 4 targets the file-system + installer subsystems. Detailed
+architecture in [`sqpack.md`](sqpack.md) and
+[`install-unpacker.md`](install-unpacker.md). Headline finding from
+reconnaissance: 1.x is **resource-id-addressed**, not string-path-hashed
+— the `Sqpack::Hash` family that ships with ARR/DQX does not exist in
+1.x. Files live at `<game>/data/<b3>/<b2>/<b1>/<b0>.DAT` keyed by a
+32-bit `resource_id`.
+
+### 4.1 — Sqex::Data class hierarchy (✅ recovered)
+
+```
+Sqex::Data::ChunkRead<unsigned int, unsigned int>      (vtable RVA 0xb931c8)
+└── Sqex::Data::PackRead                                (vtable RVA 0xd0dd40)
+
+Sqex::Data::ChunkWrite<unsigned int, unsigned int>     (vtable, 1 slot)
+└── Sqex::Data::PackWrite                               (vtable RVA 0xd1311c)
+
+(parallel byte-sized chunk variants)
+Sqex::Data::ChunkRead<unsigned char, unsigned short>   (1 slot)
+Sqex::Data::ChunkWrite<unsigned char, unsigned short>  (1 slot)
+```
+
+Vtables expose only the destructor; every other method is non-virtual
+and must be enumerated by xref-walking the constructor / destructor
+sites. The `<u8,u16>` instantiations are parallel — likely texture
+streams or audio with smaller chunk-id and chunk-size widths.
+
+### 4.2 — Sqex::Data matches (4 GREEN, 2 PARTIAL)
+
+Source under [`src/ffxivgame/sqpack/`](../src/ffxivgame/sqpack/) and
+[`src/ffxivgame/_partial/`](../src/ffxivgame/_partial/).
+
+| Function | RVA | Size | Status | Notes |
+|---|---|---:|---|---|
+| `PackRead::~PackRead` | `0x008c6670` | 110 B | ✅ GREEN | First Phase-4 GREEN — sets vtable, frees `[this+0x74]`, hands to `ChunkRead<u32,u32>::~ChunkRead` |
+| `PackRead::PackRead` (ctor) | `0x00942800` | 132 B | 🟡 130/132 PARTIAL | Two iterations; sets vtable + initialises heap buffer. Same shape as dtor; off-by-2 bytes in cookie/SEH frame setup |
+| `PackRead::ReadNext` | (tiny stub) | 27 B | ✅ GREEN | Trivial loop driver |
+| `PackRead::Rewind` | (tiny stub) | 18 B | ✅ GREEN | |
+| `PackRead::ProcessChunk` | (mid) | 177 B | 🟡 180/177 PARTIAL | Buffer-guard cookie blocker — the function uses `/GS` cookie + `__security_check_cookie` whose epilogue ordering is sensitive to exact local layout |
+| `ChunkReadUInt::ReadNextChunkHeader` | (mid) | 81 B | 🟡 74/81 PARTIAL | Header-parsing inner loop |
+
+### 4.3 — Sqex::Misc::Utf8String (2 GREEN, 3 PARTIAL)
+
+Recovered the layout (vtable + size + capacity + heap pointer). Source
+under [`src/ffxivgame/sqex/Utf8String.cpp`](../src/ffxivgame/sqex/Utf8String.cpp).
+
+| Function | Size | Status | Notes |
+|---|---:|---|---|
+| `Utf8String::Utf8String` (default ctor) | 39 B | ✅ GREEN | |
+| `Utf8String::~Utf8String` | 24 B | ✅ GREEN | |
+| `Sqex::Misc::Utf8String::Utf8String` (alt ctor) | 116 B | 🟡 109/116 PARTIAL | Layout recovered |
+| `Utf8String::Reserve` | 153 B | 🟡 144/153 PARTIAL | 94 % match; pending Ghidra-GUI globals identification |
+
+### 4.4 — Sqex slab allocator pair (2 PARTIAL)
+
+`Utf8String` delegates allocation to two cdecl helpers
+(`Utf8StringAlloc` / `Utf8StringFree`) that index global slab tables
+at `0x01266dc0` (slab descriptors), `0x0132cec8` (free-list buckets),
+`0x0132cf1c` (mutex array). Source under
+[`src/ffxivgame/sqex/Allocator.cpp`](../src/ffxivgame/sqex/Allocator.cpp).
+See [`ghidra-tasks.md`](ghidra-tasks.md) for the open Ghidra-GUI tasks
+to recover the missing slab-descriptor / mutex struct names.
+
+| Function | RVA | Size | Status |
+|---|---|---:|---|
+| `Utf8StringAlloc` | `0x0004d500` | 225 B | 🟡 222/225 PARTIAL |
+| `Utf8StringFree`  | `0x0004d350` | 105 B | 🟡 104/105 PARTIAL |
+
+### 4.5 — Component::Install::InstallUnpacker (3 GREEN, 2 PARTIAL, 1 deferred)
+
+`InstallUnpacker` is a `Sqex::Thread::Thread` subclass with a
+secondary `InstallWriter` base at `+0x38`. Slot 2 of its primary
+vtable (RVA `0x00d0d53c`) is the `Run` override — a 490-byte
+producer-consumer chunk-extraction loop. The class is the only
+direct consumer of `PackRead` in `ffxivgame.exe`. Detailed structural
+decode in [`install-unpacker.md`](install-unpacker.md).
+
+Source under [`src/ffxivgame/install/`](../src/ffxivgame/install/).
+
+| Function | RVA | Size | Status | Notes |
+|---|---|---:|---|---|
+| `InstallUnpacker::WaitForReady` | (tiny) | 71 B | ✅ GREEN | Spin loop using `InterlockedExchangeAdd` |
+| `ResourceQueue::TryEnqueue` | — | 122 B | ✅ GREEN | |
+| `ChunkSource::ReleaseChunk` | — | 124 B | ✅ GREEN | |
+| `ChunkSource::AcquireChunk` | — | 144 B | 🟡 144/144 PARTIAL | 21 byte mismatches, structurally aligned — a few iterations away from GREEN |
+| `InstallUnpacker::Unpack` (slot 2) | `0x008c6700` | 490 B | 🟡 428/490 (Iteration #1) | 249 mismatches; deferred pending parent-class layout recovery + helper signatures (see "Next blocker" below) |
+
+All six kernel32 IAT entries the unpacker uses have been resolved
+via Ghidra GUI: `InterlockedExchange`, `InterlockedCompareExchange`,
+`InterlockedExchangeAdd`, `Sleep`, `InterlockedIncrement`,
+`SwitchToThread`. See [`ghidra-tasks.md § Status snapshot`](ghidra-tasks.md).
+
+### 4.6 — CRT helper sweep (32+ GREEN with cross-binary multipliers)
+
+Source under [`src/ffxivgame/crt/`](../src/ffxivgame/crt/) — covers the
+small functions MSVC's CRT statically links into every binary. Each
+match cross-multiplies into the four other binaries (same MSVC build,
+same library). Pattern: write the C source for one CRT helper, stamp
+every cross-binary copy GREEN.
+
+Files matched: `Strncmp`, `Strcmp`, `Strlen`, `Memset`, `Fopen`,
+`Atol`, `Alloca`, `EHProlog` (`__EH_prolog3_catch_GS`), `Exit`,
+`InitTerm`, `InvalidParameter` (`_invalid_parameter_noinfo`), `Unwind`.
+Cumulative landings (per commit history):
+- `e7181509` — 12 GREEN initial sweep (357 B)
+- `5a7121a9` — `fopen` + 25 cross-binary multipliers
+- `6a642ebb` — `__EH_prolog3_catch_GS` + `memset` (4 GREEN, 7 with multipliers)
+- `5b55ef56` — `strcmp` + `strlen` (10 GREEN with multipliers)
+- `ede50a9` — `strncmp` (4 GREEN)
+
+### 4.7 — Next blocker — `InstallUnpacker::Unpack` (FUN_00cc6700)
+
+The 490-byte slot-2 method is the highest-value remaining Phase 4
+target. To match it we need (in priority order):
+
+1. **Parent class layout** beyond the inferred fields — especially
+   what's at `m_field_40 + 0x60` and `m_field_40 + 0x2140` (atomic-
+   counter accesses suggest a nested counter struct).
+2. **Helper function signatures** for `FUN_00cc5db0` (268 B chunk-
+   source acquire), `FUN_00cc5e40` (124 B release), `FUN_00cc6510`
+   (343 B), and `FUN_00cc6620` (71 B wait-for-ready spin).
+3. **The "alt" Utf8String ctor at `0x00445cf0`** — distinct from
+   `Sqex::Misc::Utf8String::Utf8String @ 0x00047260`, likely a
+   different overload or a Sqwt-namespace string class.
+4. **`FUN_008edbf0`** (122 B `WaitablePredicate::TryReady`) — now
+   writable since `InterlockedIncrement` IAT entry is resolved.
+
+Each of these is a separate Ghidra GUI task. See
+[`ghidra-tasks.md`](ghidra-tasks.md) for the list.
+
 ## Open work (backlog)
 
 In rough priority order:
 
-1. Resolve `CharacterListPacket::Deserialize` (above) — closes the
-   chara-list bugs.
-2. Apply the 4 surfaced `chara_make_validation` patches to
+1. **Push `InstallUnpacker::Unpack` GREEN** — biggest remaining
+   Phase-4 win. Needs the four Ghidra-GUI deliverables above.
+2. **Push `ChunkSource::AcquireChunk` GREEN** — 144/144 with 21 byte
+   mismatches; structurally aligned, just needs cookie-frame /
+   register-allocation iteration.
+3. **Push `Utf8String::Reserve` + `Utf8StringAlloc/Free` GREEN** —
+   pending Ghidra GUI on the slab-allocator globals
+   (see [`ghidra-tasks.md`](ghidra-tasks.md)).
+4. **Sweep more cluster patterns** in `derive_templates.py` — every
+   pattern unlocks 13–406 more GREEN templates.
+5. Resolve `CharacterListPacket::Deserialize` (open question above) —
+   closes the chara-list bugs.
+6. Apply the 4 surfaced `chara_make_validation` patches to
    `garlemald-server::parse_new_char_request`.
-3. **Phase 2 closure** — procure VS 2005 SP1 + Platform SDK 2003 R2
-   (legal copy required); iterate `MSVC_FLAGS` until `objdiff`
-   reports zero delta on `FUN_00b361b0`.
-4. Full Up-opcode enumeration (per-callsite arg propagation through
+7. Full Up-opcode enumeration (per-callsite arg propagation through
    CPB ctor's arg0).
-5. `LobbyCryptEngine::vtable[6/7]` callsite trace — would
+8. `LobbyCryptEngine::vtable[6/7]` callsite trace — would
    definitively show what `len` arg is passed in retail traffic
    (currently inferred as benign via the worked example argument).
-6. Decompile `*ProtoChannel::Recv`/`Send` paths into C++ headers
+9. Decompile `*ProtoChannel::Recv`/`Send` paths into C++ headers
    under `include/net/` for the remaining fields not yet captured
    in `lobby_proto_channel.h`.
 
 ## Toolbox
 
+### Phase 0/1 — bootstrap + static analysis
 | Tool | Role |
 |---|---|
 | `tools/extract_pe.py` | PE structure dump (Phase 0) |
+| `tools/symlink_orig.sh` | Populate `orig/` from the workspace install |
 | `tools/import_to_ghidra.py` | Ghidra import + analysis (Phase 1) |
 | `tools/build_split_yaml.py` | Work-pool emission (Phase 1) |
+| `tools/regenerate_overridden_asm.py` | Re-dump asm for size-overridden functions |
+
+### Phase 2 — single-function matching
+| Tool | Role |
+|---|---|
+| `tools/cl-wine.sh` | Wraps cl.exe / link.exe under CrossOver Wine |
+| `tools/setup-msvc.sh` | Toolchain detection (cl.exe + PSDK) |
+| `tools/compare.py` | Relocation-aware byte-level diff (orig slice vs `.obj`) |
+| `tools/find_rosetta.py` | Picks the best small Rosetta candidate |
+| `tools/find_easy_wins.py` | Auto-rank single-function matching candidates |
+| `tools/verify_asm_vs_orig.py` | Catches mid-function Ghidra drops |
+| `tools/verify_by_symbol.py` | Per-symbol asm-vs-orig sanity check |
+
+### Phase 2.5 — template-derivation pipeline
+| Tool | Role |
+|---|---|
+| `tools/cluster_shapes.py` | Group functions by byte-shape modulo relocations |
+| `tools/cluster_relocs.py` | Decode ModR/M / SIB at every relocation site (full ALU + MOV + LEA + IMUL families) |
+| `tools/recompute_sizes.py` | Re-derive true function ends; catches Ghidra drops |
+| `tools/seed_templates.py` | Per-cluster seed-and-stamp pass (`--reloc` for cross-binary) |
+| `tools/derive_templates.py` | Naked-asm `_emit` templates for clusters that resist source matching |
+| `tools/stamp_clusters.py` | Run a template against every cluster member; stamp matches |
+| `tools/validate_clusters.py` | Re-validate stamped templates against the binary |
+| `tools/update_yaml_status.py` | Fold validate results into the YAML work pool |
+
+### Phase 3 — wire-protocol extraction
+| Tool | Role |
+|---|---|
 | `tools/extract_net_vtables.py` | Net-class slot map |
 | `tools/extract_gam_params.py` | GAM property registry |
 | `tools/extract_paramnames_dispatch.py` | PARAMNAME dispatcher walker |
+| `tools/extract_gam_types_rtti.py` | GAM types from RTTI |
 | `tools/emit_gam_header.py` | C++ header emission |
 | `tools/extract_opcode_dispatch.py` | Down opcode → slot map |
 | `tools/extract_up_opcodes.py` | Up opcode reconnaissance |
@@ -438,8 +720,8 @@ In rough priority order:
 | `tools/validate_murmur2.py` | MurmurHash2 vectors |
 | `tools/validate_chara_make.py` | chara_info.rs ↔ GAM CharaMakeData |
 | `tools/validate_chara_list.py` | build_for_chara_list ↔ GAM ClientSelectData |
-| `tools/find_rosetta.py` | Phase 2: pick best Rosetta candidate |
-| `tools/cl-wine.sh` | Phase 2: cl.exe under CrossOver Wine |
-| `tools/setup-msvc.sh` | Phase 2: toolchain detection |
-| `tools/compare.py` | Phase 2: objdiff on a single function |
-| `tools/progress.py` | Phase 2/3: progress dashboard |
+
+### Reporting
+| Tool | Role |
+|---|---|
+| `tools/progress.py` | Per-binary headline numbers (matched / total / `_rosetta/*.cpp`) |
