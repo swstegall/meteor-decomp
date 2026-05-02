@@ -64,8 +64,9 @@ def _rva_to_va(rva: int, image_base: int = 0x400000) -> int:
     return rva + image_base
 
 
-def _load_clusters(binary_stem: str) -> dict[str, list[dict]]:
-    path = EASY_WINS / f"{binary_stem}.clusters.json"
+def _load_clusters(binary_stem: str, reloc: bool = False) -> dict[str, list[dict]]:
+    suffix = "clusters_reloc" if reloc else "clusters"
+    path = EASY_WINS / f"{binary_stem}.{suffix}.json"
     if not path.exists():
         return {}
     return json.loads(path.read_text())
@@ -99,19 +100,20 @@ def _stamp_seed(template_text: str, source_va: int, target_va: int, target_rva: 
     return header + text
 
 
-def seed_one(source_stem: str, target_stem: str, dry_run: bool = False) -> dict:
+def seed_one(source_stem: str, target_stem: str, dry_run: bool = False, reloc: bool = False) -> dict:
     """Seed `src/<target>/_rosetta/` from `src/<source>/_rosetta/` primary
     templates whose cluster shapes also exist in the target binary."""
     source_rosetta = SRC_DIR / source_stem / "_rosetta"
     if not source_rosetta.is_dir():
         return {"error": f"source rosetta dir missing: {source_rosetta}"}
 
-    source_clusters = _load_clusters(source_stem)
-    target_clusters = _load_clusters(target_stem)
+    source_clusters = _load_clusters(source_stem, reloc=reloc)
+    target_clusters = _load_clusters(target_stem, reloc=reloc)
+    cluster_tool = "tools/cluster_relocs.py" if reloc else "tools/cluster_shapes.py"
     if not source_clusters:
-        return {"error": f"no clusters for source {source_stem} — run tools/cluster_shapes.py {source_stem}"}
+        return {"error": f"no clusters for source {source_stem} — run {cluster_tool} {source_stem}"}
     if not target_clusters:
-        return {"error": f"no clusters for target {target_stem} — run tools/cluster_shapes.py {target_stem}"}
+        return {"error": f"no clusters for target {target_stem} — run {cluster_tool} {target_stem}"}
 
     source_rva_to_hash = _build_rva_to_hash(source_clusters)
 
@@ -182,6 +184,11 @@ def main() -> int:
     ap.add_argument("--source", default="ffxivgame", help="source binary whose templates we seed FROM (default: ffxivgame)")
     ap.add_argument("--all", action="store_true", help="seed all known non-source binaries")
     ap.add_argument("--dry-run", action="store_true", help="show what would happen without writing")
+    ap.add_argument("--reloc", action="store_true",
+                    help="use the relocation-aware clusters JSON (clusters_reloc.json) "
+                         "for both source and target — coarser shape matching, finds "
+                         "cross-binary clusters where each member has a different "
+                         "fixup target.")
     args = ap.parse_args()
 
     if args.all and not args.target:
@@ -196,7 +203,7 @@ def main() -> int:
     grand_skipped_no = 0
     grand_skipped_existed = 0
     for t in targets:
-        report = seed_one(args.source, t, dry_run=args.dry_run)
+        report = seed_one(args.source, t, dry_run=args.dry_run, reloc=args.reloc)
         if "error" in report:
             print(f"=== {args.source} → {t} ===  ERROR: {report['error']}")
             continue
