@@ -346,18 +346,36 @@ def main() -> int:
         print(f"error: rva {rva:#x} not in symbols.json (out of date?)", file=sys.stderr)
         return 3
 
-    # Prefer the YAML's `size:` over symbols.json — Ghidra occasionally
-    # under-counts (e.g. trailing XOR/RET + INT3 padding). The YAML is
-    # human-curated and more reliable for known-corrected functions.
+    # Size resolution order:
+    #   1. config/<bin>.yaml has been HAND-EDITED (size differs from
+    #      symbols.json) → use YAML. Hand-edits take priority because
+    #      they encode contributor intent.
+    #   2. config/<bin>.size_overrides.json (auto-detected Ghidra
+    #      under-counts via tools/recompute_sizes.py) → use override.
+    #   3. config/<bin>.symbols.json (Ghidra's flow analysis) → fallback.
+    sym_size = int(sym["size"])
+    size = sym_size
+    size_source = "symbols.json"
+
     yaml_path = CONFIG_DIR / f"{binary_stem}.yaml"
     yaml_size = _yaml_size_override(rva, yaml_path)
-    sym_size = int(sym["size"])
-    if yaml_size is not None and yaml_size != sym_size:
+    yaml_hand_edited = yaml_size is not None and yaml_size != sym_size
+
+    if yaml_hand_edited:
         size = yaml_size
         size_source = f"YAML ({yaml_size} B; symbols.json had {sym_size} B)"
     else:
-        size = sym_size
-        size_source = "symbols.json"
+        overrides_path = CONFIG_DIR / f"{binary_stem}.size_overrides.json"
+        if overrides_path.exists():
+            try:
+                overrides = json.loads(overrides_path.read_text())
+                for o in overrides:
+                    if int(o.get("rva", -1)) == rva:
+                        size = int(o["new_size"])
+                        size_source = f"size_overrides ({size} B; symbols.json had {sym_size} B; {o.get('reason','?')})"
+                        break
+            except (json.JSONDecodeError, ValueError):
+                pass
 
     obj_path = obj_root / f"{func_name}.obj"
     if not obj_path.exists():

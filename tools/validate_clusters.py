@@ -145,6 +145,9 @@ def main() -> int:
     ap.add_argument("binary", help="binary stem (ffxivgame, ffxivboot, etc.)")
     ap.add_argument("--rebuild", action="store_true", help="ignore existing .obj, force re-compile of primaries")
     ap.add_argument("--no-compare", action="store_true", help="skip the compare.py validation pass")
+    ap.add_argument("--reloc", action="store_true",
+                    help="use the relocation-aware clusters JSON (clusters_reloc.json) "
+                         "instead of the exact-byte clusters JSON")
     ap.add_argument("--image-base", type=lambda s: int(s, 0), default=0x400000)
     ap.add_argument("--quiet", action="store_true", help="suppress per-file logging")
     args = ap.parse_args()
@@ -156,13 +159,17 @@ def main() -> int:
         print(f"error: {rosetta_dir} not found", file=sys.stderr)
         return 1
 
-    clusters_path = EASY_WINS / f"{stem}.clusters.json"
+    clusters_filename = f"{stem}.clusters_reloc.json" if args.reloc else f"{stem}.clusters.json"
+    clusters_path = EASY_WINS / clusters_filename
     clusters: dict[str, list[dict]] = {}
     if clusters_path.exists():
         clusters = json.loads(clusters_path.read_text())
+        if args.reloc:
+            print(f"  (using reloc-aware clusters from {clusters_path.name})")
     else:
+        run_tool = "tools/cluster_relocs.py" if args.reloc else "tools/cluster_shapes.py"
         print(f"warning: {clusters_path} missing — every .cpp will be compiled individually "
-              f"(run tools/cluster_shapes.py {stem} for cluster speedup)", file=sys.stderr)
+              f"(run {run_tool} {stem} for cluster speedup)", file=sys.stderr)
 
     rva_to_hash: dict[int, str] = {}
     for h, members in clusters.items():

@@ -96,6 +96,11 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("binary", default="ffxivgame", nargs="?")
     ap.add_argument("--dry-run", action="store_true", help="show what would be stamped without writing")
+    ap.add_argument("--reloc", action="store_true",
+                    help="use the relocation-aware clusters JSON (clusters_reloc.json) "
+                         "instead of the exact-byte clusters JSON. Reloc clusters are "
+                         "coarser and include functions whose only difference is the "
+                         "linker fixup target (CALL displacements, absolute moves).")
     ap.add_argument("--image-base", type=lambda s: int(s, 0), default=0x400000,
                     help="image base for converting VA ↔ RVA (default 0x400000)")
     args = ap.parse_args()
@@ -106,11 +111,15 @@ def main() -> int:
         print(f"error: {rosetta_dir} not found — no hand-written templates", file=sys.stderr)
         return 1
 
-    clusters_path = OUT_ROOT / f"{stem}.clusters.json"
+    clusters_filename = f"{stem}.clusters_reloc.json" if args.reloc else f"{stem}.clusters.json"
+    clusters_path = OUT_ROOT / clusters_filename
     if not clusters_path.exists():
-        print(f"error: {clusters_path} missing — run tools/cluster_shapes.py first", file=sys.stderr)
+        run_tool = "tools/cluster_relocs.py" if args.reloc else "tools/cluster_shapes.py"
+        print(f"error: {clusters_path} missing — run {run_tool} first", file=sys.stderr)
         return 1
     clusters = json.loads(clusters_path.read_text())
+    if args.reloc:
+        print(f"  (using reloc-aware clusters from {clusters_path.name})")
 
     # Build rva → cluster lookup.
     rva_to_cluster: dict[int, list[dict]] = {}

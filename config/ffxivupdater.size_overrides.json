@@ -1,0 +1,146 @@
+[
+  {
+    "rva": 67840,
+    "rva_hex": "0x00010900",
+    "name": "FUN_00410900",
+    "old_size": 1244,
+    "new_size": 1247,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 69088,
+    "rva_hex": "0x00010de0",
+    "name": "FUN_00410de0",
+    "old_size": 1244,
+    "new_size": 1247,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 86800,
+    "rva_hex": "0x00015310",
+    "name": "FUN_00415310",
+    "old_size": 329,
+    "new_size": 335,
+    "reason": "epilogue continuation (83c4 \u2026 terminator)"
+  },
+  {
+    "rva": 91744,
+    "rva_hex": "0x00016660",
+    "name": "FUN_00416660",
+    "old_size": 128,
+    "new_size": 133,
+    "reason": "epilogue continuation (33c0 \u2026 terminator)"
+  },
+  {
+    "rva": 95376,
+    "rva_hex": "0x00017490",
+    "name": "FUN_00417490",
+    "old_size": 1211,
+    "new_size": 1217,
+    "reason": "epilogue continuation (83c4 \u2026 terminator)"
+  },
+  {
+    "rva": 111264,
+    "rva_hex": "0x0001b2a0",
+    "name": "FUN_0041b2a0",
+    "old_size": 16,
+    "new_size": 19,
+    "reason": "epilogue continuation (33c0 \u2026 terminator)"
+  },
+  {
+    "rva": 114432,
+    "rva_hex": "0x0001bf00",
+    "name": "FUN_0041bf00",
+    "old_size": 403,
+    "new_size": 406,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 131552,
+    "rva_hex": "0x000201e0",
+    "name": "FUN_004201e0",
+    "old_size": 469,
+    "new_size": 472,
+    "reason": "RET imm16 (1c 00)"
+  },
+  {
+    "rva": 143824,
+    "rva_hex": "0x000231d0",
+    "name": "FUN_004231d0",
+    "old_size": 450,
+    "new_size": 456,
+    "reason": "epilogue continuation (83c4 \u2026 terminator)"
+  },
+  {
+    "rva": 144624,
+    "rva_hex": "0x000234f0",
+    "name": "FUN_004234f0",
+    "old_size": 313,
+    "new_size": 316,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 144944,
+    "rva_hex": "0x00023630",
+    "name": "FUN_00423630",
+    "old_size": 274,
+    "new_size": 277,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 145232,
+    "rva_hex": "0x00023750",
+    "name": "FUN_00423750",
+    "old_size": 775,
+    "new_size": 778,
+    "reason": "RET imm16 (0c 00)"
+  },
+  {
+    "rva": 147904,
+    "rva_hex": "0x000241c0",
+    "name": "FUN_004241c0",
+    "old_size": 115,
+    "new_size": 118,
+    "reason": "RET imm16 (08 00)"
+  },
+  {
+    "rva": 186368,
+    "rva_hex": "0x0002d800",
+    "name": "FUN_0042d800",
+    "old_size": 663,
+    "new_size": 666,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 206480,
+    "rva_hex": "0x00032690",
+    "name": "FUN_00432690",
+    "old_size": 113,
+    "new_size": 120,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
+    "rva": 231968,
+    "rva_hex": "0x00038a20",
+    "name": "FUN_00438a20",
+    "old_size": 625,
+    "new_size": 628,
+    "reason": "RET imm16 (0c 00)"
+  },
+  {
+    "rva": 233344,
+    "rva_hex": "0x00038f80",
+    "name": "FUN_00438f80",
+    "old_size": 529,
+    "new_size": 535,
+    "reason": "epilogue continuation (5d \u2026 terminator)"
+  },
+  {
+    "rva": 234128,
+    "rva_hex": "0x00039290",
+    "name": "FUN_00439290",
+    "old_size": 1285,
+    "new_size": 1291,
+    "reason": "epilogue continuation (5d \u2026 terminator)"
+  }
+]

@@ -1,0 +1,50 @@
+[
+  {
+    "rva": 5984,
+    "rva_hex": "0x00001760",
+    "name": "FUN_00401760",
+    "old_size": 1468,
+    "new_size": 1471,
+    "reason": "RET imm16 (04 00)"
+  },
+  {
+    "rva": 16544,
+    "rva_hex": "0x000040a0",
+    "name": "FUN_004040a0",
+    "old_size": 194,
+    "new_size": 201,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 20864,
+    "rva_hex": "0x00005180",
+    "name": "FUN_00405180",
+    "old_size": 211,
+    "new_size": 217,
+    "reason": "epilogue continuation (83c4 \u2026 terminator)"
+  },
+  {
+    "rva": 24272,
+    "rva_hex": "0x00005ed0",
+    "name": "FUN_00405ed0",
+    "old_size": 311,
+    "new_size": 314,
+    "reason": "epilogue continuation (5b \u2026 terminator)"
+  },
+  {
+    "rva": 25600,
+    "rva_hex": "0x00006400",
+    "name": "FUN_00406400",
+    "old_size": 136,
+    "new_size": 139,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  },
+  {
+    "rva": 39552,
+    "rva_hex": "0x00009a80",
+    "name": "FUN_00409a80",
+    "old_size": 758,
+    "new_size": 766,
+    "reason": "epilogue continuation (5f \u2026 terminator)"
+  }
+]
