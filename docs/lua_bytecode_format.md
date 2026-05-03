@@ -1,8 +1,15 @@
 # Phase 6 item #5 — `.lpb` / `.prog` bytecode format
 
 > Last updated: 2026-05-03 — confirmed standard Lua 5.1 bytecode
-> with default settings. Anyone with `unluac` can decompile any
-> `.lpb` / `.prog` file the game ships.
+> with default settings, **for the embedded `.rdata` chunks**.
+>
+> **CORRECTION 2026-05-03:** the shipped `client/script/*.le.lpb`
+> files use a custom XOR-0x73 wrapper around the Lua bytecode +
+> a substitution-cipher on filenames. See
+> [`docs/lpb_format.md`](lpb_format.md) for the wrapper format
+> + filename cipher + `tools/decode_lpb.py` decoder. Anyone with
+> `unluac` can decompile a shipped `.lpb` file ONLY AFTER
+> applying the wrapper decoder.
 
 ## Headline finding
 
