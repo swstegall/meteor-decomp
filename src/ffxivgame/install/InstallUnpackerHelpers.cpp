@@ -237,6 +237,20 @@ void ChunkSource::ReleaseChunk(int handle) {
 //   - chunk_entry.state: 1=released, 3=available, 4=claimed
 // AcquireChunk is the atomic state-3-to-state-4 transition with
 // round-robin cursor advance via CAS.
+//
+// Match status: 142/144 (98.6 %). 2-byte gap is at the two
+// `*(int *)((char *)m_entries + byte_off + N)` accesses near the
+// end. Both compile to the same SIB byte choice
+// (0x32: index=ESI byte_off, base=EDX m_entries) regardless of
+// whether the C source uses pointer arithmetic, array-element
+// access, intermediate base pointers, or operand swaps. Orig
+// emits SIB 0x16 (index=EDX, base=ESI). Both encode the same
+// effective address; difference is purely MSVC's internal
+// SIB-emit normalisation that can't be coaxed from C source
+// alone. Iterations attempted 2026-05-02 (commit b5de6bd9e and
+// before): operand swap, intptr_t cast, explicit base local,
+// array-element access — all produce the same bytes. Real GREEN
+// would need inline asm or a different addressing pattern.
 
 int ChunkSource::AcquireChunk(int *out_data) {
     long state = InterlockedExchangeAdd(&m_state, 0);
@@ -258,8 +272,12 @@ int ChunkSource::AcquireChunk(int *out_data) {
         long swapped = InterlockedCompareExchange(&m_cursor, next, cursor);
         if (swapped == cursor) {
             InterlockedExchange((long *)((char *)m_entries + byte_off), 4);
-            *out_data = *(int *)((char *)m_entries + byte_off + 4);
-            return *(int *)((char *)m_entries + byte_off + 8);
+            // Use array-element access on m_entries — m_entries[cursor]
+            // is a chunk_entry, then .data and .handle access the +4
+            // and +8 fields. Hoping MSVC's array-indexing path picks
+            // the alternate SIB encoding (orig's 0x16 over mine's 0x32).
+            *out_data = m_entries[cursor].data;
+            return m_entries[cursor].handle;
         }
     }
     return 0;
