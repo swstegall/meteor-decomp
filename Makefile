@@ -36,6 +36,7 @@ help:
 	@echo "  make decompile-lpb        Phase 6: unluac-decompile build/lpb/*.luac → build/lua/*.lua"
 	@echo "  make extract-cpp-bindings Phase 6: enumerate engine C++-bound Lua API from _u files"
 	@echo "  make garlemald-lua-coverage Phase 6: garlemald userdata.rs ↔ scripts/lua/ coverage report"
+	@echo "  make extract-work-fields  Phase 6: enumerate per-class state-field inventory (playerWork etc.)"
 	@echo "  make lpb-corpus           Phase 6: decode-lpb + decompile-lpb + extract-cpp-bindings"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
@@ -287,6 +288,18 @@ extract-cpp-bindings:
 .PHONY: garlemald-lua-coverage
 garlemald-lua-coverage:
 	$(PY) $(TOOLS)/garlemald_lua_coverage.py
+
+# Walk the decompiled Lua corpus for `<work_table>.<field>` access
+# patterns and emit the per-table field inventory garlemald must
+# populate via SetActorProperty packets. See
+# docs/work_field_inventory_index.md for the analysis.
+.PHONY: extract-work-fields
+extract-work-fields:
+	@if [ ! -d "$(BUILD)/lua" ]; then \
+	    echo "error: $(BUILD)/lua missing — run 'make decompile-lpb' first" >&2; \
+	    exit 1; \
+	fi
+	$(PY) $(TOOLS)/extract_work_fields.py
 
 lpb-corpus: decode-lpb decompile-lpb extract-cpp-bindings
 	@echo
