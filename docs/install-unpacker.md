@@ -131,31 +131,111 @@ class Component::Install::InstallUnpacker {
 | 0x1b4 | `Utf8String::~Utf8String` (✅ matched GREEN) | Local string teardown |
 | 0x1de | `__security_check_cookie` | Standard MSVC `/GS` check |
 
-## Why a match is deferred
+## Iteration history
 
-To match `FUN_00cc6700`, we'd need:
+### Iteration #1 (2026-05-02 16:40, commit ea0bf0aaf) — 41 % match
 
-1. **Parent class layout** beyond the inferred fields above (especially
-   the `[ESI+0x40+0x2140]` access — what's at offset 0x60 of
-   `m_field_40`? A nested counter struct?).
-2. **Helper function signatures** for `FUN_00cc5db0`, `FUN_00cc5e40`,
-   `FUN_00cc6510`, `FUN_00cc6620` (smallest first — `FUN_00cc6620`
-   at 71 B is the most tractable).
-3. **The "alt" Utf8String at 0x00445cf0** — distinct from
-   `Sqex::Misc::Utf8String::Utf8String @ 0x00047260` we matched.
-4. **IAT entries** — all confirmed via Ghidra GUI 2026-05-02:
-   ```
-   [0x00f3e148]  InterlockedExchange
-   [0x00f3e1a0]  InterlockedCompareExchange
-   [0x00f3e1a4]  InterlockedExchangeAdd
-   [0x00f3e1c8]  Sleep                  ← used in Unpack wait loop @ 0x154
-   [0x00f3e2cc]  InterlockedIncrement   ← used in FUN_008edbf0 @ 0xc52
-   [0x00f3e2d4]  SwitchToThread
-   ```
+First-pass translation. Treated the loop body as if it filled a separate
+stack-allocated subobj (`char subobj_buf[0x58]; char *str_begin, *str_end`)
+and called a stub Process() on it. Frame allocated at `SUB ESP, 0x138`
+(0x58 over orig's 0xe0).
 
-Each of these is a separate Ghidra GUI task. Once they're recovered,
-`FUN_00cc6700` becomes a multi-iteration matching candidate (490 B
-with multiple opaque CALLs and a complex parent class).
+Result: 218/428 reloc-masked matches (50.9 % of our 428 B vs orig's 490 B).
 
-The **structural decode in this document is the deliverable** —
-anyone matching `FUN_00cc6700` can start from here.
+### Iteration #2 (2026-05-02, commit 2ecb15be1) — STRUCTURAL FIX
+
+**Key discovery** from cross-referencing PackRead.cpp + FUN_00447450's
+60-byte body:
+
+1. **The "stack subobj" at `[ESP+0x38]` is not a separate local** — it's
+   `pack_reader.m_subobj`. PackRead embeds a Utf8String at +0x1c, and
+   pack_reader lives at `[ESP+0x1c]`, so its m_subobj naturally lands at
+   `[ESP+0x38]`.
+2. **FUN_00447450 is `Utf8String::operator=`** — verified by walking its
+   body (copies m_data via memcpy, calls Reserve, copies m_field_c +
+   m_flag_10). So the call sequence
+   `LEA ECX,[ESI+0x48]; LEA EDX,[ESP+0x38]; PUSH EDX; CALL 0x00447450`
+   is `m_field_48 = pack_reader.m_subobj` — Utf8String copy assignment
+   into the InstallUnpacker's m_field_48 (also a Utf8String).
+3. **The `[ESP+0x90]` and `[ESP+0x94]` reads** in the loop body are
+   `pack_reader.m_buffer` and `pack_reader.m_field78` (PackRead +0x74 /
+   +0x78 — the heap-buffer begin/end pointers). Not separate locals.
+
+Source changes:
+- Removed bogus `subobj_buf[0x58]; str_begin; str_end;` locals.
+- Added `Utf8String m_field_48` to the class layout.
+- Replaced `((SubObjAt1cStub *)&m_field_48)->Process(subobj_buf)` with
+  `m_field_48 = pack_reader.m_subobj`.
+- Read `pack_reader.m_buffer` / `m_field78` directly for begin/end ptrs.
+- Dropped `extern "C"` from helpers — needed so MSVC presumes throwing
+  and emits the C++ EH frame (with `/EHsc`, `extern "C"` is nothrow,
+  which would suppress the EH frame setup orig has).
+
+Result: 244/490 reloc-masked matches (49.8 %), function size 493 B vs
+orig's 490 B. **Frame size now correct (`SUB ESP, 0xe0`).** Prologue
+matches modulo reloc slots; SEH state-byte writes match exactly (just
+shifted by ±0x10 bytes due to body length differences).
+
+### Iteration #3 territory — register-allocator divergence
+
+The remaining ~50 % byte mismatches are all **register-allocator
+choices**. Side-by-side:
+
+| Variable | orig | iter #2 |
+|---|---|---|
+| `this` | ESI | EBP |
+| `InterlockedExchangeAdd` (long-lived) | EDI | EBX |
+| `chunk_handle` (post-AcquireChunk) | EBX (then spilled to `[ESP+0x14]`) | (other) |
+| `counter_ptr` (loop-hoisted `&m_field_a4`) | EBP | (other) |
+| `pending_ptr` (loop-hoisted `this+0x3c`) | EBX (after chunk_handle dies) | (other) |
+
+This cascades into hundreds of single-byte differences (every
+`CALL EDI` vs `CALL EBX`, every `[ESI+N]` vs `[EBP+N]`, etc.).
+
+To push iter #3 toward GREEN: nudge MSVC's regalloc to match orig's
+ESI/EDI/EBX/EBP assignment. Likely needs experimentation with:
+- **Local declaration order** — affects live-range start times.
+- **Intermediate variable placement** — taking address of a local can
+  force a stack spill.
+- **Volatile spill of `chunk_handle`** — orig spills it to `[ESP+0x14]`
+  right after AcquireChunk, freeing EBX for pending_ptr later. Adding
+  `volatile` to chunk_handle (or otherwise forcing its address-take)
+  may trigger the same spill in our code.
+- **Function-pointer hoist hints** — declaring an explicit
+  `static const auto add_fn = InterlockedExchangeAdd;` at function top
+  might give the loader a more obvious live range.
+
+Each experiment is one or two compile-and-diff cycles; expect 5-10
+iterations to match.
+
+## What's still needed in Ghidra GUI (for matching beyond regalloc)
+
+To fully match `FUN_00cc6700`, the remaining open items are:
+
+1. **Helper function signatures** for `FUN_00cc5db0` (268 B chunk-source
+   acquire), `FUN_00cc5e40` (124 B release), `FUN_00cc6510` (343 B). The
+   smallest one — `FUN_00cc6620` (71 B wait-for-ready spin) — is
+   already matched GREEN in `InstallUnpackerHelpers.cpp`.
+2. **Parent class layout details** beyond the inferred fields — what's
+   at `m_field_40 + 0x60` and `m_field_40 + 0x2140`? Likely a nested
+   counter struct in ChunkSource.
+3. **The "alt" Utf8String at 0x00445cf0** — confirmed (2026-05-02) to be
+   a COMDAT duplicate of `Sqex::Misc::Utf8String::Utf8String @ 0x00047260`
+   (same 39-byte body). Not a structural blocker — both ctors map to the
+   same source `Utf8String()`. The link-time address differs but
+   compare.py wildcards reloc slots, so any `e8 rel32` matches.
+
+All 6 kernel32 IAT entries used by Unpack are already resolved
+(2026-05-02):
+```
+[0x00f3e148]  InterlockedExchange
+[0x00f3e1a0]  InterlockedCompareExchange
+[0x00f3e1a4]  InterlockedExchangeAdd
+[0x00f3e1c8]  Sleep                  ← used in Unpack wait loop @ 0x154
+[0x00f3e2cc]  InterlockedIncrement   ← used in FUN_008edbf0 @ 0xc52
+[0x00f3e2d4]  SwitchToThread
+```
+
+The **structural decode in this document is the deliverable** — anyone
+iterating on `FUN_00cc6700` can start from iteration #2 and focus
+purely on the regalloc nudges above.
