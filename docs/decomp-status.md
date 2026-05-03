@@ -532,14 +532,6 @@ xrefs:
     frame, `__thiscall`, gates on `this->[+0x144]`, reads from
     `this->[+0x21d4]` size + `this->[+0x21d0..]` buffer region).
 
-`FUN_00901c10` is the **near-certain chara-list deserializer**.
-What's needed next is the Ghidra GUI decompiled view to read off
-the field offsets it writes (`out->[+0x10] = …`, etc.) and
-cross-reference them against
-`build/wire/ffxivgame.chara_list_validation.md`'s 5 schema flags.
-Once those offsets are captured, garlemald's
-`build_for_chara_list` can be patched with confidence.
-
 How to find the deserializer for any encrypted lobby payload:
 
 ```
@@ -560,6 +552,91 @@ EOF
 
 The same recipe works for *any* lobby callback the static-RTTI
 scan can't anchor.
+
+### Update 2026-05-02 — confirmed via Ghidra GUI decompile + ARCHITECTURE OVERTURNED
+
+Ghidra GUI decompile of `FUN_00901c10` (captured 2026-05-02)
+revealed the chara-list packet has a **fundamentally different
+shape** than Project Meteor's encoder assumed. Project Meteor's
+hand-rolled flat blob is wrong; the chara-list is actually an
+**array of 240-byte (`0xf0`) records, each containing a base64-
+encoded inner blob at offset `+0x60`**.
+
+Decoded body:
+
+```
+this->LobbyCharaOpStep::ParseCharaList(this) {     // __thiscall
+    if (this->[+0x144] == NULL) return success;     // gate: container ptr non-null
+    cursor = this->[+0x21d4];                       // begin ptr (uVar4)
+    end    = this->[+0x21d8];                       // end ptr   (uVar1)
+    while (cursor != end) {
+        // Decode the base64-wrapped inner blob.
+        FUN_0045a920(local_38_Utf8String, cursor + 0x60);
+        // Parse the 20-byte outer record header.
+        local_24[5 dwords] = {0};                   // 20-byte scratch
+        parsed = FUN_00454560(cursor, &local_24);   // 20-B header parser
+        if (!parsed) goto error;
+        // Add character to container.
+        rc = thunk_FUN_0045b4c0(
+            this->[+0x144],     // container
+            &local_24,          // 20-B header
+            0x14,               // sizeof(header)
+            local_34_buf,       // base64-decoded inner blob ptr
+            local_30 - local_34 // decoded length
+        );
+        free(decoded_buf);
+        if (rc != 0) goto error_with_code;
+        cursor += 0xf0;                             // ★ 240 B per character record
+    }
+    return success;
+}
+```
+
+**Per-character outer record (240 B = `0xf0`):**
+
+| Field | Offset | Size | Notes |
+|---|---|---:|---|
+| Outer header | `+0x00` | 20 B | Parsed by `FUN_00454560` into 5 dwords (`local_24..local_14`); contents TBD pending decompile |
+| (unknown intermediate) | `+0x14` | 76 B | Not read by the iterator; contents TBD |
+| Base64-encoded inner blob | `+0x60` | up to 144 B | URL-safe base64; decodes to a variable-length binary buffer; **contains the 17 GAM ClientSelectData fields** (`displayName`, `mainSkillLevel`, `tribe`, `zoneName`, `initialTown`, etc.) |
+
+**Container at `this->[+0x144]`**: holds the parsed character objects.
+Populated via `thunk_FUN_0045b4c0(container, header, sizeof(header),
+decoded, decoded_len)` per character. The decoded buffer is freed
+right after, so the container must copy internally.
+
+**Implications for garlemald**:
+
+The 5 schema flags from
+`build/wire/ffxivgame.chara_list_validation.md` (e.g. `current_level:
+u16` vs `mainSkillLevel: i8`, `tribe: u8` vs `Utf8String`, the
+`initial_town: u32 (twice)` issue) were all about field types in a
+*flat* per-character struct. The **real** wire form puts those fields
+inside the base64-decoded inner blob — a completely separate parse
+governed by `FUN_0045b4c0` (one level deeper).
+
+Project Meteor's `BuildForCharaList` produces a flat blob with no
+base64 wrapper; the client's parser will hit the +0x60 region as
+"base64 input" and decode garbage, populating downstream fields
+incorrectly. The reason the chara-list "mostly works" today is that
+the outer 20-B header carries the most-displayed fields
+(character_id, world_id, etc.) — the broken inner-blob parse
+silently produces empty/default values for the rest.
+
+**Next step**: decompile `FUN_00454560` (outer header) + `FUN_0045b4c0`
+(inner blob deserialize) in Ghidra GUI to map their field offsets,
+then rewrite garlemald's `build_for_chara_list` to:
+1. Emit a 240-byte outer record per character with the correct
+   header layout.
+2. Build the inner blob in the right binary format.
+3. Base64-encode the inner blob into the `+0x60..+0xf0` region of
+   each outer record.
+
+This is a bigger garlemald change than just tweaking field types —
+it's a wire-format restructuring. But it's load-bearing for any
+future garlemald functionality that depends on the client correctly
+displaying chara-list (e.g. multi-character accounts, world swaps,
+chara-list-driven UI flows).
 
 ## Phase 4 — Pack / ChunkRead / InstallUnpacker (▶ active matching)
 
