@@ -79,52 +79,83 @@ void Utf8StringFree(void *data, int capacity, int alloc_class) {
 
 **Globals referenced (each needs a name + struct from Ghidra):**
 
-| Address | Likely role |
+| Address | Role |
 |---|---|
-| `0x00f3e1a4` | Function pointer — looks like a "mutex acquire / atomic-add" primitive. The CALL via `EBP` after `MOV EBP, [0x00f3e1a4]` is invoked twice with different signatures. |
-| `0x01266dc0` | Array of 8-byte slab descriptors, indexed by `size_class * 8`. Field at offset 0 holds the slab capacity (used in modulo + comparison-with-2x). |
-| `0x0132cec8` | Array of 4-byte pointers (probably `void **` per size class) — the free-list bucket array. |
-| `0x0132cf1c` | Array of mutex objects, indexed by `size_class * 4`. Probably a small struct (4 B handle each). |
-| `0x005d1be9` | CRT `free` (or a wrapper). Used as the size-class-0 fall-back. |
+| `0x00f3e1a4` | IAT entry → `kernel32!InterlockedExchangeAdd` (confirmed). |
+| `0x01266dc0` | **NOT a struct base** — it's the `imm32` literal in `MOV EAX, [ESI*8 + 0x01266dc0]`. The actual slab descriptor table starts at `0x01266dc8` (= base + size_class=1 × 8). The bytes at `0x01266dc0..0x01266dc7` happen to overlap the trailing `@@\0\0\0\0` of the `.?AVSqexIdAuthentication@Login@Sqex@@` RTTI TypeDescriptor name string by linker placement, NOT by struct overlap — the size_class=0 fast-path short-circuits before any read at this offset. Don't waste time looking for typeinfo at `0x01266dc0`; look at `0x01266dc8` for the first real slab descriptor (size_class=1). (Confirmed in Ghidra GUI 2026-05-02.) |
+| `0x0132cec8` | Per-size-class free-list bucket pointer array (`int **`), indexed by `[size_class*4]`. |
+| `0x0132cf1c` | Per-size-class atomic counter array (`long`), indexed by `[size_class*4]`. Targets of `InterlockedExchangeAdd`. |
+| `0x005d1be9` | CRT `free` — the `size_class == 0` fast-path fallback. |
 
-**What to retrieve from Ghidra:**
+**Decoded body of FUN_0044d350 (Utf8StringFree, 105 B at file 0x4d350):**
 
-1. Decompiler output for `FUN_004d350` (Ghidra's auto-name).
-2. RTTI / typeinfo strings near the globals listed above. The globals
-   may belong to a `Sqex::Memory::SlabAllocator` or
-   `CDev::Engine::Memory` family — typeinfo would give us names.
-3. Field-level annotations on the slab descriptor: there's at least
-   one int at offset 0; could be more.
+```
+arg = data ptr (cdecl); only the dword header at (data - 4) controls behavior.
+
+if (data == NULL) return;
+hdr = *(unsigned *)(data - 4);
+size_class = hdr & 0xff;
+if (size_class == 0) {
+    free(data - 4);                                         // CRT fast path
+    return;
+}
+// Slow path — atomic-counter-based circular freelist push.
+counter = InterlockedExchangeAdd(&g_atomic_counters[size_class], 1);
+slab_cap = g_slab_descriptors_minus8[size_class].capacity;  // [ESI*8 + 0x01266dc0]
+                                                            // (== g_slab_descriptors[size_class-1].capacity
+                                                            //  if you re-base; either way size_class>=1
+                                                            //  reads valid memory)
+if (counter == slab_cap * 2) {
+    InterlockedExchangeAdd(&g_atomic_counters[size_class], -slab_cap);
+}
+g_freelist_buckets[size_class][counter % slab_cap] = data;
+```
+
+**Status:** `src/ffxivgame/sqex/Allocator.cpp` already implements this
+shape and is at 99 % PARTIAL (104/105 B, 1 byte short — likely a
+single-instruction-encoding choice difference).
+
+**What would be useful from Ghidra (revised after 0x01266dc0 finding):**
+
+1. **Confirm the size_class-1 base**: navigate to `0x01266dc8` in the
+   data view, check whether Ghidra has it auto-typed as a struct. If
+   so, capture the struct definition (likely 8 bytes per entry —
+   capacity `int` + something at +4).
+2. **Confirm the auxiliary-array bases used in `Utf8StringAlloc`**
+   (separate from Free's tables): the alloc path uses `0x01266dc4`
+   (size thresholds), `0x0132cf04` (producer counters), `0x0132cf20`
+   (consumer counters), `0x0132cecc` (alloc freelist pointers). All
+   are `[size_class*N + base]` indexed; the same RTTI-overlap caveat
+   applies to bases that fall inside data sections.
+3. **Decompiler output for `FUN_0044d500`** (Utf8StringAlloc) — at
+   99 % PARTIAL too; if the decompile shows a structural choice we
+   missed, that may close the last few bytes.
 
 ### `Utf8StringAlloc` @ RVA `0x0004d500` (225 B)
 
-The counterpart — allocates a buffer from the same slab pool. Uses
-the same global tables at `0x01266dc0`, `0x0132cec8`, etc. plus
-additional globals at `0x012ce6c4`, `0x012ce6c8`, `0x0132cef0`, etc.
+The counterpart — allocates a buffer from the same slab pool. Already
+implemented in `src/ffxivgame/sqex/Allocator.cpp` and at 99 % PARTIAL
+(222/225 B). Uses parallel arrays:
 
-**Signature** (from PackRead.cpp call site):
-```
-extern "C" void *Utf8StringAlloc(int alloc_class, int zero_fill, unsigned size);
-```
+| Address | Role |
+|---|---|
+| `0x01266dc4` | Size-threshold table — `[ESI*8 + 0x01266dc4]` per size_class. (Same RTTI-overlap caveat as 0x01266dc0; the array starts at the post-RTTI region for valid size_class values.) |
+| `0x01266dc8` | Capacity table (shared with Free's slab descriptors — `g_slab_descriptors[size_class].capacity`). |
+| `0x0132cf04` | Producer counter array (`long`), targets of `InterlockedExchangeAdd`. |
+| `0x0132cf20` | Consumer counter array (`long`). |
+| `0x0132cecc` | Alloc freelist pointer array (`int **`). |
 
-The function is too long for hand-decode (225 B with multi-branch +
-size-rounding logic). Ghidra's decompiler can recover it cleanly.
+The `(int alloc_class, int zero_fill, unsigned size)` signature in the
+PackRead.cpp call-site comment was wrong — the actual signature is
+`void *Utf8StringAlloc(int size)` (only one arg). Callers that push
+two extra args (PUSH 0; PUSH alloc_class) are passing dummies that the
+function ignores.
 
-**What to retrieve:**
+### Allocator pair status
 
-1. Decompiler output for `FUN_004d500`.
-2. Identification of the slab-size table around offset `0x18-0x20`
-   (the `LEA EDI, [ESI*4 + 0x012c6dc4]` etc. patterns).
-3. Whether it allocates from a per-size-class pool or falls back to
-   CRT `malloc` for size_class = 0.
-
-### Once the above is retrieved
-
-Both functions become matching candidates with:
-- The named globals (`g_mutex_fn`, `g_slab_table`, `g_freelist`, etc.)
-- A struct definition for the slab descriptor
-- The CRT free / malloc identifications
-
-Drop the names back into this file and the next session can write the
-two matching templates as a separate `src/ffxivgame/sqex/Allocator.cpp`
-file.
+Both functions already implemented at 99 % PARTIAL. Closing the last
+1-3 bytes per function is a single-instruction-encoding nudge — try
+re-ordering temporaries, swapping `volatile`-vs-non-volatile loads,
+or re-shaping the modulo expression. Ghidra GUI helps if it shows the
+exact MOVZX/AND choice for the size-class extraction or the IMUL/SHL
+choice for capacity-times-2.
