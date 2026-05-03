@@ -233,20 +233,85 @@ specific layer's storage; the responsible vtable slot lives in the
 matching parent. Future field-naming work will benefit from
 knowing which layer adds each field.
 
+## Literal-meaning hunt (2026-05-02 — partial)
+
+Cross-referenced the four interesting literal initializers against
+their setters / readers / cross-binary dumps. Findings:
+
+### `+0x1170` (init 0xED = 237)
+
+- Setter: `FUN_0065aa70` (53 B). Pattern: compare-with-current →
+  on change, set dirty-bit `0x400000` in `flags_2b70` → write new
+  value → optionally zero if `[+0x2b5c]+0x4c & 0x1`.
+- **166 callers** of the setter — mostly inside switch-table
+  dispatchers in functions like `FUN_007bcc80`. Each case is a
+  tiny ~25-byte handler: `MOV ECX, [ESI]; PUSH <imm32>; CALL setter;
+  MOV byte [ESI+0x5ae], <state_byte>; ret`.
+- Observed values passed: integer literals in the **192..240
+  (0xC0..0xF0) range**, in odd-number progressions in some cases.
+- Heavy READ in `FUN_0051ba90` (3+ reads, alongside `"@%d"` format
+  string suggesting decimal logging output).
+- **Likely meaning**: an **action / motion / animation / state ID**
+  (the 200-240 value range and the correlated `+0x5ae` state byte
+  fit). The init 0xED = 237 is a placeholder default that gets
+  replaced from game data at load time.
+- **Cross-reference attempts**: 237 doesn't match any known
+  `BattleCommand` id (1.x commands are in 1000+ range), motion-pack
+  id (Discord ref says 1000-1109), or the spawn-protocol motion ids.
+  Could be a **game-internal action-state enum** distinct from the
+  public BattleCommand / motion-pack registries.
+
+### `+0x1178` (init 0xC9 = 201)
+
+- Setter: `FUN_0065ab90` (222 B) — significantly more elaborate
+  than +0x1170's. Tests bit `0x1000000` in flags_2b70, allocates
+  a 0x1a0-byte stack scratch, broadcasts the change via a callback
+  (logger / notifier / observer pattern).
+- Same value range (~200-240). Paired with +0x1170 — likely
+  represents the "secondary" / "previous" / "queued" state.
+
+### `+0x1958` (init 0x10 = 16)
+
+- Only 1 setter site outside the ctor (`FUN_006679c0`).
+- Probably a small enum count or tuning constant. Low investigation
+  yield given the limited usage.
+
+### `+0x0169` (init 1, byte)
+
+- 0 access sites found by my pattern scan — either reads/writes
+  use a different addressing form (e.g. relative to a base reg
+  loaded indirectly), or it's a status flag set once and rarely
+  re-read.
+
+### Honest verdict
+
+The hunt confirmed `+0x1170` and `+0x1178` are **paired action /
+state ID properties** with dirty-tracking and broadcast-on-change
+behavior. **Definitive game-data identification** (matching against
+a specific BattleCommand / motion-pack table) didn't land in this
+session — the value 237 doesn't appear in our existing dumps
+(`ffxiv_1x_battle_commands_context.md`,
+`reference_ffxiv_1x_spawn_protocol.md`). They're probably in a
+client-internal action-state enum we haven't dumped yet (would
+require finding the table that maps these IDs to motion-pack IDs
+or BattleCommand IDs).
+
+Actionable for garlemald: when sending `SetActorProperty` packets
+that target `+0x1170` / `+0x1178`, the client expects a small
+integer ID (~200-240 range) and will dirty-bit-mark + broadcast
+the change. Bulk-set packets that don't trigger the broadcast
+might cause stale UI state.
+
 ## Next concrete step
 
 The remaining items in the work pool:
 
-1. **Identify what the literal initializers MEAN** — search for
-   functions that read each of `+0x0169`, `+0x1170`, `+0x1178`,
-   `+0x1958`, looking for context (cross-references to game-data
-   tables, comparison constants, etc.).
-2. **Map RaptureActor's field layout** — same recipe as
+1. **Map RaptureActor's field layout** — same recipe as
    CharaActor (extract from ctor + dtor at the surfaced RVAs), and
    merge the resulting offset catalog into the same header.
    Together with CharaActor's offsets, this gives a near-complete
    field schema for any character actor.
-3. Move on to work-pool items #2..#6 (Status controllers,
+2. Move on to work-pool items #2..#6 (Status controllers,
    Action queue, Damage display, Status effect tick, Battle Regimen UI).
 
 ## Cross-references in this workspace

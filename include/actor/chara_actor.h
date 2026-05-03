@@ -148,9 +148,25 @@ namespace OFFSET {
     static const size_t subobj_1030                = 0x1030;
     static const size_t subobj_1070                = 0x1070;
     static const size_t subobj_1110                = 0x1110;
-    static const size_t value_1170                 = 0x1170;  // dword, init = 0xED (237) — INTERESTING LITERAL
+    // +0x1170 (init 0xED=237): settable property with dirty-bit
+    //   tracking. Setter at FUN_0065aa70 (53 B): compares-with-current,
+    //   on change OR's `0x400000` into flags_2b70 (dirty bit), writes
+    //   new value, then optionally zeroes if `[+0x2b5c]+0x4c & 0x1`.
+    //   166 callers, mostly in switch-table dispatchers, passing
+    //   integer literals in the 0xC0..0xF0 (192..240) range — likely
+    //   action / motion / animation / state IDs. Each setter call is
+    //   typically followed by `MOV [ESI+0x5ae], <byte>` setting a
+    //   correlated state byte. The init 0xED is a placeholder default,
+    //   replaced from game data at load time.
+    static const size_t value_1170                 = 0x1170;  // dword; default 0xED, runtime range ~0xC0..0xF0
     static const size_t field_1174                 = 0x1174;  // dword, init = 0
-    static const size_t value_1178                 = 0x1178;  // dword, init = 0xC9 (201) — INTERESTING LITERAL
+    // +0x1178 (init 0xC9=201): paired property to +0x1170. Setter
+    //   at FUN_0065ab90 (222 B) is more elaborate — broadcasts
+    //   change via callback (calls a logger/notifier with format
+    //   string referencing 0x1a0-byte buffer). Likely the "secondary"
+    //   or "previous" state companion to +0x1170. Init 0xC9 is also
+    //   a placeholder default.
+    static const size_t value_1178                 = 0x1178;  // dword; default 0xC9, paired with +0x1170
     static const size_t field_117c                 = 0x117c;  // dword, init = 0
     static const size_t field_1180                 = 0x1180;  // dword, init = 0
     static const size_t field_1184                 = 0x1184;  // dword, init = 0
