@@ -618,6 +618,47 @@ What's left to try (in priority order):
    reads each id in turn. A scan for the ids' string representations
    in dispatcher tables would surface the parsing function.
 
+### Update — chara-list opcode is likely 0x17, NOT 0x0D (Project Meteor opcode swap)
+
+Decompile of `CharaMakeOperation::vtable[1]` (`FUN_00daac30`) shows
+a packet-opcode dispatcher with a switch on `*(short *)(packet+2)`.
+Three opcode handlers, with log strings recovered verbatim from
+`.rdata`:
+
+| Opcode | Handler dispatched | Log strings | Likely meaning |
+|---|---|---|---|
+| `0x0E` | sub-switch on `*(ushort *)(packet+0x1a) - 1`, calls `FUN_00da79d0(packet+0x10)` | "Count:", "LobbyClientMixin::onSuccessfulCharaMake:", "CALL onRenameRetainerName" | CharaMake response (sub-opcodes 0-5 for create/delete/rename/etc.) |
+| `0x10` | `(this->[+0x34])->vtable[0x48/4=18](this->[+8]+0x1d0, this->[+8]+0x200)` | (no logs) | Retainer-related callback |
+| **`0x17`** | logs `CHR_SEQ:` + `CHR_Count:`, calls **`FUN_00da4d80(packet+0x10)`** | **"CHR_SEQ:", "CHR_Count:"** | **Character list — `CHR_` is the chara-not-retainer prefix** |
+
+**Cross-check against garlemald** (`lobby-server/src/packets/send.rs`):
+
+```
+// CharacterList (opcode 0x0D)            ← garlemald uses 0x0D
+// RetainerList   (opcode 0x17)           ← garlemald uses 0x17
+```
+
+But the binary handles opcode `0x17` with explicit "**CHR_SEQ**" /
+"**CHR_Count**" log strings — character semantics, not retainer.
+Combined with the previously-established fact that opcode `0x0D`
+goes to a `RET 0xc` no-op in the `LobbyProtoDownDummyCallback`
+dispatch, the strong hypothesis is:
+
+**Project Meteor has CharacterList and RetainerList opcodes
+swapped.** The actual chara-list opcode is `0x17`. The reason
+chara-list "kinda works" in garlemald today: opcode `0x0D` arrives
+at the client and gets silently dropped (no-op handler), but the
+user clicks through to login anyway because the lobby state machine
+moves on once *some* character data is shown by a fall-back UI
+path.
+
+This also resolves the original "byte_table[12] = 3 →
+dword_table[3] = no-op stub" puzzle — the no-op was correct: the
+client genuinely doesn't handle opcode `0x0D` in the
+LobbyProtoDownCallback path. It handles it (or doesn't) elsewhere,
+and the *real* chara-list arrives via opcode `0x17` through
+`CharaMakeOperation::vtable[1]`.
+
 ### Update — vtable 0x01127fd4 resolves to CharaMakeOperation
 
 RTTI lookup on the work-item class allocated by `FUN_00da5fd0`:
