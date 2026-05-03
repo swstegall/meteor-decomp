@@ -140,19 +140,62 @@ generated ones; here, garlemald's combat logic is already
 re-derived (via LSB cross-reference), and what it needs from the
 client is the *schema* the client expects.
 
+## Progress (work-pool item #1)
+
+**`include/actor/chara_actor.h` — initial field-offset catalog
+landed 2026-05-02.** Recovered 139 distinct field offsets across
+the constructor and destructor. Highlights:
+
+- **vtable** = 0xbc0d34 (188 slots)
+- **ctor**: `FUN_0065f180` (1942 B at file 0x25f180) — sets the
+  vtable + initialises 47 distinct field offsets
+- **dtor**: `FUN_00666130` (968 B at file 0x266130) — touches 48
+  distinct fields with cleanup writes; wrapped by slot 0
+  (`FUN_00669e20`, 34 B scalar deleting destructor)
+- **class size**: ≥ 0x2ba4 (= 11,172 bytes) from highest offset
+
+Important course-correction from the kickoff sketch: slot 1 is NOT
+the constructor (constructors aren't virtual so they're not in the
+vtable). Slot 1 is `FUN_006207d0` — a "ReferenceResource access
+wrapper" with a Shift-JIS Japanese debug message
+(`"ReferenceResourceが初期化されていません [%s]\n"`). The actual
+constructor was found by scanning for `MOV [reg], 0xfc0d34`
+(vtable-write pattern) — only 2 sites in the binary: the dtor and
+`FUN_0065f180`.
+
+Also course-corrected: the dtor at `FUN_00666130` is **CharaActor's
+own** dtor, not the parent's. The vtable swap to 0xfc0d34 at the
+top is the standard MSVC "set vtable to this class's own table
+during destruction" pattern. The parent class is still unidentified
+— it would show up as a different vtable address being set
+somewhere later in the dtor's body (via a chained parent-dtor call),
+which is a follow-up task.
+
+**Interesting literal initializers** (these are the most
+promising semantic-meaning anchors):
+- `+0x0169` = 1 (byte flag)
+- `+0x1170` = 0xED (237 dword)
+- `+0x1178` = 0xC9 (201 dword)
+- `+0x1958` = 0x10 (16 dword)
+- `+0x1690..+0x16b8` = 10-dword array of pointers, all 0
+
+Cross-referencing these literals against game-data tables (race
+ids, class ids, motion-pack ids, etc.) is the next investigation.
+
 ## Next concrete step
 
-Start with **work-pool item #1** — decompile `CharaActor`'s slot 0
-(destructor, already inspected, calls parent at `FUN_00666130`)
-plus slot 1 (the constructor, at `FUN_006207d0` per the slot map),
-then walk the constructor's `MOV [ESI+N], <init_value>` patterns to
-map the initial field layout. That gives us the first ~30 bytes of
-the Actor struct plus initialised defaults — a real foundation.
+Two parallel tracks possible:
 
-The parent class identification (via the 968-byte `FUN_00666130`
-parent dtor) would be a parallel Ghidra-GUI task: navigate to
-`0x00666130` in Ghidra, read the typeinfo it references at
-construction, and surface the parent class name.
+1. **Identify CharaActor's parent class** — navigate to
+   `FUN_00666130` in Ghidra, look at the second `MOV [ESI], imm32`
+   in the body (after the initial `0xfc0d34`) — that's the
+   parent's vtable. Cross-reference against `config/ffxivgame.rtti.json`
+   to name the parent.
+
+2. **Identify what the literal initializers MEAN** — search for
+   functions that read each of `+0x0169`, `+0x1170`, `+0x1178`,
+   `+0x1958`, looking for context (cross-references to game-data
+   tables, comparison constants, etc.).
 
 ## Cross-references in this workspace
 
