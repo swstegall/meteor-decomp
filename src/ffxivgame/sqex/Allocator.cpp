@@ -166,13 +166,8 @@ extern "C" unsigned *Utf8StringAlloc(int size) {
             int cap = g_alloc_capacities[sc * 2];
             int prod_idx = (int)(produced % cap);
             int cons_idx = (int)(consumed % cap);
-            int delta;
-            if (prod_idx < cons_idx) {
-                delta = -prod_idx;
-            } else {
-                delta = cap - prod_idx;
-            }
-            if (99 < delta + cons_idx) {
+            int delta = (prod_idx < cons_idx) ? -prod_idx : (cap - prod_idx);
+            if (delta + cons_idx >= 100) {
                 long my_idx = InterlockedExchangeAdd(producer, 1);
                 if (my_idx == g_alloc_capacities[sc * 2] * 2) {
                     InterlockedExchangeAdd(producer, -g_alloc_capacities[sc * 2]);
