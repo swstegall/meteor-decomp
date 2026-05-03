@@ -1,10 +1,12 @@
 # Phase 7 — `KickClientOrderEventReceiver` decomp + garlemald implications
 
-> Last updated: 2026-05-04 (early morning) — slot 2 (Receive)
-> static-decoded from asm dump. Triggered by 2026-05-03 garlemald
-> smoke-test debugging where the SimpleContent man0g0 cinematic
-> hung at "Now Loading" after talking to Yda the second time, even
-> after fixing 4 server-side director-flow bugs.
+> Last updated: 2026-05-04 — slot 2 (Receive) static-decoded from
+> asm dump + Task A confirmed via Ghidra GUI: `0x0130c778` is the
+> `0xE0000000` `NO_ACTOR` sentinel (not the local player actor id).
+> Triggered by 2026-05-03 garlemald smoke-test debugging where the
+> SimpleContent man0g0 cinematic hung at "Now Loading" after
+> talking to Yda the second time, even after fixing 4 server-side
+> director-flow bugs.
 
 ## TL;DR for garlemald porters
 
@@ -39,7 +41,7 @@ end, and the kick silently drops.
 | 1 | `0x0049f530` | 125 B | `New()` factory — `PUSH 0x84` (size=132) → `operator new` → 6-arg ctor at `0x0089f2b0` constructing from member offsets `(ESI+8, ESI+0xc, ESI+0x68, ESI+0x10, ESI+0x14, ESI+0x6c)` |
 | 2 | `0x0049e450` | **207 B** | **`Receive()` — the actor-lookup + flag-check entry. See per-slot analysis below.** |
 | 3 | `0x0049d230` | 48 B | Auxiliary dispatch — `CALL 0x00cc7a50` (actor lookup) + `CALL 0x006ee680` (Director-base entry per Phase 6 doc — likely `_dispatchEvent` or similar) |
-| 4 | `0x0049d260` | 15 B | Predicate — compares `[ECX+8]` against `[0x0130c778]` (a global), returns `SETNZ AL`. Likely a "is this kick targeting me?" check used in some dispatch loop. |
+| 4 | `0x0049d260` | 15 B | Predicate — compares `[ECX+8]` against `[0x0130c778]` (the `0xE0000000` `NO_ACTOR` sentinel — see §2 below), returns `SETNZ AL`. So slot 4 = "is this kick targeting a real (non-null) actor id?" — used by callers that want to skip processing of zero-target kicks. |
 
 The 132-byte `sizeof` of the receiver class (slot 1 factory)
 encodes the kick payload's per-field offsets:
@@ -78,14 +80,20 @@ The exact field shapes need a Ghidra GUI pass to confirm — see
                                 ; root", probably the LuaEngine instance
                                 ; or DirectorRegistry root
 
-    MOV EAX, [0x0130c778]       ; global "current player actor id" (or
-                                ; similar — the player whose kick we're
-                                ; about to dispatch)
-    CMP [EDI+0x12c], EAX        ; check "is this kick for us?" — compare
-                                ; the dispatcher's current-player slot
-                                ; against the global player id
-    JZ <0x0089e4b4>             ; branch if matches → the "self-targeted"
-                                ; path (likely the cinematic-init path)
+    MOV EAX, [0x0130c778]       ; load NO_ACTOR sentinel (0xE0000000) —
+                                ; CONFIRMED 2026-05-04 via Ghidra GUI
+                                ; (Task A): the constant at this RVA is
+                                ; `undefined4 E0000000h`, matches
+                                ; garlemald's NO_ENMITY_TARGET / "null
+                                ; actor id" sentinel used everywhere
+                                ; an actor-id slot can be empty.
+    CMP [EDI+0x12c], EAX        ; is the dispatcher's [+0x12c] target
+                                ; field == NO_ACTOR? (i.e. "no target
+                                ; currently set?")
+    JZ <0x0089e4b4>             ; if target unset → branch to the init /
+                                ; setup path that establishes a target;
+                                ; if target already set → fall through to
+                                ; the "kick on existing target" path.
 
     ; Branch A: kick is NOT for the current player — secondary dispatch
     ADD ESI, 0xc                ; advance into receiver state past header
@@ -158,14 +166,46 @@ For garlemald: any KickEvent sent to a target actor that
 yet** will silently drop. Particularly damning when the spawn
 packets were nullified by a subsequent `DeleteAllActors`.
 
-### 2. The `[0x0130c778]` global — current player actor id
+### 2. The `[0x0130c778]` global — `NO_ACTOR` sentinel (`0xE0000000`)
 
-The slot-2 entry compares `[EDI+0x12c]` against `[0x0130c778]` to
-decide between "self-targeted" and "other-targeted" kick paths.
-The `0x0130c778` global is very likely **the local player's actor
-id** (the engine's `MyPlayer.actor_id`). Worth confirming with a
-Ghidra GUI pass — if so, every kick path that checks "is this
-for me" can be traced through this global.
+**CONFIRMED 2026-05-04 via Ghidra GUI (Task A).** The 4-byte value at
+RVA `0x0130c778` is `undefined4 E0000000h` — the engine's universal
+"null actor id" sentinel. (Same value appears in garlemald as
+`NO_ENMITY_TARGET = 0xE0000000` in the 0x0195 enmity-indicator
+packet builder; per memory `project_garlemald_enmity_indicator.md`.)
+
+This corrects an earlier (incorrect) speculation that `0x0130c778`
+was the "local player actor id". It is NOT — it's a static constant
+that the engine compares actor-id slots against to detect "no actor
+set". The 20+ xrefs Ghidra reports for this address are every
+actor-id-bearing dispatcher / receiver that branches on "is this
+slot empty?".
+
+**Re-interpreting slot 2's branch:**
+
+```
+CMP [EDI+0x12c], NO_ACTOR
+JZ <init path>                  ; [+0x12c] == NO_ACTOR → no target
+                                ;   currently set, take init path
+                                ;   that establishes a target
+; else                          ; [+0x12c] != NO_ACTOR → target is
+                                ;   already set, take the dispatch
+                                ;   path that kicks on it
+```
+
+So `[EDI+0x12c]` is the dispatcher's "current target actor id" slot.
+The two slot-2 branches are NOT "self-targeted vs other-targeted" —
+they are **"first-time init for this kick" vs "kick on an already-set
+target"**. The init branch (Branch B in the asm dump) writes
+`[EDI+0x128]` and `[EDI+0x12c]` to set up the target; subsequent
+calls hit the established-target branch (Branch A).
+
+This shifts the porting story: garlemald doesn't need to think about
+"is the kick for the local player" — both branches do the SAME
+`+0x5c` flag check on the target actor either way. The kick gate is
+**universal**: any kick to any actor needs the actor's `+0x5c` flag
+set, which means the actor must have completed its spawn-packet
+sequence on the client.
 
 ### 3. `0x00cc7a50` — `ActorRegistry::lookup_actor`
 
@@ -225,15 +265,20 @@ When the user is back at the Ghidra GUI, the following
 investigations would close the remaining ambiguity in this
 finding:
 
-### Task A — Confirm `0x0130c778` is the local player actor id
+### Task A — ✅ DONE 2026-05-04
 
-Navigate to `0x0130c778` in the Ghidra data view. Check:
-- Has it been auto-typed as an int / actor_id type?
-- What other functions reference it? (Right-click → References →
-  Find references to address.) The expected pattern is "anywhere
-  in the code that does a 'is this me?' branch on actor id".
-- Does the import path (Phase 1's RTTI dump or the `MyGameLoginCallback`
-  state machine) name it explicitly?
+**Result:** `0x0130c778` is the `0xE0000000` `NO_ACTOR` sentinel
+constant, NOT the "local player actor id" as initially speculated.
+Sits immediately after the `Sqex::CDev::CDevMedia` RTTI Type
+Descriptor in the data section, has 20+ xrefs (every dispatcher /
+receiver that branches on "is this actor-id slot empty?"). See §2
+of "Critical findings" above for the corrected slot-2 interpretation.
+
+**Follow-up (Task A.1, optional):** Apply a `dword NO_ACTOR_ID`
+label + comment to `0x0130c778` in Ghidra so the 20+ xref-bearing
+functions decompile with `if (foo == NO_ACTOR_ID)` instead of
+`if (foo == DAT_0130c778)`. This will make every other receiver
+that uses the same gate trivially recognizable in subsequent passes.
 
 ### Task B — Confirm `0x00cc7a50` is `ActorRegistry::lookup_actor`
 
