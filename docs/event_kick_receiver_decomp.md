@@ -1,8 +1,11 @@
 # Phase 7 — `KickClientOrderEventReceiver` decomp + garlemald implications
 
 > Last updated: 2026-05-04 — slot 2 (Receive) static-decoded from
-> asm dump + Task A confirmed via Ghidra GUI: `0x0130c778` is the
-> `0xE0000000` `NO_ACTOR` sentinel (not the local player actor id).
+> asm dump; Task A confirmed `0x0130c778` is the `0xE0000000`
+> `NO_ACTOR` sentinel (not the local player actor id); Task B
+> confirmed `FUN_00cc7a50` is `ActorRegistry::lookup_actor`, AND
+> surfaced new architectural finding that the registry splits
+> across TWO backing collections via predicate `FUN_00cd80f0`.
 > Triggered by 2026-05-03 garlemald smoke-test debugging where the
 > SimpleContent man0g0 cinematic hung at "Now Loading" after
 > talking to Yda the second time, even after fixing 4 server-side
@@ -207,12 +210,53 @@ This shifts the porting story: garlemald doesn't need to think about
 set, which means the actor must have completed its spawn-packet
 sequence on the client.
 
-### 3. `0x00cc7a50` — `ActorRegistry::lookup_actor`
+### 3. `0x00cc7a50` — `ActorRegistry::lookup_actor` (with two-collection split)
 
-Called twice in slot 2 + once in slot 3. Almost certainly the
-client-side actor registry's "find by id" method. Worth naming
-in Ghidra so future analysis of any actor-targeting receiver can
-recognize it immediately.
+**CONFIRMED 2026-05-04 via Ghidra GUI (Task B).** Decompiles to:
+
+```c
+Actor* FUN_00cc7a50(Registry* this /* in ECX */, ActorId id) {
+    if (FUN_00cd80f0(id) == 0)
+        entry = FUN_00cd8160(id);   // search collection A
+    else
+        entry = FUN_00cd81d0(id);   // search collection B
+    if (entry == NULL) return NULL;
+    return *(Actor**)entry;         // unwrap hashmap-entry → actor ptr
+}
+```
+
+20+ xrefs (every receiver that needs to look up the kick / event /
+target actor by id).
+
+**The new architectural finding** is that the registry is NOT a
+single flat map — it's split across two backing collections, with
+`FUN_00cd80f0(actor_id)` choosing which collection to search based
+purely on the actor id itself. The predicate is small (presumably a
+single comparison or bit test on the id).
+
+Likely split criterion (to be confirmed by Task B.1 below):
+
+1. **id-range partition**: dynamic / world-server actor ids
+   (`< 0x80000000`?) vs map-server-allocated ids (`≥ 0x80000000`?).
+   Directors live at `0x66080000+` per garlemald memory
+   `project_garlemald_director_id_offset.md`; if collection B is
+   the "directors / instance actors" partition, the kick-receiver
+   slot 2 is implicitly looking up the kick target in BOTH paths.
+2. **flag bit on the id**: the FFXIV id-space has dedicated bits
+   for actor type (PC / NPC / mob / director / system); the
+   predicate may just be `(id >> 28) & 0x7 == X`.
+
+Whichever the split is, it has direct consequences for the
+garlemald porting target:
+
+- The kick gate finding (`+0x5c` flag check on the looked-up actor)
+  applies regardless of which collection the actor lives in, since
+  slot 2 calls `FUN_00cc7a50` once and that wrapper does the split
+  internally. So the "spawn must precede kick" rule is universal.
+- BUT the spawn-side opcode that flips `+0x5c` may differ between
+  collections (e.g. `AddActor` for collection A vs `CreateDirector`
+  for collection B). Task C (the `+0x5c` setter) needs to identify
+  whether one or two opcodes flip the flag.
 
 ### 4. `0x00cc7510` — vtable trampoline
 
@@ -280,15 +324,27 @@ functions decompile with `if (foo == NO_ACTOR_ID)` instead of
 `if (foo == DAT_0130c778)`. This will make every other receiver
 that uses the same gate trivially recognizable in subsequent passes.
 
-### Task B — Confirm `0x00cc7a50` is `ActorRegistry::lookup_actor`
+### Task B — ✅ DONE 2026-05-04
 
-Navigate to RVA `0x00cc7a50`. The function should:
-- Take `(ActorRegistry*, ActorId)` in `(ECX, ESI/stack)`
-- Iterate or hash-lookup an actor map
-- Return either NULL or a pointer to the actor object
+**Result:** Confirmed `ActorRegistry::lookup_actor(this, id) →
+Actor*`, AND surfaced new architectural finding that the registry
+splits across two backing collections via predicate `FUN_00cd80f0`.
+See §3 of "Critical findings" above for full analysis.
 
-If yes, name it accordingly in Ghidra and we can recognize this
-pattern in 30+ other receivers that do the same lookup.
+**Follow-up (Task B.1, recommended next):** Decompile
+`FUN_00cd80f0` (the predicate that picks between the two backing
+collections). The function is presumably small — likely a single
+bit test or comparison on the actor id. Knowing the split criterion
+lets us understand the FFXIV 1.x actor-id namespace, which is
+load-bearing for understanding why directors (id `0x66080000+`),
+mobs, NPCs, and PCs end up in different parts of the registry.
+
+Also worth applying labels in Ghidra:
+- `FUN_00cc7a50` → `ActorRegistry::lookup_actor`
+- `FUN_00cd80f0` → `ActorRegistry::id_partition_predicate` (rename
+  to its real name once we decode it)
+- `FUN_00cd8160` → `ActorRegistry::lookup_collection_a`
+- `FUN_00cd81d0` → `ActorRegistry::lookup_collection_b`
 
 ### Task C — Decode the `+0x5c` actor flag
 
