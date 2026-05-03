@@ -653,29 +653,40 @@ The 48-byte field map I extracted earlier is therefore the
 **RetainerList wire format**, which garlemald already implements
 correctly.
 
-**The actual chara-list deserializer is still unidentified.** It
-must live in one of the other LobbyOperation::vtable[1] slots:
+### Update — chara-list deserializer FOUND in `ServiceLoginOperation::vtable[1]`
 
-| Class | vtable[1] |
-|---|---|
-| `LobbyLoginOperation` | `FUN_00da9ec0` |
-| `ServiceLoginOperation` | `FUN_00daa9f0` ← most likely (chara-list arrives during service login) |
-| `GameLoginOperation` | `FUN_00daa950` |
+Decompile of `FUN_00daa9f0` (`ServiceLoginOperation::vtable[1]`)
+confirms it dispatches all four lobby-list opcodes from one switch.
+Per-opcode handlers:
 
-Order-of-investigation ranking (chara-list arrives right after
-service login authenticates):
+| Opcode | Handler | Log prefix | Garlemald name |
+|---|---|---|---|
+| **`0x0D`** | **`FUN_00da76b0(packet+0x10)`** | "SEQ:"/"Count:" | **CharacterList ← THE chara-list deserializer** |
+| `0x15` | `FUN_00da6320(packet+0x10)` | "WLD_SEQ:"/"WLD_Count:" | WorldList |
+| `0x16` | `FUN_00da4c20(packet+0x10)` | "CHR_SEQ:"/"CHR_Count:" | ImportList |
+| `0x17` | `FUN_00da4d80(packet+0x10)` | "CHR_SEQ:"/"CHR_Count:" | RetainerList (cross-confirmed via 48-B record match) |
 
-1. **`FUN_00daa9f0`** — `ServiceLoginOperation::vtable[1]`. Most
-   likely candidate. Decompile this first.
-2. **`FUN_00da9ec0`** — `LobbyLoginOperation::vtable[1]`. Less
-   likely but possible (depends on whether SE puts chara-list in
-   the lobby-login phase or service-login phase).
-3. **`FUN_00daa950`** — `GameLoginOperation::vtable[1]`. Unlikely
-   (game-login is post-character-selection).
+**Garlemald's opcode mapping is correct — and was correct all along.**
+The chara-list IS opcode `0x0D`; it's just dispatched through
+`ServiceLoginOperation::vtable[1]` (the operation-step path), NOT
+through the `LobbyProtoDownDummyCallback` no-op stub that I spent
+days obsessing over earlier. Both dispatch paths physically exist
+in the binary; the real one is the operation-step path.
 
-The `FUN_00daac30` analysis still gave us a useful reference
-implementation of the dispatcher pattern these other slot-1
-handlers will follow.
+Side-finding: `CHR_*` doesn't mean "character not retainer" — it's
+used for both retainer (`0x17`) AND import (`0x16`) lists. The
+chara-list (`0x0D`) uses plain "SEQ:"/"Count:" (no prefix). My
+earlier "CHR_ proves opcode swap" claim was wrong on multiple
+levels.
+
+`FUN_00da76b0` returns `char` (a failure flag); on failure the
+dispatcher calls `FUN_00da5030(this->[+0x34])` — a failure callback
+on the user-supplied callback object.
+
+**Closing the chara-list mystery requires one final decompile:**
+`FUN_00da76b0` — the per-character field parser. Once that lands,
+the 5 schema flags from `chara_list_validation.md` get their
+definitive answer.
 
 ### Update — `FUN_00da4d80` is the RETAINER deserializer (not chara-list)
 
