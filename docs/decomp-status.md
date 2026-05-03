@@ -993,20 +993,43 @@ under [`src/ffxivgame/sqex/Utf8String.cpp`](../src/ffxivgame/sqex/Utf8String.cpp
 | `Sqex::Misc::Utf8String::Utf8String` (alt ctor) | 116 B | 🟡 109/116 PARTIAL | Layout recovered |
 | `Utf8String::Reserve` | 153 B | 🟡 144/153 PARTIAL | 94 % match; pending Ghidra-GUI globals identification |
 
-### 4.4 — Sqex slab allocator pair (2 PARTIAL)
+### 4.4 — Sqex slab allocator pair (1 GREEN, 1 PARTIAL)
 
 `Utf8String` delegates allocation to two cdecl helpers
 (`Utf8StringAlloc` / `Utf8StringFree`) that index global slab tables
-at `0x01266dc0` (slab descriptors), `0x0132cec8` (free-list buckets),
-`0x0132cf1c` (mutex array). Source under
+at `0x01266dc0` (the literal `imm32` base in `MOV EAX, [ESI*8 +
+0x01266dc0]`; the actual slab descriptor table starts at `0x01266dc8`
+for `size_class=1`), `0x0132cec8` (free-list buckets), `0x0132cf1c`
+(per-size-class atomic counters). Source under
 [`src/ffxivgame/sqex/Allocator.cpp`](../src/ffxivgame/sqex/Allocator.cpp).
-See [`ghidra-tasks.md`](ghidra-tasks.md) for the open Ghidra-GUI tasks
-to recover the missing slab-descriptor / mutex struct names.
 
 | Function | RVA | Size | Status |
 |---|---|---:|---|
-| `Utf8StringAlloc` | `0x0004d500` | 225 B | 🟡 222/225 PARTIAL |
-| `Utf8StringFree`  | `0x0004d350` | 105 B | 🟡 104/105 PARTIAL |
+| **`Utf8StringFree`** | `0x0004d350` | 105 B | **✅ GREEN (2026-05-02)** |
+| `Utf8StringAlloc` | `0x0004d500` | 225 B | 🟡 166/222 PARTIAL (74.8 %; 222 vs 225 — 3 B short) |
+
+**Utf8StringFree GREEN recipe** (commit `06ef7dd24`): inline the
+`g_slab_descriptors[size_class].capacity` accesses (used three times
+directly instead of via an intermediate `int slab_cap` local). MSVC
+no longer hoists `slab_cap` into a callee-saved register, so the
+`IDIV` correctly re-loads from memory matching orig's 7-byte
+`IDIV [ESI*8 + imm32]` instead of mine's 2-byte `IDIV reg`. Saves the
+last 1-byte gap by re-introducing the byte that the over-eager hoist
+had eliminated.
+
+**General lesson for matching-decomp**: hoisting via intermediate
+locals can SHRINK functions to 1-byte-short; sometimes the cure is
+NOT to hoist (inline the access). MSVC `IDIV` codegen splits along
+memory-vs-register operand: 2 bytes `IDIV reg`, 7 bytes
+`IDIV [imm32]`. Choosing one over the other is a ~5-byte source-
+pattern lever.
+
+**Utf8StringAlloc remaining gap**: 3 bytes from MSVC's "shared ADD"
+optimization in the branch body — mine uses one shared `ADD ECX,
+EDX` at the merge point of both branches; orig duplicates the ADD
+into one branch and uses an explicit `MOV ECX, EDX` in the other.
+Both compute `delta + cons_idx`. Hard to defeat MSVC's CSE on the
+ADD from C source alone.
 
 ### 4.5 — Component::Install::InstallUnpacker (3 GREEN, 2 PARTIAL, 1 deferred)
 

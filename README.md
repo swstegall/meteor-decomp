@@ -66,7 +66,7 @@ already produced enough wire-level ground truth to validate
 
 - **Push `InstallUnpacker::Unpack` (FUN_00cc6700) GREEN** — biggest remaining Phase-4 target (490 B, 49.8 % match at iter #2). Iter #2 fixed the frame size to `0xe0` (matches orig); remaining gap is MSVC register-allocator divergence. See [`docs/install-unpacker.md`](docs/install-unpacker.md).
 - **Push `ChunkSource::AcquireChunk` GREEN** — 144/144 with 21 byte mismatches; cookie / register-allocation iteration.
-- **Push `Utf8String::Reserve` + `Utf8StringAlloc/Free` GREEN** — already at 99 % PARTIAL (`Utf8StringFree` 104/105, `Utf8StringAlloc` 222/225, `Reserve` 144/153). MSVC encoding-choice nudges (volatile toggles, shift-vs-immediate variants) should land them.
+- **Push `Utf8String::Reserve` + `Utf8StringAlloc` GREEN** — `Utf8StringAlloc` at 222 vs orig 225 (3 B short due to MSVC's "shared ADD" optimization), `Utf8String::Reserve` at 144/153. (`Utf8StringFree` ✅ GREEN as of 2026-05-02 — see commit `06ef7dd24`.)
 - **Sweep more cluster patterns** in `derive_templates.py` — every new pattern unlocks 13–406 GREEN templates.
 - **`FUN_00891f00` decompile** to close the 5 chara-list field-type flags (`current_level: u16` vs `mainSkillLevel: i8`, etc.) — chara-list packet structure was confirmed correct on 2026-05-02, only the field types inside each 464-byte entry remain unverified.
 - **Full Up-opcode enumeration** — current pass validates that all garlemald `OP_RX_*` constants appear as PUSH immediates in `.text`, but per-callsite arg propagation (the canonical mapping) is deferred pending Ghidra-driven analysis.
