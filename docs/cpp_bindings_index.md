@@ -75,19 +75,48 @@ cross-class binding redundancy.
 
 ## What this enables for garlemald
 
-Garlemald's Rust-side Lua bindings (per
-`map-server/src/lua/userdata.rs` and friends) need to expose
-**every method in this inventory** for the corresponding class.
-Coverage gaps will manifest as `attempt to call a nil value (method
-'_xxx_cpp')` errors at script-execution time.
+This inventory describes the **CLIENT-side engine API surface** —
+the methods exposed to the binary's Lua VM for the shipped client
+scripts (`*.lpb` files under `client/script/`).
 
-Per `docs/garlemald_validation.md`, garlemald's `userdata.rs`
-exposes ~50 player methods. The decomp inventory shows
-**PlayerBaseClass needs 94 C++-bound methods** + the inherited
-CharaBaseClass methods (76) on top of that — so the player binding
-needs ~170 distinct method signatures to reach full coverage. The
-gap (~120 methods) is what garlemald will surface as scripts touch
-deeper player-state queries.
+### Important correction (2026-05-03 via `docs/player_base_decomp.md`)
+
+An earlier version of this doc claimed garlemald's `userdata.rs`
+needed to converge toward this API surface (suggesting a "~120 method
+gap" for PlayerBase). **That framing was wrong.** Garlemald's
+`userdata.rs` is the binding for garlemald's OWN server-side mlua
+VM — it serves garlemald's own Lua scripts, NOT the client's.
+
+The two API surfaces serve independent VMs:
+
+- **Engine PlayerBaseClass / WorldMaster / etc.** (this inventory) →
+  consumed by **client-side** shipped `.lpb` scripts in the binary's
+  Lua VM
+- **Garlemald LuaPlayer / LuaActor / LuaWorldManager / etc.**
+  (in `userdata.rs`) → consumed by **server-side** garlemald scripts
+  in mlua
+
+The actionable garlemald binding work is documented in
+`docs/garlemald_lua_coverage_index.md` — that's the report
+cross-referencing what garlemald's scripts call against what
+garlemald's userdata.rs binds. The 87 gaps there are the real
+coverage gaps, NOT the 419 engine bindings here.
+
+### What this inventory IS useful for, garlemald-side
+
+1. **Knowing what state fields the client expects to read.** Every
+   engine method here implicitly references some `playerWork.<field>`
+   or `charaWork.<field>` that garlemald MUST populate via
+   SetActorProperty packets. The method names hint at what fields
+   must exist (e.g. `_getAchievementRate` → `playerWork.achievement*`
+   field family).
+2. **Knowing what server-RPC pairs the client expects.** Methods like
+   `_callServerOnTalk` are the client side of garlemald's `onTalk`
+   server dispatch. Each `_callServer*_cpp` method here corresponds
+   to a wire opcode garlemald should expect to receive.
+3. **Knowing what's PURELY client-side.** Methods like
+   `_setKeyboardFocusedWidget`, `_saveUserConfig`, `_lockCameraControl`
+   never touch the server — garlemald shouldn't try to drive these.
 
 ## Most actionable findings
 
