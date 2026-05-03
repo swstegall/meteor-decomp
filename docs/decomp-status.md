@@ -618,52 +618,76 @@ What's left to try (in priority order):
    reads each id in turn. A scan for the ids' string representations
    in dispatcher tables would surface the parsing function.
 
-### Update — chara-list opcode is likely 0x17, NOT 0x0D (Project Meteor opcode swap)
+### Update — `CharaMakeOperation::vtable[1]` is the RETAINER list path, not chara-list
 
 Decompile of `CharaMakeOperation::vtable[1]` (`FUN_00daac30`) shows
 a packet-opcode dispatcher with a switch on `*(short *)(packet+2)`.
 Three opcode handlers, with log strings recovered verbatim from
 `.rdata`:
 
-| Opcode | Handler dispatched | Log strings | Likely meaning |
-|---|---|---|---|
-| `0x0E` | sub-switch on `*(ushort *)(packet+0x1a) - 1`, calls `FUN_00da79d0(packet+0x10)` | "Count:", "LobbyClientMixin::onSuccessfulCharaMake:", "CALL onRenameRetainerName" | CharaMake response (sub-opcodes 0-5 for create/delete/rename/etc.) |
-| `0x10` | `(this->[+0x34])->vtable[0x48/4=18](this->[+8]+0x1d0, this->[+8]+0x200)` | (no logs) | Retainer-related callback |
-| **`0x17`** | logs `CHR_SEQ:` + `CHR_Count:`, calls **`FUN_00da4d80(packet+0x10)`** | **"CHR_SEQ:", "CHR_Count:"** | **Character list — `CHR_` is the chara-not-retainer prefix** |
+| Opcode | Handler dispatched | Log strings |
+|---|---|---|
+| `0x0E` | sub-switch on `*(ushort *)(packet+0x1a) - 1`, calls `FUN_00da79d0(packet+0x10)` | "Count:", "LobbyClientMixin::onSuccessfulCharaMake:", "CALL onRenameRetainerName" |
+| `0x10` | `(this->[+0x34])->vtable[0x48/4=18](this->[+8]+0x1d0, this->[+8]+0x200)` | (no logs) |
+| **`0x17`** | logs `CHR_SEQ:` + `CHR_Count:`, calls **`FUN_00da4d80(packet+0x10)`** | "CHR_SEQ:", "CHR_Count:" |
 
-**Cross-check against garlemald** (`lobby-server/src/packets/send.rs`):
+I initially read the `CHR_*` log strings as character-not-retainer
+and concluded "Project Meteor has the opcodes swapped." That was
+wrong. Cross-checking against garlemald's existing
+`retainer_list_packets` (`lobby-server/src/packets/send.rs:412`)
+shows it writes **exactly 48 bytes per retainer** record:
+`u32 id + u32 character_id + u16 total + u16 do_rename + u32 0 +
+32-B padded name = 48`. That matches `FUN_00da4d80`'s expected
+record format **perfectly**. So:
 
-```
-// CharacterList (opcode 0x0D)            ← garlemald uses 0x0D
-// RetainerList   (opcode 0x17)           ← garlemald uses 0x17
-```
+- **Opcode `0x17` is RetainerList** (garlemald is correct).
+- **`FUN_00da4d80` is the retainer-list deserializer**, not the
+  chara-list one.
+- **`CHR_` is SE's generic prefix** for "character data" that
+  covers both player characters AND retainers (since retainers
+  are technically character entities in FFXIV's data model).
+- **CharaMakeOperation handles retainer + chara-make traffic**,
+  not chara-list.
 
-But the binary handles opcode `0x17` with explicit "**CHR_SEQ**" /
-"**CHR_Count**" log strings — character semantics, not retainer.
-Combined with the previously-established fact that opcode `0x0D`
-goes to a `RET 0xc` no-op in the `LobbyProtoDownDummyCallback`
-dispatch, the strong hypothesis is:
+The 48-byte field map I extracted earlier is therefore the
+**RetainerList wire format**, which garlemald already implements
+correctly.
 
-**Project Meteor has CharacterList and RetainerList opcodes
-swapped.** The actual chara-list opcode is `0x17`. The reason
-chara-list "kinda works" in garlemald today: opcode `0x0D` arrives
-at the client and gets silently dropped (no-op handler), but the
-user clicks through to login anyway because the lobby state machine
-moves on once *some* character data is shown by a fall-back UI
-path.
+**The actual chara-list deserializer is still unidentified.** It
+must live in one of the other LobbyOperation::vtable[1] slots:
 
-This also resolves the original "byte_table[12] = 3 →
-dword_table[3] = no-op stub" puzzle — the no-op was correct: the
-client genuinely doesn't handle opcode `0x0D` in the
-LobbyProtoDownCallback path. It handles it (or doesn't) elsewhere,
-and the *real* chara-list arrives via opcode `0x17` through
-`CharaMakeOperation::vtable[1]`.
+| Class | vtable[1] |
+|---|---|
+| `LobbyLoginOperation` | `FUN_00da9ec0` |
+| `ServiceLoginOperation` | `FUN_00daa9f0` ← most likely (chara-list arrives during service login) |
+| `GameLoginOperation` | `FUN_00daa950` |
 
-### Update — chara-list deserializer FOUND (FUN_00da4d80, opcode 0x17, 48-byte flat records)
+Order-of-investigation ranking (chara-list arrives right after
+service login authenticates):
 
-Decompile of `FUN_00da4d80` (called from `FUN_00daac30` case `0x17`)
-is the actual chara-list deserializer. **No base64 wrapper. No
-Utf8Strings inline. Just flat 48-byte records.**
+1. **`FUN_00daa9f0`** — `ServiceLoginOperation::vtable[1]`. Most
+   likely candidate. Decompile this first.
+2. **`FUN_00da9ec0`** — `LobbyLoginOperation::vtable[1]`. Less
+   likely but possible (depends on whether SE puts chara-list in
+   the lobby-login phase or service-login phase).
+3. **`FUN_00daa950`** — `GameLoginOperation::vtable[1]`. Unlikely
+   (game-login is post-character-selection).
+
+The `FUN_00daac30` analysis still gave us a useful reference
+implementation of the dispatcher pattern these other slot-1
+handlers will follow.
+
+### Update — `FUN_00da4d80` is the RETAINER deserializer (not chara-list)
+
+After cross-checking against garlemald's existing `retainer_list_packets`
+(which writes exactly 48 B per record matching FUN_00da4d80's expected
+shape), `FUN_00da4d80` is now confirmed to be the **retainer-list
+deserializer**, not chara-list. The wire-format breakdown below is
+therefore for the **RetainerList** packet (opcode `0x17`), which
+garlemald already implements correctly.
+
+The chara-list deserializer is still unidentified — see the section
+below for the next candidates.
 
 **Wire format (opcode 0x17 payload, starting at `packet+0x10`):**
 
