@@ -659,6 +659,90 @@ LobbyProtoDownCallback path. It handles it (or doesn't) elsewhere,
 and the *real* chara-list arrives via opcode `0x17` through
 `CharaMakeOperation::vtable[1]`.
 
+### Update — chara-list deserializer FOUND (FUN_00da4d80, opcode 0x17, 48-byte flat records)
+
+Decompile of `FUN_00da4d80` (called from `FUN_00daac30` case `0x17`)
+is the actual chara-list deserializer. **No base64 wrapper. No
+Utf8Strings inline. Just flat 48-byte records.**
+
+**Wire format (opcode 0x17 payload, starting at `packet+0x10`):**
+
+```c
+struct CharacterListPacket {        // 28-byte header + N×48-byte records
+    /* +0x00 */ u32 chr_seq;         // CHR_SEQ (logged verbatim by FUN_00daac30)
+    /* +0x04 */ u32 unknown_4;
+    /* +0x08 */ u8  flags;           // bit 0 = "first packet" (clears container)
+    /* +0x09 */ u8  chr_count;       // CHR_Count (u8, max 255 per packet)
+    /* +0x0a */ u8  pad[18];         // unknown
+    /* +0x1c */ CharaRecord records[chr_count];   // tightly packed
+};
+
+struct CharaRecord {                 // 0x30 = 48 bytes — FLAT BINARY
+    /* +0x00 */ u32 unknown_0;
+    /* +0x04 */ u32 chara_id;        // unique ID (match key for internal records)
+    /* +0x08 */ u8  data[40];        // 40 bytes of summary; decode via FUN_00da95c0
+};
+```
+
+**Matching algorithm:**
+
+```
+for i in 0..chr_count:
+    rec = payload + 0x1c + i*0x30
+    if rec.chara_id == 0: continue          // empty slot
+    copy rec to local_60                    // 12 dwords = 48 bytes
+    FUN_00da95c0(local_60)                  // unpack/validate
+    // Find existing internal record (0x2e0 = 736 B per record)
+    for j in 0..(this->[+0x1d8] - this->[+0x1d4]) / 0x2e0:
+        existing = this->[+0x1d4] + j*0x2e0
+        if existing.chara_id == rec.chara_id:
+            copy rec to local_30
+            FUN_00da94c0(local_30)          // merge wire record → existing
+            break
+```
+
+**Internal full-character record at `this->[+0x1d4..+0x1d8]`**: 0x2e0 =
+**736 bytes per character**. Populated separately from the chara-list
+(probably via per-character detail packets); the chara-list updates a
+slim subset.
+
+**Implications for garlemald** (the load-bearing fix list):
+
+1. **Opcode is 0x17, not 0x0D.** Garlemald's `CharacterList`
+   packet at `lobby-server/src/packets/send.rs:271` (`OPCODE: u16 = 0x0D`)
+   is wrong — should be `0x17`. Garlemald's current `RetainerList`
+   at line 413 (`OPCODE: u16 = 0x17`) is also misnamed; that opcode
+   *is* the chara list. (Whether retainer-list uses a different opcode,
+   or just shares the chara-list flow with different `chr_seq` values,
+   is TBD.)
+
+2. **Format is flat 48-byte records, NO base64.** The
+   `appearance_blob = chara_info::build_for_chara_list(...)` work in
+   `chara_info.rs` is for a different packet. The actual chara-list
+   is a flat array of 48-byte records.
+
+3. **Multi-packet support via `flags & 1` and `chr_count: u8`.** A
+   single packet handles up to 255 chars; subsequent packets continue
+   the list (with `flags & 1 == 0` to prevent re-init).
+
+4. **The 5 schema flags in `chara_list_validation.md`** are for fields
+   that aren't even in the chara-list packet — they're in the rich
+   appearance / per-character-detail packet that arrives separately.
+   Garlemald's `build_for_chara_list` should be renamed to something
+   like `build_chara_appearance_blob` and used for the appropriate
+   packet (when we identify it).
+
+The reason chara-list "mostly works" today: garlemald's opcode 0x0D
+arrives at the client and gets silently dropped (no-op handler in
+LobbyProtoDownDummyCallback). The lobby state machine then falls
+back to UI-side default behavior — empty slots that the user clicks
+through — and the server's `SelectCharacterConfirm` (sent server-side
+regardless of what the client knew about) closes the loop.
+
+**Next decompile to fully close out the 40-byte mystery:** `FUN_00da95c0`
+(called with the 48-byte record). Its body reveals what's in the 40
+bytes after `chara_id` (probably name + world + slot + summary).
+
 ### Update — vtable 0x01127fd4 resolves to CharaMakeOperation
 
 RTTI lookup on the work-item class allocated by `FUN_00da5fd0`:
