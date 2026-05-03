@@ -103,6 +103,15 @@ def find_userdata_bindings(rs_path: Path) -> dict[str, set[str]]:
     # Walk through `impl UserData for <T>` blocks. Track brace depth.
     impl_re = re.compile(r"impl\s+UserData\s+for\s+(\w+)\s*\{")
     method_re = re.compile(r'add_(?:async_)?method\(\s*"([^"]+)"')
+    # Loop-bound stubs: `for stub in ["Name1", "Name2", ...] {` — a
+    # common idiom for batch-binding LogError stubs. The stub names
+    # are bound via `methods.add_method(name, ...)` inside the loop
+    # body, which the per-call regex above can't catch (the name is a
+    # variable). This regex captures the array literal directly.
+    stub_array_re = re.compile(
+        r'for\s+\w+\s+in\s+\[\s*((?:"[^"]+"\s*,?\s*)+)\]\s*\{'
+    )
+    string_lit_re = re.compile(r'"([^"]+)"')
     pos = 0
     while True:
         m = impl_re.search(text, pos)
@@ -124,6 +133,11 @@ def find_userdata_bindings(rs_path: Path) -> dict[str, set[str]]:
         block = text[m.end():i]
         for mm in method_re.finditer(block):
             bindings[cls].add(mm.group(1))
+        # Also catch loop-bound stubs: `for stub in ["A","B"] {`
+        # binds A and B via add_method(name, ...) inside the loop body.
+        for sm in stub_array_re.finditer(block):
+            for lit in string_lit_re.finditer(sm.group(1)):
+                bindings[cls].add(lit.group(1))
         pos = i
     return dict(bindings)
 
