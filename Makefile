@@ -35,6 +35,7 @@ help:
 	@echo "  make decode-lpb           Phase 6: decode shipped client/script/*.le.lpb wrapper"
 	@echo "  make decompile-lpb        Phase 6: unluac-decompile build/lpb/*.luac → build/lua/*.lua"
 	@echo "  make extract-cpp-bindings Phase 6: enumerate engine C++-bound Lua API from _u files"
+	@echo "  make garlemald-lua-coverage Phase 6: garlemald userdata.rs ↔ scripts/lua/ coverage report"
 	@echo "  make lpb-corpus           Phase 6: decode-lpb + decompile-lpb + extract-cpp-bindings"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
@@ -278,6 +279,14 @@ extract-cpp-bindings:
 	    exit 1; \
 	fi
 	$(PY) $(TOOLS)/extract_cpp_bindings.py
+
+# Cross-reference garlemald's Lua bindings (userdata.rs) against
+# methods CALLED by garlemald's own server-side scripts. Surfaces
+# coverage gaps (unbound methods that scripts call) and dead bindings.
+# See docs/garlemald_lua_coverage_index.md for what to do with the output.
+.PHONY: garlemald-lua-coverage
+garlemald-lua-coverage:
+	$(PY) $(TOOLS)/garlemald_lua_coverage.py
 
 lpb-corpus: decode-lpb decompile-lpb extract-cpp-bindings
 	@echo
