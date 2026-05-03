@@ -975,10 +975,10 @@ Source under [`src/ffxivgame/sqpack/`](../src/ffxivgame/sqpack/) and
 | Function | RVA | Size | Status | Notes |
 |---|---|---:|---|---|
 | `PackRead::~PackRead` | `0x008c6670` | 110 B | ✅ GREEN | First Phase-4 GREEN — sets vtable, frees `[this+0x74]`, hands to `ChunkRead<u32,u32>::~ChunkRead` |
-| `PackRead::PackRead` (ctor) | `0x00942800` | 132 B | 🟡 130/132 PARTIAL | Two iterations; sets vtable + initialises heap buffer. Same shape as dtor; off-by-2 bytes in cookie/SEH frame setup |
+| `PackRead::PackRead` (ctor) | `0x00942800` | 132 B | 🟡 16/130 PARTIAL (12.3 % strict byte-position, mine 2 B short) — verified 2026-05-03; the prior 130/132 figure was size-match. Real diff has 116 mismatches; structurally equivalent but MSVC chose a different register allocation through the SEH-protected ctor body. |
 | `PackRead::ReadNext` | (tiny stub) | 27 B | ✅ GREEN | Trivial loop driver |
 | `PackRead::Rewind` | (tiny stub) | 18 B | ✅ GREEN | |
-| `PackRead::ProcessChunk` | (mid) | 177 B | 🟡 180/177 PARTIAL | Buffer-guard cookie blocker — the function uses `/GS` cookie + `__security_check_cookie` whose epilogue ordering is sensitive to exact local layout |
+| `PackRead::ProcessChunk` | `0x00942740` | 177 B | 🟡 35/177 PARTIAL (19.8 % strict byte-position, mine 3 B over) — verified 2026-05-03. Buffer-guard cookie blocker — the function uses `/GS` cookie + `__security_check_cookie` whose epilogue ordering is sensitive to exact local layout. 145 mismatches; structurally equivalent but MSVC's stack-frame layout choice cascades. |
 | `ChunkReadUInt::ReadNextChunkHeader` | `0x000ebd40` | 81 B | 🟡 80/81 PARTIAL (98.8 %) | Header-parsing inner loop. Iter #2 (2026-05-03) +6 B vs iter #1 — reordered OK-path stores + reused `size` as carrier to keep result in EAX. Last 1-byte gap is a SIB-encoding choice (mine=0x30 base=EAX/idx=ESI; orig=0x06 base=ESI/idx=EAX), same MSVC-normalization quirk that blocks AcquireChunk's last 2 bytes. Closing requires `__declspec(naked)`. |
 
 ### 4.3 — Sqex::Misc::Utf8String (2 GREEN, 3 PARTIAL)
@@ -990,8 +990,8 @@ under [`src/ffxivgame/sqex/Utf8String.cpp`](../src/ffxivgame/sqex/Utf8String.cpp
 |---|---:|---|---|
 | `Utf8String::Utf8String` (default ctor) | 39 B | ✅ GREEN | |
 | `Utf8String::~Utf8String` | 24 B | ✅ GREEN | |
-| `Sqex::Misc::Utf8String::Utf8String` (alt ctor) | 116 B | 🟡 109/116 PARTIAL | Layout recovered |
-| `Utf8String::Reserve` | 153 B | 🟡 144/153 PARTIAL | 94 % match; pending Ghidra-GUI globals identification |
+| `Sqex::Misc::Utf8String::Utf8String` (alt ctor) | 116 B | 🟡 47/115 PARTIAL (40.9 %, mine 1 B short) | Layout recovered. Verified 2026-05-03: prior 109/116 / 115/116 figures were size-match heuristics; strict byte-position diff is lower because MSVC schedules the `MOV EDX, 1` *after* the `MOV EDI, [esp+0x14]` + CMP rather than before. Last 1-byte-shorter is the EDX=1 CSE: orig emits `ADD EAX, 1` (3 B) in the strlen loop, mine emits `ADD EAX, EDX` (2 B). Both DEFERRED — defeating either requires inline asm. |
+| `Utf8String::Reserve` | 153 B | 🟡 0/144 PARTIAL (mine 9 B short) | Verified 2026-05-03: structurally equivalent but MSVC's reg-allocator chose `PUSH ECX` (1 local) over orig's `SUB ESP, 8` (2 locals). The single-vs-double-spill difference shifts every store/load offset, so byte-position match is near-zero even though the function semantics match. DEFERRED — would need inline asm or a structural rewrite that creates two natural stack-resident locals. |
 
 ### 4.4 — Sqex slab allocator pair (1 GREEN, 1 PARTIAL)
 
@@ -1006,7 +1006,7 @@ for `size_class=1`), `0x0132cec8` (free-list buckets), `0x0132cf1c`
 | Function | RVA | Size | Status |
 |---|---|---:|---|
 | **`Utf8StringFree`** | `0x0004d350` | 105 B | **✅ GREEN (2026-05-02)** |
-| `Utf8StringAlloc` | `0x0004d500` | 225 B | 🟡 166/222 PARTIAL (74.8 %; 222 vs 225 — 3 B short) |
+| `Utf8StringAlloc` | `0x0004d500` | 225 B | 🟡 126/222 PARTIAL (56.8 % strict byte-position; 222 vs 225 — 3 B short) — verified 2026-05-03 with cl-wine.sh build + position-strict diff. The 74.8 % figure prior was a size-match heuristic. Real diff has 99 mismatches clustered around the loop-iter (sc++ vs index) and the InterlockedExchangeAdd argument-order spill choices. |
 
 **Utf8StringFree GREEN recipe** (commit `06ef7dd24`): inline the
 `g_slab_descriptors[size_class].capacity` accesses (used three times
