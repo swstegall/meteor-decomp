@@ -34,7 +34,8 @@ help:
 	@echo "  make extract-crypt-engine Phase 3: decode LobbyCryptEngine 9 slots + validate Blowfish init"
 	@echo "  make decode-lpb           Phase 6: decode shipped client/script/*.le.lpb wrapper"
 	@echo "  make decompile-lpb        Phase 6: unluac-decompile build/lpb/*.luac → build/lua/*.lua"
-	@echo "  make lpb-corpus           Phase 6: decode-lpb + decompile-lpb (corpus pipeline)"
+	@echo "  make extract-cpp-bindings Phase 6: enumerate engine C++-bound Lua API from _u files"
+	@echo "  make lpb-corpus           Phase 6: decode-lpb + decompile-lpb + extract-cpp-bindings"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
 	@echo "  make clean                wipe build/"
@@ -270,7 +271,15 @@ decompile-lpb:
 	@n=$$(find $(BUILD)/lua -name '*.lua' 2>/dev/null | wc -l | tr -d ' '); \
 	echo ">>> Done: $$n .lua files in $(BUILD)/lua/"
 
-lpb-corpus: decode-lpb decompile-lpb
+.PHONY: extract-cpp-bindings
+extract-cpp-bindings:
+	@if [ ! -d "$(BUILD)/lpb" ]; then \
+	    echo "error: $(BUILD)/lpb missing — run 'make decode-lpb' first" >&2; \
+	    exit 1; \
+	fi
+	$(PY) $(TOOLS)/extract_cpp_bindings.py
+
+lpb-corpus: decode-lpb decompile-lpb extract-cpp-bindings
 	@echo
 	@echo "Corpus ready. Try:"
 	@echo "  grep -r 'processEvent020_3' $(BUILD)/lua --include='*.lua' -l"
