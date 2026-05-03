@@ -739,9 +739,47 @@ back to UI-side default behavior — empty slots that the user clicks
 through — and the server's `SelectCharacterConfirm` (sent server-side
 regardless of what the client knew about) closes the loop.
 
-**Next decompile to fully close out the 40-byte mystery:** `FUN_00da95c0`
-(called with the 48-byte record). Its body reveals what's in the 40
-bytes after `chara_id` (probably name + world + slot + summary).
+**FUN_00da95c0 partial map (decompile captured):** the function is a
+record-merge-or-append on a SECOND container at `this->[+0x8..+0xc]`
+(separate from the 0x2e0-byte full-record store at `+0x1d4`). It
+uses TWO keys to dedupe:
+
+- `param_2[1]` = **chara_id (u32 at record+0x04)** — confirmed primary key
+- `*(char *)(param_2 + 2)` = **byte at record+0x08** — secondary key
+  (probably slot_index, possibly world_id_low or status discriminator)
+
+Both must be non-zero for the record to be processed (the gate
+`if (param_2[1] != 0 && *(char *)(param_2 + 2) != '\0')` at the top).
+A full match copies 12 dwords (48 B) over the existing record; no
+match falls through to `FUN_00da9420` which appends.
+
+The 39 remaining bytes (rec+0x09..0x30) are processed opaquely by
+this function (just memcpy-style copy). Mapping them to specific
+fields would require:
+- `FUN_00da94c0` decompile (merges 48 B into the 736 B full-record
+  at `this->[+0x1d4..+0x1d8]`) — would show which wire-record bytes
+  go to which full-record offsets; OR
+- Empirical observation against a running client (boot fresh-start,
+  send chara-list packets with known byte patterns, watch which
+  rendered fields change).
+
+### Final wire-format summary (sufficient to patch garlemald)
+
+| Field | Offset | Type | Confidence |
+|---|---|---|---|
+| Opcode | — | u16 = `0x17` | Confirmed |
+| `chr_seq` | payload+0x00 | u32 | Confirmed (CHR_SEQ literal) |
+| `unknown_4` | payload+0x04 | u32 | Unread by deserializer |
+| `flags` | payload+0x08 | u8 | bit 0 = continuation marker |
+| `chr_count` | payload+0x09 | u8 | Confirmed (CHR_Count literal) |
+| `pad` | payload+0x0a..0x10 | 6 B | Unread |
+| `page_id?` | payload+0x10 | u16 | Stored at `this->[+0x200]` on first packet |
+| `pad2` | payload+0x12..0x1c | 10 B | Unread |
+| `records[N]` | payload+0x1c | 48 B each | Confirmed |
+| Per-rec `unknown_0` | rec+0x00 | u32 | Unread for matching |
+| Per-rec `chara_id` | rec+0x04 | u32 | Confirmed; required non-zero |
+| Per-rec `slot_or_world` | rec+0x08 | u8 | Confirmed; required non-zero |
+| Per-rec `data` | rec+0x09..0x30 | 39 B | Unmapped — empirical reverse-engineering needed |
 
 ### Update — vtable 0x01127fd4 resolves to CharaMakeOperation
 
