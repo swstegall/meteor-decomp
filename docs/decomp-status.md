@@ -979,7 +979,7 @@ Source under [`src/ffxivgame/sqpack/`](../src/ffxivgame/sqpack/) and
 | `PackRead::ReadNext` | (tiny stub) | 27 B | ✅ GREEN | Trivial loop driver |
 | `PackRead::Rewind` | (tiny stub) | 18 B | ✅ GREEN | |
 | `PackRead::ProcessChunk` | (mid) | 177 B | 🟡 180/177 PARTIAL | Buffer-guard cookie blocker — the function uses `/GS` cookie + `__security_check_cookie` whose epilogue ordering is sensitive to exact local layout |
-| `ChunkReadUInt::ReadNextChunkHeader` | (mid) | 81 B | 🟡 74/81 PARTIAL | Header-parsing inner loop |
+| `ChunkReadUInt::ReadNextChunkHeader` | `0x000ebd40` | 81 B | 🟡 80/81 PARTIAL (98.8 %) | Header-parsing inner loop. Iter #2 (2026-05-03) +6 B vs iter #1 — reordered OK-path stores + reused `size` as carrier to keep result in EAX. Last 1-byte gap is a SIB-encoding choice (mine=0x30 base=EAX/idx=ESI; orig=0x06 base=ESI/idx=EAX), same MSVC-normalization quirk that blocks AcquireChunk's last 2 bytes. Closing requires `__declspec(naked)`. |
 
 ### 4.3 — Sqex::Misc::Utf8String (2 GREEN, 3 PARTIAL)
 

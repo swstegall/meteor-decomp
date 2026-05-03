@@ -95,9 +95,34 @@ protected:
 //         — got much worse (20 mismatches), flipped the JC/JNC and
 //         reordered the OOB/OK paths.
 //
-//   The 91% partial is the closest with straightforward C++. Closing
-//   the gap likely needs `__declspec(naked)` for the LEA + branch
-//   sequence or a deeper MSVC register-allocator nudge.
+//   #2-#5 [PARTIAL — 80/81 bytes match (98.8 %); 1 SIB-byte diff]
+//      Verified 2026-05-03 by building ChunkRead.cpp via
+//      cl-wine.sh and byte-diffing the resulting .text against
+//      orig at file 0x000ebd40. Two changes from iteration #1:
+//      (i)  Reorder the OK path so `m_cursor = next` happens
+//           BEFORE the m_field18 increment + return. Orig's body
+//           ends `MOV [ECX+0xc], EAX; ADD [ECX+0x18], 1; MOV EAX,
+//           [ECX+0x18]` — store-then-increment-then-load.
+//      (ii) Reuse `size` as the carrier so MSVC keeps the result
+//           in EAX (where size already is post-reload) instead of
+//           displacing it to EDX.
+//      +6 bytes vs iteration #1 (74→80).
+//
+//      Iterations #3 / #4 / #5 (operand reorder, array-subscript
+//      `&m_cursor[size+8]`, pre-add `size+=8`) all produce
+//      identical bytes to #2 — MSVC's SIB normalization is
+//      independent of source operand order or pointer-vs-int
+//      phrasing.
+//
+//   The 80/81 PARTIAL is the closest with straightforward C++.
+//   The remaining 1-byte gap is a SIB encoding choice
+//   (mine: 0x30 = base=EAX index=ESI; orig: 0x06 = base=ESI
+//   index=EAX) — both encode the same effective address
+//   `[ESI + EAX + 8]`. Identical pattern to the AcquireChunk
+//   2-byte SIB gap documented in InstallUnpackerHelpers.cpp:
+//   MSVC's internal SIB-emit normalisation is deterministic
+//   and can't be coaxed from C source alone. Closing this last
+//   byte would need `__declspec(naked)` for the LEA.
 int ChunkReadUInt::ReadNextChunkHeader() {
     unsigned size = *(unsigned *)(m_cursor + 4);
     if (m_flag15) {
@@ -109,11 +134,15 @@ int ChunkReadUInt::ReadNextChunkHeader() {
         swapped[3] = src[0];
         size = *(unsigned *)swapped;
     }
-    const char *next = m_cursor + size + 8;
-    if (next >= m_data_end) {
+    // Iteration #2 form (settled 2026-05-03): keep result in EAX
+    // (where `size` already lives post-reload) and reorder the
+    // OK-path stores. Variants #3-#5 (operand reorder, array-
+    // subscript, pre-add) all produce the same SIB-normalized
+    // 80/81-byte output — see iteration history above.
+    size += (unsigned)m_cursor + 8;
+    if (size >= (unsigned)m_data_end) {
         return -1;
     }
-    ++m_field18;
-    m_cursor = next;
-    return m_field18;
+    m_cursor = (const char *)size;
+    return ++m_field18;
 }
