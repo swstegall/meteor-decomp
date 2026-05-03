@@ -618,6 +618,43 @@ What's left to try (in priority order):
    reads each id in turn. A scan for the ids' string representations
    in dispatcher tables would surface the parsing function.
 
+### Update — vtable 0x01127fd4 resolves to CharaMakeOperation
+
+RTTI lookup on the work-item class allocated by `FUN_00da5fd0`:
+**`Application::Network::LobbyClient::CharaMakeOperation`** (5 slots,
+vtable at RVA `0xd27fd4` = VA `0x01127fd4`).
+
+Surprising finding: there is NO separate `CharaListOperation` class
+in the RTTI dump. The 5 concrete LobbyOperation subclasses are:
+- `LobbyLoginOperation`
+- `ServiceLoginOperation`
+- `CharaMakeOperation`
+- `GameLoginOperation`
+- (plus the abstract `LobbyOperation` base)
+
+Implication: **`CharaMakeOperation` handles both chara-make AND
+chara-list traffic** — they share the lobby chara-management flow
+(server sends chara-list, user picks "make new", same operation
+handles both directions).
+
+The 5-slot pattern across all 4 concrete subclasses:
+
+| Slot | Pattern |
+|---:|---|
+| 0 | class-specific (constructor / init helper) |
+| 1 | class-specific (likely "process incoming response") |
+| 2 | shared `FUN_00dad7b0` — common dtor/finalize |
+| 3 | shared `FUN_00dad8e0` — common error handler |
+| 4 | class-specific (likely "build outgoing request") |
+
+`CharaMakeOperation`'s class-specific slots:
+- slot 0 = `FUN_00daa190` (init)
+- slot 1 = **`FUN_00daac30` (likely chara-list deserializer)**
+- slot 4 = `FUN_00da8650` (likely chara-make request builder)
+
+Next step: decompile `FUN_00daac30` in Ghidra GUI. If it parses
+incoming bytes into per-character fields, the search is over.
+
 ## Phase 4 — Pack / ChunkRead / InstallUnpacker (▶ active matching)
 
 Phase 4 targets the file-system + installer subsystems. Detailed
