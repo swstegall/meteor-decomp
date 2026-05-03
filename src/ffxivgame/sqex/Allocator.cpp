@@ -53,7 +53,7 @@ extern "C" long g_alloc_consumer[];               // @ .data 0x0132cf20 (long[i]
 extern "C" int *g_alloc_freelists[];              // @ .data 0x0132cecc (int*[i])
 extern "C" void *malloc(unsigned n);              // CRT @ RVA 0x005d1b35
 
-// FUNCTION: ffxivgame 0x0004d350 — Sqex::Memory::SlabFree (105 B)
+// FUNCTION: ffxivgame 0x0004d350 — Sqex::Memory::SlabFree (105 B) ✅ GREEN
 //
 // "Utf8StringFree" was a misnomer — this isn't string-specific. It's
 // the generic slab-pool free for any allocation made by the matching
@@ -72,6 +72,22 @@ extern "C" void *malloc(unsigned n);              // CRT @ RVA 0x005d1b35
 //   0004d390: 0c 00 3b d9 75 06 f7 d8 50 57 ff d5 8b c3 99 f7
 //   0004d3a0: 3c f5 ?? ?? ?? ?? 8b 04 b5 ?? ?? ?? ?? 8b 4c 24
 //   0004d3b0: 14 5f 5d 5b 5e 89 0c 90 c3
+//
+// Iteration history:
+//   #1 [PARTIAL — 104/105 (99 % size; ~65 % byte match)]
+//      `int slab_cap = g_slab_descriptors[size_class].capacity;`
+//      hoisted slab_cap into a callee-saved register, letting MSVC
+//      use 2-byte `IDIV EDI` instead of orig's 7-byte
+//      `IDIV [ESI*8 + imm32]` (re-load from memory). 5-byte savings,
+//      offset by 4 bytes of inlined IAT calls = net 1 byte short.
+//
+//   #2 [✅ GREEN — 105/105]
+//      Inlined the slab_cap accesses (`g_slab_descriptors[size_class].capacity`
+//      used directly in three places instead of via an intermediate
+//      `int slab_cap` local). MSVC no longer hoists into a callee-saved
+//      register, so the IDIV correctly re-loads from memory. Matches
+//      orig byte-for-byte modulo 5 reloc slots (free / IAT addr / two
+//      slab-table addrs / freelist addr).
 extern "C" void Utf8StringFree(int data, int /*capacity*/, int /*alloc_class*/) {
     // The capacity and alloc_class args are pushed by callers (cdecl)
     // but actually ignored — only the header at data-4 controls
@@ -94,11 +110,11 @@ extern "C" void Utf8StringFree(int data, int /*capacity*/, int /*alloc_class*/) 
             return;
         }
         long counter = InterlockedExchangeAdd(&g_slab_counters[size_class], 1);
-        int slab_cap = g_slab_descriptors[size_class].capacity;
-        if (counter == slab_cap * 2) {
-            InterlockedExchangeAdd(&g_slab_counters[size_class], -slab_cap);
+        if (counter == g_slab_descriptors[size_class].capacity * 2) {
+            InterlockedExchangeAdd(&g_slab_counters[size_class],
+                                   -g_slab_descriptors[size_class].capacity);
         }
-        g_freelist_buckets[size_class][counter % slab_cap] = data;
+        g_freelist_buckets[size_class][counter % g_slab_descriptors[size_class].capacity] = data;
     }
 }
 
@@ -149,13 +165,14 @@ extern "C" unsigned *Utf8StringAlloc(int size) {
             long consumed = InterlockedExchangeAdd(&g_alloc_consumer[sc], 0);
             int cap = g_alloc_capacities[sc * 2];
             int prod_idx = (int)(produced % cap);
+            int cons_idx = (int)(consumed % cap);
             int delta;
-            if (prod_idx < (int)(consumed % cap)) {
+            if (prod_idx < cons_idx) {
                 delta = -prod_idx;
             } else {
                 delta = cap - prod_idx;
             }
-            if (99 < delta + (int)(consumed % cap)) {
+            if (99 < delta + cons_idx) {
                 long my_idx = InterlockedExchangeAdd(producer, 1);
                 if (my_idx == g_alloc_capacities[sc * 2] * 2) {
                     InterlockedExchangeAdd(producer, -g_alloc_capacities[sc * 2]);
