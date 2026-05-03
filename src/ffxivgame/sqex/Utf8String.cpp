@@ -279,7 +279,24 @@ Utf8String::~Utf8String() {
 // dedicated stack slot (`SUB ESP, 8`, 2 locals); mine keeps it in
 // EBX (`PUSH ECX`, 1 local). Both are valid optimizations of
 // equivalent C++; without inline asm there's no portable way to
-// override MSVC's spill decision. Accepting 94% PARTIAL.
+// override MSVC's spill decision.
+// Iteration #3 (2026-05-02): tried `volatile` on saved_size to
+// force a stack spill — got 144→150 bytes (3 short of orig's 153)
+// but the byte-match rate at the same offsets DROPPED from ~94 %
+// (size-match metric) to ~17 % (strict-position byte-match metric)
+// because the volatile forced extra MOV-through-memory writes
+// throughout the function, shifting all downstream bytes. Net
+// regression on real byte-match. Reverted.
+// Iteration #4: also volatile on `was_heap` — went 8 bytes UNDER
+// orig (worse on size). Reverted.
+// Conclusion: the 9-byte SUB-ESP-vs-PUSH-ECX gap can't be closed
+// via volatile alone — it triggers downstream spills that
+// regress the body's byte match. Real GREEN would need either
+// inline asm or a deeper structural rewrite that creates two
+// "natural" stack-resident locals MSVC chooses to spill without
+// being forced.
+// Status: 144/153 size-match (~94 % size); body is structurally
+// equivalent but reg-allocation divergent throughout.
 void Utf8String::Reserve(unsigned size, int small_ok) {
     if (small_ok) {
         m_flag_10 = 0;
