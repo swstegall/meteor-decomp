@@ -124,6 +124,9 @@ typeinfo lookups.
 6. **Battle Regimen (combo) UI**. How does the client display the
    "next skill in chain" prompt?
 
+(Items #2..#6 are now closed — see the per-item docs in the
+"Next concrete step" section below.)
+
 ## Approach (not byte-matching)
 
 Phase 5 is **functional decomp** per `PLAN.md` — re-derive into
@@ -337,13 +340,23 @@ The remaining items in the work pool:
    cutscene-clip family mapped, packet-shape requirements for
    garlemald itemised, two follow-up passes identified).
 
-5. **Status effect tick / display**. Per-status-effect rendering
-   (icon, duration bar, color). Probably driven by the
-   `CharaStatusBattle` controller + a separate effects list on the
-   actor.
+5. ✅ **Status effect tick / display** — done 2026-05-03. See
+   `docs/actor_status_effect.md` (negative result: 1.x has NO
+   dedicated buff-icon C++ widget; the strip is rendered via
+   Sqwt UI + Lua. Validation should be empirical via packet
+   captures).
 
-6. **Battle Regimen (combo) UI**. How does the client display the
-   "next skill in chain" prompt?
+6. ✅ **Battle Regimen (chain) UI** — done 2026-05-03. See
+   `docs/actor_battle_regimen.md` (`LinkPopup` is the chain-link
+   popup, sibling to DamagePlate / LevelupPlate / ExpPopup /
+   CountdownPopup under `App::Main::Element::Chara::*` with shared
+   72-slot `CharaElement` base. Chain-prompt highlight is
+   Lua + Sqwt).
+
+**Phase 5 complete.** All 6 work-pool items closed. Next: pick
+the next phase from `PLAN.md` (likely Phase 6 — Network /
+IpcChannel byte-matching, or follow-up passes on the Phase 5
+items deferred above).
 
 ## Cross-references in this workspace
 
