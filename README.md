@@ -26,7 +26,28 @@ already produced enough wire-level ground truth to validate
 | **Phase 2 — matching toolchain** | ✅ working | VS 2005 RTM + PSDK 2003 R2 under CrossOver Wine 9; first GREEN match landed 2026-05-01 |
 | **Phase 2.5 — template-derivation pipeline** | ✅ live | `cluster_shapes.py` + `cluster_relocs.py` + `derive_templates.py` + `seed_templates.py` + `stamp_clusters.py` |
 | **Phase 3 — functional / wire decomp** | 🟢 substantial — see below | `tools/extract_*.py`, `build/wire/*.md`, `include/net/*.h` |
-| **Phase 4 — Pack / ChunkRead / InstallUnpacker** | ▶ active matching | 11+ GREEN, 8 PARTIAL across `src/ffxivgame/{sqpack,sqex,install,crt}/` |
+| **Phase 4 — Pack / ChunkRead / InstallUnpacker** | ✅ exit criterion met (sqpack-cat tool works end-to-end); byte-matching ongoing | 12+ GREEN + 8 PARTIAL; `tools/sqpack_cat.py` opens DAT by resource_id, walks chunks, inflates payloads |
+
+### Recent milestones
+
+- **2026-05-02** — Phase 4 sqpack-cat exit criterion **complete**:
+  `tools/sqpack_cat.py 0x<rid> --root <game> --inflate` resolves a
+  resource_id to its DAT path, opens the file, walks PackRead-format
+  chunks, and inflates zlib-compressed payloads end-to-end. zlib chain
+  identified: `PackRead::ProcessChunk → FUN_00d42590 → FUN_00d4f640`
+  (zlib 1.2.3 statically linked verbatim). PathBuilder verified
+  against 140k real DAT files in a retail install.
+- **2026-05-02** — chara-list deserializer found: opcode `0x0D`
+  dispatches through `ServiceLoginOperation::vtable[1]` (`FUN_00daa9f0`)
+  → `FUN_00da76b0`. Garlemald's chara-list packet structure confirmed
+  architecturally correct (entry stride 0x1D0, header at +0x10, base64
+  appearance blob in tail).
+- **2026-05-02** — `Sqex::Memory::SlabFree` (`Utf8StringFree`) ✅ GREEN
+  (105/105). Recipe (now in the matching playbook): inline accesses
+  to PREVENT MSVC's hoist of `slab_cap` into a callee-saved register,
+  forcing `IDIV [imm32]` (7 B) instead of `IDIV reg` (2 B).
+- **2026-05-01** — chara-make 4 patches landed in garlemald (face_cheek
+  / face_jaw rename, current_class split, initial_bonus_item `[u32;4]`).
 
 ### Headline numbers (2026-05-02)
 
