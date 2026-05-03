@@ -37,6 +37,7 @@ help:
 	@echo "  make extract-cpp-bindings Phase 6: enumerate engine C++-bound Lua API from _u files"
 	@echo "  make garlemald-lua-coverage Phase 6: garlemald userdata.rs ↔ scripts/lua/ coverage report"
 	@echo "  make extract-work-fields  Phase 6: enumerate per-class state-field inventory (playerWork etc.)"
+	@echo "  make work-field-coverage  Phase 6: garlemald SetActorProperty paths ↔ inventory coverage"
 	@echo "  make lpb-corpus           Phase 6: decode-lpb + decompile-lpb + extract-cpp-bindings"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
@@ -300,6 +301,19 @@ extract-work-fields:
 	    exit 1; \
 	fi
 	$(PY) $(TOOLS)/extract_work_fields.py
+
+# Cross-reference the work-field inventory against garlemald's
+# SetActorProperty path table — surfaces fields the client reads
+# but garlemald has no writer for. See
+# docs/work_field_coverage_index.md for the analysis.
+.PHONY: work-field-coverage
+work-field-coverage:
+	@if [ ! -f "$(BUILD)/wire/work_field_inventory.json" ]; then \
+	    echo "error: $(BUILD)/wire/work_field_inventory.json missing" >&2; \
+	    echo "       run 'make extract-work-fields' first" >&2; \
+	    exit 1; \
+	fi
+	$(PY) $(TOOLS)/work_field_coverage.py
 
 lpb-corpus: decode-lpb decompile-lpb extract-cpp-bindings
 	@echo
