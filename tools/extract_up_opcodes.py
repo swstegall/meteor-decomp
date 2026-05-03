@@ -166,6 +166,127 @@ def scan_push_immediates(data: bytes, text_sec: dict, target_values: set[int],
     return out
 
 
+# Known CPB constructor RVAs — recovered from the vtable-store sites. Each
+# constructor takes the opcode as a stack arg; direct callers PUSH the
+# opcode literal before CALLing the ctor.
+KNOWN_CPB_CTORS = {
+    "lobby_a": 0x009a2b50,  # FUN_00da2b50 (no direct callers found)
+    "lobby_b": 0x009a2be0,  # FUN_00da2be0 (10 direct callers)
+    "zone_a":  0x009c1c60,  # FUN_00dc1c60 (1 direct caller)
+    "zone_b":  0x009c1cf0,  # FUN_00dc1cf0 (2 direct callers)
+    "chat_a":  0x00a40a60,  # FUN_00e40a60 (3 direct callers)
+}
+
+
+def find_ctor_callers(data: bytes, text_sec: dict, ctor_rva: int) -> list[int]:
+    """Find every CALL imm32 site in .text whose target is the given RVA."""
+    text_off = text_sec["raw_pointer"]
+    text_size = text_sec["raw_size"]
+    text_va = text_sec["virtual_address"]
+    hits = []
+    i = text_off
+    end = text_off + text_size
+    while i < end - 5:
+        if data[i] == 0xe8:
+            rel = struct.unpack_from("<i", data, i + 1)[0]
+            call_pc = (i - text_off) + text_va + 5
+            if call_pc + rel == ctor_rva:
+                hits.append((i - text_off) + text_va)
+        i += 1
+    return hits
+
+
+def decode_recent_pushes(data: bytes, text_sec: dict, call_rva: int,
+                         lookback: int = 80) -> list[tuple[int, str, object]]:
+    """Walk back up to `lookback` bytes from a CALL site and collect the
+    PUSH instructions in order. Returns list of (rva, kind, value)."""
+    text_off = text_sec["raw_pointer"]
+    text_va = text_sec["virtual_address"]
+    call_off = call_rva - text_va + text_off
+    start = max(text_off, call_off - lookback)
+    pushes = []
+    j = start
+    while j < call_off:
+        b = data[j]
+        rva_here = (j - text_off) + text_va
+        if b == 0x68:  # PUSH imm32
+            imm = struct.unpack_from("<I", data, j + 1)[0]
+            pushes.append((rva_here, "imm32", imm))
+            j += 5
+            continue
+        if b == 0x6a:  # PUSH imm8 (signed)
+            pushes.append((rva_here, "imm8", data[j + 1]))
+            j += 2
+            continue
+        if b in (0x50, 0x51, 0x52, 0x53, 0x55, 0x56, 0x57):
+            reg_name = {0x50: "EAX", 0x51: "ECX", 0x52: "EDX", 0x53: "EBX",
+                        0x55: "EBP", 0x56: "ESI", 0x57: "EDI"}[b]
+            pushes.append((rva_here, "reg", reg_name))
+            j += 1
+            continue
+        if b == 0xff and j + 1 < call_off:
+            # PUSH r/m32 — most variants are mem-based with disp8
+            mr = data[j + 1]
+            if mr in (0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,
+                      0x30, 0x31, 0x32, 0x33, 0x35, 0x36, 0x37):
+                pushes.append((rva_here, "mem", f"ff {mr:02x}"))
+                j += 3 if (mr & 0xf0) == 0x70 else 2
+                continue
+        j += 1
+    return pushes
+
+
+def enumerate_ctor_call_opcodes(data: bytes, text_sec: dict,
+                                 syms: list[dict]) -> dict:
+    """For each known CPB ctor, find direct CALL sites and decode the
+    opcode arg.
+
+    The CPB ctor signature (verified by decoding lobby_b ctor body
+    FUN_00da2be0 at RVA 0x009a2be0) is `(this_ECX, arg1_OPCODE, arg2,
+    arg3)`. The body loads arg1 from `[esp+0x20]` (post-prologue) and
+    writes it to `[this+0x1c]`. Stack args are pushed right-to-left in
+    cdecl/stdcall, so at the call site:
+      PUSH arg3   ; lowest address
+      PUSH arg2
+      PUSH arg1   ; highest address (= opcode), pushed LAST before CALL
+      MOV ECX, this
+      CALL ctor
+
+    The opcode is the LAST push of the 3 args (highest address, pushed
+    last). Earlier iterations of this tool grabbed the middle push;
+    that was wrong — verified by re-decoding the ctor's stack-offset
+    arithmetic. (The prologue pushes 7 slots = 0x1c bytes; original
+    arg1 was at caller's [esp+4], so post-prologue at [esp+0x20].)
+    """
+    out = {}
+    for label, ctor_rva in KNOWN_CPB_CTORS.items():
+        callers = find_ctor_callers(data, text_sec, ctor_rva)
+        per_caller = []
+        for c in callers:
+            caller_fn = _find_fn(c, syms)
+            recent = decode_recent_pushes(data, text_sec, c)[-3:]
+            opcode = None
+            if len(recent) == 3 and recent[-1][1] in ("imm8", "imm32"):
+                # arg1 = last push (highest addr) = opcode
+                opcode = recent[-1][2]
+            per_caller.append({
+                "call_rva_hex": f"0x{c:08x}",
+                "caller_fn": caller_fn,
+                "recent_pushes": [
+                    {"rva_hex": f"0x{r[0]:08x}", "kind": r[1], "value": r[2]}
+                    for r in recent
+                ],
+                "opcode": opcode,
+                "opcode_hex": f"0x{opcode:04x}" if opcode is not None else None,
+            })
+        out[label] = {
+            "ctor_rva_hex": f"0x{ctor_rva:08x}",
+            "caller_count": len(callers),
+            "calls": per_caller,
+        }
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("binary", default="ffxivgame", nargs="?")
@@ -186,12 +307,50 @@ def main() -> int:
         for s in sites[:5]:
             print(f"    {s['rva_hex']}  ({s['store_form']})")
 
+    print("\n=== CPB constructor direct callers + opcode args ===")
+    ctor_calls = enumerate_ctor_call_opcodes(data, text_sec, syms)
+    recovered_opcodes: dict[int, list[dict]] = {}
+    for label, info in ctor_calls.items():
+        print(f"  {label} (RVA {info['ctor_rva_hex']}): "
+              f"{info['caller_count']} caller(s)")
+        for call in info["calls"]:
+            op = call["opcode"]
+            fn = call["caller_fn"] or "?"
+            print(f"    {call['call_rva_hex']} ({fn}): "
+                  f"opcode={call['opcode_hex'] or 'unresolved'}")
+            if op is not None:
+                recovered_opcodes.setdefault(op, []).append({
+                    "channel": label, "caller_fn": fn,
+                    "call_rva_hex": call["call_rva_hex"],
+                })
+
+    print(f"\n=== Recovered Up opcodes via direct ctor calls "
+          f"({len(recovered_opcodes)} distinct) ===")
+    for op in sorted(recovered_opcodes):
+        sites = recovered_opcodes[op]
+        fns = sorted({s["caller_fn"] for s in sites})
+        chans = sorted({s["channel"] for s in sites})
+        print(f"  0x{op:04x} ({op:>5}): {len(sites)} site(s) "
+              f"chans={chans} fns={fns[:3]}")
+
     rx_ops = parse_garlemald_rx_opcodes()
     print(f"\n=== Garlemald RX opcode validation ({len(rx_ops)} opcodes) ===")
     push_hits = scan_push_immediates(data, text_sec, set(rx_ops), syms)
 
     summary = {
         "ctor_sites": ctor_sites,
+        "ctor_callers": ctor_calls,
+        "recovered_opcodes": [
+            {
+                "opcode": op,
+                "opcode_hex": f"0x{op:04x}",
+                "garlemald_name": rx_ops.get(op),
+                "site_count": len(recovered_opcodes[op]),
+                "channels": sorted({s["channel"] for s in recovered_opcodes[op]}),
+                "caller_fns": sorted({s["caller_fn"] for s in recovered_opcodes[op]}),
+            }
+            for op in sorted(recovered_opcodes)
+        ],
         "rx_opcode_validation": [
             {
                 "opcode": op,
@@ -225,15 +384,50 @@ def main() -> int:
         f.write("`MOV [this+0x1C], <stack-arg>` (register-based store, not\n")
         f.write("immediate). This means there's no compact dispatch table to walk —\n")
         f.write("each callsite must be analysed individually to know its opcode.\n\n")
-        f.write("Two Zone constructors observed (CPB vtable RVA `0x00d29ae8`):\n")
-        f.write("  - `FUN_00dc1c60` (RVA `0x009c1c60`, 141 bytes, 4 stack args, 1 caller)\n")
-        f.write("  - `FUN_00dc1cf0` (RVA `0x009c1cf0`, 126 bytes, 3 stack args, 2 callers)\n\n")
-        f.write("Total: 3 known direct-call constructor sites for the Zone CPB —\n")
-        f.write("but the binary clearly *sends* dozens of distinct Up opcodes, so\n")
-        f.write("most senders must reach the constructor via inlined / templated\n")
-        f.write("paths (the constructor's body got duplicated into each sender, or\n")
-        f.write("there's a wrapper function we haven't located). Resolving this\n")
-        f.write("fully requires Ghidra-driven cross-reference analysis.\n\n")
+        f.write("Five CPB constructors observed across the three channels:\n\n")
+        f.write("| Channel | Constructor RVA | Direct callers |\n")
+        f.write("|---|---|---:|\n")
+        for label, info in ctor_calls.items():
+            f.write(f"| {label} | `{info['ctor_rva_hex']}` | {info['caller_count']} |\n")
+        f.write("\nThe ctors are SHARED — most senders don't construct a new CPB,\n")
+        f.write("they reuse a singleton instance and just write the opcode field\n")
+        f.write("at `[cpb + 0x1c]` then call slot 3 (Send). So direct-CALL-site\n")
+        f.write("enumeration only catches a small subset of Up opcodes; the rest\n")
+        f.write("flow through field writes against the shared CPB instance.\n\n")
+
+        # Section: opcodes recovered by direct ctor-CALL analysis.
+        f.write("## Recovered Up opcodes (via direct ctor-CALL analysis)\n\n")
+        f.write("The CPB constructor signature (verified by decoding the\n")
+        f.write("`lobby_b` ctor body at RVA `0x009a2be0`) is `(this_ECX,\n")
+        f.write("arg1_OPCODE, arg2, arg3)`. The body loads `arg1` from\n")
+        f.write("`[esp+0x20]` (post-prologue) and writes it to `[this+0x1c]`.\n")
+        f.write("Stack args are pushed right-to-left in cdecl/stdcall, so at\n")
+        f.write("the call site the byte sequence is:\n\n")
+        f.write("```\n")
+        f.write("PUSH arg3   ; lowest address\n")
+        f.write("PUSH arg2\n")
+        f.write("PUSH arg1   ; highest address — pushed LAST before CALL = opcode\n")
+        f.write("MOV ECX, this\n")
+        f.write("CALL ctor\n")
+        f.write("```\n\n")
+        f.write("The opcode is the LAST push of the 3 args (highest address,\n")
+        f.write("pushed last before the CALL), when all 3 are immediates.\n\n")
+        f.write("**16 direct CALL sites enumerated → "
+                f"{len(recovered_opcodes)} distinct opcodes recovered:**\n\n")
+        f.write("| Opcode | Hex | Channel(s) | Sites | Garlemald name | Caller fns |\n")
+        f.write("|---:|---:|---|---:|---|---|\n")
+        for entry in summary["recovered_opcodes"]:
+            chans = ", ".join(entry["channels"])
+            fns = ", ".join(f"`{n}`" for n in entry["caller_fns"][:2])
+            gname = f"`{entry['garlemald_name']}`" if entry["garlemald_name"] else "—"
+            f.write(f"| {entry['opcode']} | `{entry['opcode_hex']}` | "
+                    f"{chans} | {entry['site_count']} | {gname} | {fns} |\n")
+        f.write("\nThese opcodes are CONFIRMED ctor-call-site emissions. The wider\n")
+        f.write("Up-opcode space (likely 100+ opcodes) is the union of these PLUS\n")
+        f.write("opcodes set via `[cpb + 0x1c] = imm32` field-writes against the\n")
+        f.write("singleton CPB instances — those require constant propagation\n")
+        f.write("through the CPB pointer load (which is the Ghidra-driven task\n")
+        f.write("logged as a follow-up).\n\n")
 
         f.write("## Garlemald RX opcode validation\n\n")
         f.write("For each `OP_RX_*` constant in `garlemald-server/map-server/src/packets/opcodes.rs`,\n")
