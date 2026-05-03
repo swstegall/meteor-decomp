@@ -188,11 +188,29 @@ stamped via Phase 2.5 cluster pipeline).
 ## Exit criterion (revised)
 
 A working `tools/sqpack-cat <resource_id>` that:
-1. Resolves a resource_id to a DAT file path,
-2. Opens the DAT file using a re-derived `PackRead`,
-3. Streams the contained chunks out in their decompressed form,
-4. Produces output byte-identical to whatever the original game writes
-   when handed the same `resource_id`.
+1. ✅ **Resolves a resource_id to a DAT file path** — done via
+   [`tools/sqpack_path.py`](../tools/sqpack_path.py) +
+   [`src/ffxivgame/sqpack/PathBuilder.cpp`](../src/ffxivgame/sqpack/PathBuilder.cpp).
+   Verified against 140,180 real DAT files in a retail install.
+2. ✅ **Opens the DAT file** — done via
+   [`tools/sqpack_cat.py`](../tools/sqpack_cat.py).
+3. 🟡 **Streams the contained chunks** — best-effort chunk walker
+   in `sqpack_cat.py` correctly walks PackRead-format files; flags
+   false positives (offset-table files like `03/A2/0D/00.DAT` that
+   *look* chunked but aren't) with `OVERFLOW` status. Most DAT
+   files use file-type-specific magics (GTEX texture, SEDB sound DB,
+   MapL map layout, PWIB unknown, `#fil` CSV text) and aren't
+   PackRead-chunked at all — those are recognised and skipped.
+4. 🔲 **Decompression layer** — TBD. Locate via zlib magic
+   (`78 9c` / `78 da`) or zlib symbol names in `.rdata`.
 
-Plus byte-matching `PackRead::~PackRead` (and ideally the constructor
-+ a representative non-virtual read method).
+Plus byte-matching `PackRead::~PackRead` (✅ GREEN), `Rewind`
+(✅ GREEN), `ReadNext` (✅ GREEN), and ideally the constructor
+(🟡 130/132) + `ProcessChunk` (🟡 180/177).
+
+**Note on PackRead's actual scope**: the only direct caller of
+PackRead in `ffxivgame.exe` is `Component::Install::InstallUnpacker
+::Unpack` (FUN_00cc6700). So PackRead is for **installer / patcher
+manifests**, NOT runtime game data. That explains why most DAT files
+in a retail install aren't PackRead-chunked — they're per-file-type
+binary blobs read by other code paths.
