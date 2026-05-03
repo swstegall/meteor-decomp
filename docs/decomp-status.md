@@ -1084,10 +1084,18 @@ In rough priority order:
    (see [`ghidra-tasks.md`](ghidra-tasks.md)).
 4. **Sweep more cluster patterns** in `derive_templates.py` — every
    pattern unlocks 13–406 more GREEN templates.
-5. Resolve `CharacterListPacket::Deserialize` (open question above) —
-   closes the chara-list bugs.
-6. Apply the 4 surfaced `chara_make_validation` patches to
-   `garlemald-server::parse_new_char_request`.
+5. ~~Resolve `CharacterListPacket::Deserialize` (open question above) —
+   closes the chara-list bugs.~~ ✅ Closed 2026-05-02 — `FUN_00da76b0`
+   confirms garlemald's chara-list packet structure is correct
+   architecturally; the 5 schema flags are field-type bugs inside each
+   464-byte entry, resolvable via `FUN_00891f00` decompile or empirical
+   client testing.
+6. ~~Apply the 4 surfaced `chara_make_validation` patches to
+   `garlemald-server::parse_new_char_request`.~~ ✅ Done 2026-05-01 —
+   see `build/wire/ffxivgame.chara_make_validation.md` "Patch history"
+   section. All four bugs (face_cheek/face_jaw rename, current_class
+   split, initial_bonus_item `[u32;4]`) are landed in
+   `lobby-server/src/data/chara_info.rs`.
 7. Full Up-opcode enumeration (per-callsite arg propagation through
    CPB ctor's arg0).
 8. `LobbyCryptEngine::vtable[6/7]` callsite trace — would

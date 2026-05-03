@@ -64,14 +64,17 @@ already produced enough wire-level ground truth to validate
 
 ### Remaining Phase 3 / 4 work (open, in priority order)
 
-- **Push `InstallUnpacker::Unpack` (FUN_00cc6700) GREEN** — biggest remaining Phase-4 target (490 B, 428/490 at Iteration #1). Needs four Ghidra-GUI deliverables (parent-class layout, helper signatures, alt-Utf8String identification, `WaitablePredicate::TryReady`); see [`docs/install-unpacker.md`](docs/install-unpacker.md) and [`docs/ghidra-tasks.md`](docs/ghidra-tasks.md).
+- **Push `InstallUnpacker::Unpack` (FUN_00cc6700) GREEN** — biggest remaining Phase-4 target (490 B, 49.8 % match at iter #2). Iter #2 fixed the frame size to `0xe0` (matches orig); remaining gap is MSVC register-allocator divergence. See [`docs/install-unpacker.md`](docs/install-unpacker.md).
 - **Push `ChunkSource::AcquireChunk` GREEN** — 144/144 with 21 byte mismatches; cookie / register-allocation iteration.
-- **Push `Utf8String::Reserve` + `Utf8StringAlloc/Free` GREEN** — pending Ghidra GUI on slab-allocator globals.
+- **Push `Utf8String::Reserve` + `Utf8StringAlloc/Free` GREEN** — already at 99 % PARTIAL (`Utf8StringFree` 104/105, `Utf8StringAlloc` 222/225, `Reserve` 144/153). MSVC encoding-choice nudges (volatile toggles, shift-vs-immediate variants) should land them.
 - **Sweep more cluster patterns** in `derive_templates.py` — every new pattern unlocks 13–406 GREEN templates.
-- **CharacterListPacket byte-layout decompilation** — the abstract `LobbyProtoDownCallbackInterface` has only ONE concrete subclass in the binary: `LobbyProtoDownDummyCallback@LobbyClient` (RTTI confirmed), whose slot 5 (where opcode 0x0D would dispatch) is a `RET 0xc` no-op stub. The real chara-list deserializer is reachable but not anchorable through purely-static Python xref scans — likely lives behind indirect calls in the lobby state machine (`MyGameLoginCallback`-adjacent code). Two paths forward: GUI-Ghidra interactive xref walk, or capture-and-decrypt empirical observation. See [docs/decomp-status.md](docs/decomp-status.md).
-- **Apply 4 surfaced chara-make bugs** to garlemald-server (`build/wire/<bin>.chara_make_validation.md § Suggested patch`).
+- **`FUN_00891f00` decompile** to close the 5 chara-list field-type flags (`current_level: u16` vs `mainSkillLevel: i8`, etc.) — chara-list packet structure was confirmed correct on 2026-05-02, only the field types inside each 464-byte entry remain unverified.
 - **Full Up-opcode enumeration** — current pass validates that all garlemald `OP_RX_*` constants appear as PUSH immediates in `.text`, but per-callsite arg propagation (the canonical mapping) is deferred pending Ghidra-driven analysis.
 - **`LobbyCryptEngine::vtable[6/7]` callsite trace** — would close out the alignment quirk by definitively showing what `len` arg is passed in retail.
+
+**Closed (don't re-suggest):**
+- ✅ ~~Apply chara-make patches~~ — landed 2026-05-01; see `build/wire/ffxivgame.chara_make_validation.md § Patch history`.
+- ✅ ~~Find chara-list deserializer~~ — `FUN_00da76b0` confirmed 2026-05-02; garlemald's packet structure is architecturally correct.
 
 ## Quickstart
 
