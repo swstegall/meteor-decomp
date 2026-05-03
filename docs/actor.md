@@ -182,20 +182,72 @@ promising semantic-meaning anchors):
 Cross-referencing these literals against game-data tables (race
 ids, class ids, motion-pack ids, etc.) is the next investigation.
 
+## Inheritance chain (recovered 2026-05-02)
+
+By chasing the chained parent-dtor calls (`MOV [ESI], <vtable>`
+swap then `CALL <parent_dtor>` near the end of each dtor) and
+cross-referencing each surfaced vtable VA against
+`config/ffxivgame.rtti.json`:
+
+```
+SQEX::CDev::Engine::Fw::SceneObject::Actor (vtable 0xc9ca94, 89 slots)
+    └── App::Scene::RaptureActor             (vtable 0xbea50c, 160 slots) [+71]
+        └── App::Scene::Actor::CDevActor     (vtable 0xbbc03c, 164 slots) [+4]
+            └── App::Scene::Actor::Chara::CharaActor (vtable 0xbc0d34, 188 slots) [+24]
+```
+
+Layer interpretation:
+
+- **`SceneObject::Actor`** is the CDev engine's base scene object —
+  89 slots of generic engine behaviour (lifecycle, transform, draw,
+  etc.). This is the root of the actor hierarchy in the underlying
+  engine.
+- **`RaptureActor`** is the game-application "Rapture" layer that
+  adds 71 game-specific virtual hooks — the bulk of the additions.
+  This is where the game-specific behaviour lives.
+- **`CDevActor`** adds only 4 slots, all related to Excel-driven
+  resource loading. Sibling RTTI classes
+  (`CDevActorResourceEvent`, `CDevActorSetResourceEvent`,
+  `CDevActorSetResourceWithExcelEvent`, `CDevActorExcelWaiter`)
+  confirm this. So `CDevActor` is essentially "RaptureActor + Excel
+  hooks" — every actor type that reads game data (characters,
+  weapons, BG models, etc.) extends here.
+- **`CharaActor`** adds 24 character-specific slots. These are the
+  slots that govern character-only behaviour (chara visual,
+  motion, action queue dispatch, status controllers, etc.).
+
+The 16 sibling `CDevActor` subclasses include `WeaponActor` (165),
+`BgModelActor`/`BgObjActor`/`BgPlateActor` (167 each — they all
+share the same +3-slot extension over CDevActor), `MapLayoutActor`,
+several `System::*Actor` types, `LightActor`, `EffectActor`,
+`WindowActor`, etc.
+
+For garlemald, this means an actor's behaviour is layered:
+- Generic engine ops (slots 0..88) — `SceneObject::Actor`
+- Rapture game hooks (slots 89..159) — `RaptureActor`
+- Excel resource loader hooks (slots 160..163) — `CDevActor`
+- Per-type slots (164..188 for CharaActor) — class-specific
+
+When sending an `SetActorProperty` packet, the field offset hits a
+specific layer's storage; the responsible vtable slot lives in the
+matching parent. Future field-naming work will benefit from
+knowing which layer adds each field.
+
 ## Next concrete step
 
-Two parallel tracks possible:
+The remaining items in the work pool:
 
-1. **Identify CharaActor's parent class** — navigate to
-   `FUN_00666130` in Ghidra, look at the second `MOV [ESI], imm32`
-   in the body (after the initial `0xfc0d34`) — that's the
-   parent's vtable. Cross-reference against `config/ffxivgame.rtti.json`
-   to name the parent.
-
-2. **Identify what the literal initializers MEAN** — search for
+1. **Identify what the literal initializers MEAN** — search for
    functions that read each of `+0x0169`, `+0x1170`, `+0x1178`,
    `+0x1958`, looking for context (cross-references to game-data
    tables, comparison constants, etc.).
+2. **Map RaptureActor's field layout** — same recipe as
+   CharaActor (extract from ctor + dtor at the surfaced RVAs), and
+   merge the resulting offset catalog into the same header.
+   Together with CharaActor's offsets, this gives a near-complete
+   field schema for any character actor.
+3. Move on to work-pool items #2..#6 (Status controllers,
+   Action queue, Damage display, Status effect tick, Battle Regimen UI).
 
 ## Cross-references in this workspace
 

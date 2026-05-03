@@ -11,10 +11,44 @@
 // Application::Scene::Actor::Chara::CharaActor — recovered from
 // ffxivgame.exe RTTI + ctor/dtor extraction.
 //
+// Inheritance chain (recovered 2026-05-02 by chasing chained dtors):
+//
+//   SQEX::CDev::Engine::Fw::SceneObject::Actor (vtable 0xc9ca94, 89 slots)
+//       └── App::Scene::RaptureActor             (vtable 0xbea50c, 160 slots) [+71]
+//           └── App::Scene::Actor::CDevActor     (vtable 0xbbc03c, 164 slots) [+4]
+//               └── App::Scene::Actor::Chara::CharaActor (vtable 0xbc0d34, 188 slots) [+24]
+//
+// Layer roles:
+//   - SceneObject::Actor — CDev engine's base scene object (89 slots
+//     of generic engine behaviour: lifecycle, transform, draw, etc.).
+//   - RaptureActor — game-application "Rapture" layer that adds
+//     71 game-specific virtual hooks (the bulk of the slots).
+//   - CDevActor — adds 4 slots related to Excel-table-driven
+//     resource loading (CDevActorResourceEvent,
+//     CDevActorSetResourceEvent, CDevActorSetResourceWithExcelEvent,
+//     CDevActorExcelWaiter all live in this namespace).
+//   - CharaActor — adds 24 slots specific to characters (player
+//     and NPC); the slot-specific behaviours are still TBD.
+//
+// Sibling CDevActor subclasses (also extend CDevActor):
+//   Chara::WeaponActor (165 slots), Map::BgModelActor (167),
+//   Map::BgObjActor (167), Map::BgPlateActor (167),
+//   Map::MapLayoutActor (160), System::CommonResourceActor (164),
+//   System::GameManagerActor (164), System::BootupActor (164),
+//   System::ScreenshotManagerActor (164), System::CutManagerActor
+//   (164), System::CameraActor (164), System::TargetActor (160),
+//   Light::LightActor (164), Effect::EffectDebugActor (164),
+//   Effect::EffectActor (164), Window::WindowActor (160).
+//
 // vtable: RVA 0xbc0d34 (= VA 0xfc0d34), 188 slots
 // ctor:   FUN_0065f180 (1942 B at file 0x25f180)
 // dtor:   FUN_00666130 (968 B at file 0x266130) — wrapped by slot 0
 //         (FUN_00669e20, 34 B scalar deleting destructor)
+//
+// Chained parent dtors (last CALL in each):
+//   CharaActor::~CharaActor → CDevActor::~CDevActor      (FUN_006325e0, 117 B)
+//   CDevActor::~CDevActor   → RaptureActor::~RaptureActor (FUN_007ced70, 235 B)
+//   RaptureActor::~Rapture  → SceneObject::Actor::~Actor (FUN_00a60f30, 507 B)
 //
 // Class size: ≥ 0x2ba4 (= 11,172 bytes) — derived from the highest
 // field offset (`+0x2ba0`, dword) cleared in the ctor. Could be
