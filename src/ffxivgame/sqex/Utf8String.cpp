@@ -114,7 +114,7 @@
 //      the pre-test loop as `CMP [EBX], 0; JZ skip; loop: ...`. Orig
 //      uses a post-test loop with LEA-saved start.
 //
-//   #2 [PARTIAL — 109/116 (-7 B), 57 mismatches]  ← committed
+//   #2 [PARTIAL — 109/116 (-7 B), 57 mismatches]
 //      do-while strlen `do { c = *p++; } while (c); len = (p-data)-1;`
 //      Got mine 3 bytes shorter — the strlen body does match orig's
 //      post-test shape, but the new gap is MSVC scheduling MOV ECX, 1
@@ -123,17 +123,22 @@
 //      through the byte stores (MOV [ESI+0x10], CL vs DL etc.) for
 //      most of the function body.
 //
-// Why DEFERRED: the structural decode is correct and the Utf8String
-// LAYOUT is recovered (the actual deliverable for unblocking
-// PackRead::ProcessChunk). Closing the remaining 57-byte gap would
-// require coaxing MSVC to:
-//   - Schedule the constant `1` load BEFORE the arg2 load, AND
-//   - Pick EDX over ECX for that constant.
+//   #3 [PARTIAL — 115/116 (-1 B), 2026-05-02]  ← current
+//      Pre-saved `start_plus1 = data + 1` matches orig's
+//      `LEA EDI, [EAX+1]` setup. Got us within 1 byte of GREEN.
+//      Remaining gap: MSVC reuses EDX=1 in the strlen loop's
+//      increment (`ADD EAX, EDX` = 2 bytes) where orig emits
+//      `ADD EAX, 1` (3 bytes). MSVC's CSE is smart enough to
+//      observe EDX still holds the constant 1 from the field-init
+//      stores; orig's MSVC didn't make that connection. Tried
+//      `volatile` reads to clobber EDX-=1 — didn't help; MSVC
+//      still kept the constant tracked.
 //
-// Both are register-allocator heuristics with no clean C++ source
-// trigger. Likely needs `__declspec(naked)` or experimental flag-
-// twiddling. Deferring further iterations — the layout finding is
-// the unblocker for ProcessChunk and other Utf8String-using callers.
+// Why DEFERRED at 115/116: the remaining 1-byte gap is MSVC's
+// CSE optimization (reuse EDX=1 across both the field stores and
+// the loop increment). No C-source-level way to defeat this
+// without inline asm. The structural decode is correct and matches
+// orig in every other respect.
 
 // Class layout lives in include/sqex/Utf8String.h so callers (e.g.
 // PackRead::ProcessChunk) can stack-allocate Utf8String correctly.
@@ -360,6 +365,10 @@ Utf8String::Utf8String() {
 }
 
 Utf8String::Utf8String(const char *data, unsigned length) {
+    // Field-init stores. Order matters: the four "1" stores
+    // (m_flag_10/_11/_size + the PUSH 1 to Reserve later) reuse
+    // a single EDX=1 load across all four sites — orig saves bytes
+    // via this trick.
     m_flag_10 = 1;
     m_flag_11 = 1;
     m_field_c = 0;
@@ -370,12 +379,17 @@ Utf8String::Utf8String(const char *data, unsigned length) {
 
     if (length == 0xffffffff) {
         // -1 sentinel → compute strlen(data)
-        // Use a do-while with pre-incremented pointer to match orig's
-        // post-test loop shape (`EAX += 1; TEST CL, CL; JNZ loop`).
+        // Match orig's exact pattern: pre-save `data + 1` so the
+        // final subtraction gives strlen directly (orig does
+        // `LEA EDI, [EAX+1]; ... SUB EAX, EDI`).
+        const char *start_plus1 = data + 1;
         const char *p = data;
         char c;
-        do { c = *p++; } while (c);
-        length = (unsigned)(p - data) - 1;
+        do {
+            c = *p;
+            ++p;
+        } while (c);
+        length = (unsigned)(p - start_plus1);
     }
 
     Reserve(length + 1, 1);
