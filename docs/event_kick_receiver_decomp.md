@@ -4,13 +4,15 @@
 > asm dump; Task A confirmed `0x0130c778` is the `0xE0000000`
 > `NO_ACTOR` sentinel; Task B confirmed `FUN_00cc7a50` is
 > `ActorRegistry::lookup_actor` with a two-collection split; Task
-> B.1 surfaced that the partition predicate `FUN_00cd80f0` is a
-> 7-byte navigation thunk into a nested sub-object hierarchy, with
-> the real body at `FUN_00d035d0` shared across 6 registry-like
-> functions (likely 2 sibling registries). Triggered by 2026-05-03
-> garlemald smoke-test debugging where the SimpleContent man0g0
-> cinematic hung at "Now Loading" after talking to Yda the second
-> time, even after fixing 4 server-side director-flow bugs.
+> B.1 confirmed `FUN_00cd80f0` is a 7-byte navigation thunk into a
+> nested id-classifier sub-object; Task B.2 confirmed the partition
+> predicate at `FUN_00d035d0` is a TYPE-TAG-based metadata lookup
+> (collection B = "actor type tag == `0x0F`", everything else =
+> collection A) — the partition is runtime-assigned by spawn-side
+> opcodes, not derived from the id namespace. Triggered by
+> 2026-05-03 garlemald smoke-test debugging where the SimpleContent
+> man0g0 cinematic hung at "Now Loading" after talking to Yda the
+> second time, even after fixing 4 server-side director-flow bugs.
 
 ## TL;DR for garlemald porters
 
@@ -373,10 +375,55 @@ registry than world actors**, and the kick gate's `+0x5c` flag
 might be set by a different opcode pipeline depending on which
 registry the target was registered into.
 
-**Follow-up (Task B.2, recommended next):** Decompile `FUN_00d035d0`
-(the actual predicate body). It should be small (called via
-tail-jump from the thunk) and reveal what bit / range / state of
-the actor id determines the partition.
+**Follow-up (Task B.2, ✅ DONE 2026-05-04):** `FUN_00d035d0`
+decompiles to:
+
+```c
+bool FUN_00d035d0(u32 *id_ptr) {        // id passed by REFERENCE
+  if (FUN_00d03540(id_ptr) == 0)        // gate: "is id known to classifier?"
+    return false;                       //   no → false (use collection A)
+  
+  char *meta = FUN_00d03340(&id_ptr, *id_ptr);   // lookup metadata
+  return *meta == 0x0F;                 // tag == 0x0F → true (use collection B)
+}
+```
+
+**The partition is NOT id-range or bit-tag based — it's
+type-tag-based via a runtime metadata lookup.** The classifier
+sub-object maintains a `Map<ActorId, Metadata>` where Metadata's
+first byte is a type tag. Tag `0x0F` (constant `DAT_0130d426`)
+puts the actor into collection B; everything else (including
+unknown ids) defaults to collection A.
+
+This means the spawn-side opcode doesn't just write to a registry
+— it also assigns the type tag that determines which collection
+the actor ends up in. The director's `CreateDirector` packet
+likely writes tag `0x0F` (or whatever specific tag it uses) AND
+sets the `+0x5c` flag; a regular `AddActor` packet writes a
+different tag AND sets `+0x5c`. Both pipelines must land before
+any kick targeting the actor.
+
+**Tag `0x0F` semantic** — best guess pending further decomp:
+- An actor "kind" enum value (Director / ZoneInstance / SystemActor)
+- A synthetic-actor flag in the engine's actor-kind taxonomy
+- Confirming requires decoding `FUN_00d03340` (the metadata-set
+  side, not just the lookup) — i.e. find the WRITES that set
+  `*meta = 0x0F`.
+
+**The 8 xrefs to FUN_00d035d0** include `FUN_00cd81d0` itself
+(collection B lookup), which re-calls the predicate to gate its
+own search. The `FUN_00d2ab60`, `FUN_00d2ae60`, `FUN_00d2b2c0`
+cluster matches the `FUN_00d2*` cluster from `FUN_00cd80f0`'s
+xref list — strong confirmation of two parallel registries with
+identical id-classification policy.
+
+**Follow-up (Task B.3, deferrable):** Decompile `FUN_00d03340`
+both for the LOOKUP side AND find xrefs that WRITE to the
+metadata's first byte to identify what spawn-side code path
+assigns tag `0x0F`. This is the single highest-leverage next
+finding since it directly identifies the spawn-side opcode that
+inhabits collection B (probably the same opcode that flips
+`+0x5c`).
 
 Also worth applying labels in Ghidra:
 - `FUN_00cc7a50` → `ActorRegistry::lookup_actor`
