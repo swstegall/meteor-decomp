@@ -513,6 +513,54 @@ and the lobby uses a different dispatch mechanism.
 
 Either approach resolves the 5 schema flags definitively.
 
+### Update 2026-05-02 — candidate deserializer identified
+
+Pure-static analysis dead-end resolved by following base64-decode
+xrefs:
+
+- `FUN_0045a920` is the **binary-buffer** URL-safe base64 decoder
+  (counterpart to `FUN_0045a970`, the *string* version).
+- A whole-`.text` E8-rel32 scan finds **7 callers** of the two
+  base64 wrappers combined:
+  - 6 are 240-byte sibling functions at consecutive RVAs
+    (`0x1a6890`, `0x1a6990`, `0x1a6a90`, `0x1a6b90`, `0x1a6c90`,
+    `0x1a6d90`) — all call the *string* decoder. Cluster of
+    PARAMNAME-like helpers, not chara-list.
+  - 1 is `FUN_00901c10` (RVA `0x501c10`, **415 B**) — the **only
+    caller of the binary-buffer decoder**. Right size, right
+    call site (fn-offset `+0x92`), right shape (full `/GS` SEH
+    frame, `__thiscall`, gates on `this->[+0x144]`, reads from
+    `this->[+0x21d4]` size + `this->[+0x21d0..]` buffer region).
+
+`FUN_00901c10` is the **near-certain chara-list deserializer**.
+What's needed next is the Ghidra GUI decompiled view to read off
+the field offsets it writes (`out->[+0x10] = …`, etc.) and
+cross-reference them against
+`build/wire/ffxivgame.chara_list_validation.md`'s 5 schema flags.
+Once those offsets are captured, garlemald's
+`build_for_chara_list` can be patched with confidence.
+
+How to find the deserializer for any encrypted lobby payload:
+
+```
+# Find all callers of the base64 decoder you care about
+python3 - <<EOF
+import struct
+orig = open('orig/ffxivgame.exe', 'rb').read()
+target = 0x05a920   # or 0x05a970 for string version
+hits = []
+for i in range(0x1000, 0xb3d000):
+    if orig[i] == 0xe8:
+        rel = struct.unpack_from('<i', orig, i+1)[0]
+        if i + 5 + rel == target:
+            hits.append(i)
+for h in hits: print(f'caller at file 0x{h:x}')
+EOF
+```
+
+The same recipe works for *any* lobby callback the static-RTTI
+scan can't anchor.
+
 ## Phase 4 — Pack / ChunkRead / InstallUnpacker (▶ active matching)
 
 Phase 4 targets the file-system + installer subsystems. Detailed
