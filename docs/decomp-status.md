@@ -553,90 +553,70 @@ EOF
 The same recipe works for *any* lobby callback the static-RTTI
 scan can't anchor.
 
-### Update 2026-05-02 — confirmed via Ghidra GUI decompile + ARCHITECTURE OVERTURNED
+### Update 2026-05-02 — FUN_00901c10 is patcher/DLC verification, NOT chara-list
 
-Ghidra GUI decompile of `FUN_00901c10` (captured 2026-05-02)
-revealed the chara-list packet has a **fundamentally different
-shape** than Project Meteor's encoder assumed. Project Meteor's
-hand-rolled flat blob is wrong; the chara-list is actually an
-**array of 240-byte (`0xf0`) records, each containing a base64-
-encoded inner blob at offset `+0x60`**.
+**Retraction of the previous "architecture overturned" finding.** Two
+follow-up Ghidra decompiles refuted the chara-list interpretation of
+`FUN_00901c10`:
 
-Decoded body:
+- **`FUN_00454560`** (which I'd called the "20-byte outer header
+  parser") is actually a generic **local-file loader**: constructs a
+  `Sqex::File::LocalFile`, opens a path obtained via
+  `param_1->GetPath(0xffffffff)`, reads 2 KB chunks via `fread`,
+  appends each chunk to an accumulator, returns the assembled bytes.
+  The `Sqex::File::LocalFile::vftable` reference is the smoking gun.
+- **`FUN_0045b4c0`** (which I'd called the "container add-character"
+  call) is a thread-safe lazy-init **signature/checksum validator**:
+  three lazy-init globals via `InterlockedCompareExchange`, four-
+  stage validation pipeline (`FUN_0045ced0` setup → `FUN_0045cf20`
+  check → `FUN_0045d0d0` check → `FUN_0045d490` final check),
+  returning Sqex error codes `0x28a5` (failure) or `0x28a6`
+  (success).
+
+So `FUN_00901c10`'s actual behavior is:
 
 ```
-this->LobbyCharaOpStep::ParseCharaList(this) {     // __thiscall
-    if (this->[+0x144] == NULL) return success;     // gate: container ptr non-null
-    cursor = this->[+0x21d4];                       // begin ptr (uVar4)
-    end    = this->[+0x21d8];                       // end ptr   (uVar1)
-    while (cursor != end) {
-        // Decode the base64-wrapped inner blob.
-        FUN_0045a920(local_38_Utf8String, cursor + 0x60);
-        // Parse the 20-byte outer record header.
-        local_24[5 dwords] = {0};                   // 20-byte scratch
-        parsed = FUN_00454560(cursor, &local_24);   // 20-B header parser
-        if (!parsed) goto error;
-        // Add character to container.
-        rc = thunk_FUN_0045b4c0(
-            this->[+0x144],     // container
-            &local_24,          // 20-B header
-            0x14,               // sizeof(header)
-            local_34_buf,       // base64-decoded inner blob ptr
-            local_30 - local_34 // decoded length
-        );
-        free(decoded_buf);
-        if (rc != 0) goto error_with_code;
-        cursor += 0xf0;                             // ★ 240 B per character record
-    }
-    return success;
-}
+for each 240-byte manifest entry in this->[+0x21d4..+0x21d8]:
+    decode base64 from entry+0x60        → "expected signature" buf
+    load local file named by entry        → "actual file contents"
+    validate(actual, expected)            → Sqex error code
+    if validation fails → bail with error
+    advance cursor by 0xf0
 ```
 
-**Per-character outer record (240 B = `0xf0`):**
+This is **patcher / DLC manifest verification**, NOT chara-list
+deserialization. The whole subsystem lives in the launcher /
+installer side of the binary (consistent with `FUN_00904600` being
+the only caller — likely an installer entry point).
 
-| Field | Offset | Size | Notes |
-|---|---|---:|---|
-| Outer header | `+0x00` | 20 B | Parsed by `FUN_00454560` into 5 dwords (`local_24..local_14`); contents TBD pending decompile |
-| (unknown intermediate) | `+0x14` | 76 B | Not read by the iterator; contents TBD |
-| Base64-encoded inner blob | `+0x60` | up to 144 B | URL-safe base64; decodes to a variable-length binary buffer; **contains the 17 GAM ClientSelectData fields** (`displayName`, `mainSkillLevel`, `tribe`, `zoneName`, `initialTown`, etc.) |
+The "415 B caller of base64-buf-decode" hint from the open-question
+doc was misleading: many subsystems use base64, not just the lobby.
 
-**Container at `this->[+0x144]`**: holds the parsed character objects.
-Populated via `thunk_FUN_0045b4c0(container, header, sizeof(header),
-decoded, decoded_len)` per character. The decoded buffer is freed
-right after, so the container must copy internally.
+**Re-opens the question.** The actual chara-list deserializer is
+still unidentified. Ruled out so far:
+- `LobbyProtoDownDummyCallback@LobbyClient::vtable[5]` (no-op stub)
+- `LobbyCharaOperationStep::vtable[*]` (slot 22 dispatches to a
+  state-machine "kick off work" function, not a deserializer)
+- `FUN_00901c10` (patcher signature verification, not a packet
+  deserializer)
 
-**Implications for garlemald**:
-
-The 5 schema flags from
-`build/wire/ffxivgame.chara_list_validation.md` (e.g. `current_level:
-u16` vs `mainSkillLevel: i8`, `tribe: u8` vs `Utf8String`, the
-`initial_town: u32 (twice)` issue) were all about field types in a
-*flat* per-character struct. The **real** wire form puts those fields
-inside the base64-decoded inner blob — a completely separate parse
-governed by `FUN_0045b4c0` (one level deeper).
-
-Project Meteor's `BuildForCharaList` produces a flat blob with no
-base64 wrapper; the client's parser will hit the +0x60 region as
-"base64 input" and decode garbage, populating downstream fields
-incorrectly. The reason the chara-list "mostly works" today is that
-the outer 20-B header carries the most-displayed fields
-(character_id, world_id, etc.) — the broken inner-blob parse
-silently produces empty/default values for the rest.
-
-**Next step**: decompile `FUN_00454560` (outer header) + `FUN_0045b4c0`
-(inner blob deserialize) in Ghidra GUI to map their field offsets,
-then rewrite garlemald's `build_for_chara_list` to:
-1. Emit a 240-byte outer record per character with the correct
-   header layout.
-2. Build the inner blob in the right binary format.
-3. Base64-encode the inner blob into the `+0x60..+0xf0` region of
-   each outer record.
-
-This is a bigger garlemald change than just tweaking field types —
-it's a wire-format restructuring. But it's load-bearing for any
-future garlemald functionality that depends on the client correctly
-displaying chara-list (e.g. multi-character accounts, world swaps,
-chara-list-driven UI flows).
+What's left to try (in priority order):
+1. **Capture-and-decrypt empirical observation** — boot a working
+   `fresh-start-*.sh` session, log the encrypted chara-list bytes
+   from the wire, decrypt using garlemald's session BF key, and
+   inspect the actual byte layout the client accepted. This is the
+   ground-truth path that doesn't depend on guessing which static
+   function is the parser.
+2. **Look at the work item created by `FUN_00da5fd0`** — that's the
+   `LobbyCharaOperationStep::vtable[22]`-dispatched function which
+   `malloc`s a 64 B object with vtable `0x1127fd4` and enqueues it
+   to `this+0x1a8`. The vtable at `0x1127fd4` (RTTI lookup) names
+   the work-item class; its slot for "process incoming bytes" is
+   the deserializer.
+3. **Search for the GAM CompileTimeParameter id range 100..119**
+   (ClientSelectData) being dereferenced in `.text` — the deserializer
+   reads each id in turn. A scan for the ids' string representations
+   in dispatcher tables would surface the parsing function.
 
 ## Phase 4 — Pack / ChunkRead / InstallUnpacker (▶ active matching)
 
