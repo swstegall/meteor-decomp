@@ -110,6 +110,49 @@ static const size_t CLASS_SIZE_MIN = 0x2ba4;            // 11,172 bytes
 // (the binary writes/reads here) but what the value MEANS depends
 // on which methods read/write it. Filled in incrementally as more
 // methods are decompiled.
+//
+// === Inheritance demarcation ===
+//
+// Bytes 0x0000..0x0118 belong to RaptureActor (the parent class)
+// and its parent SceneObject::Actor. RaptureActor's ctor
+// (FUN_007cef80, 376 B) writes/touches 18 field offsets in this
+// range — see RAPTURE_OFFSET below. Bytes 0x0118+ are CharaActor's
+// own + CDevActor's (CDevActor adds only 4 vtable slots and very
+// little data — most of the 0x118..0x2ba0 range is CharaActor's
+// own state).
+
+namespace RAPTURE_OFFSET {
+    // RaptureActor (vtable 0xbea50c, 160 slots, ctor FUN_007cef80,
+    // dtor FUN_007ced70) — size ≥ 0x11c (284 bytes). 18 fields
+    // touched in ctor+dtor.
+
+    static const size_t vtable                     = 0x0000;  // dword, init = 0xfea50c (RaptureActor's vftable;
+                                                              //   in a CharaActor instance, this slot holds
+                                                              //   CharaActor's own vtable 0xfc0d34 because the
+                                                              //   most-derived class wins)
+    // Inline sub-object pattern: pointer at +0x90 → object body
+    // at +0x94 (back-pointer linked-list node).
+    static const size_t subobj_back_ptr_0090       = 0x0090;  // dword, init = ESI+0x94 (= subobj_0094 addr)
+    static const size_t subobj_0094                = 0x0094;  // inline sub-object body
+    static const size_t subobj_back_ptr_009c       = 0x009c;  // dword, init = ESI+0xa0
+    static const size_t subobj_00a0                = 0x00a0;  // inline sub-object with vtable 0xfb7af4
+    static const size_t subobj_00a4                = 0x00a4;  // inline sub-object (dtor: FUN_0080bcf0)
+    static const size_t subobj_00b8                = 0x00b8;  // inline sub-object
+    static const size_t subobj_00c8                = 0x00c8;  // inline sub-object
+    // Small scalar fields (init = 0):
+    static const size_t field_00d8                 = 0x00d8;  // dword
+    static const size_t field_00dc                 = 0x00dc;  // dword
+    static const size_t field_00e0                 = 0x00e0;  // dword
+    static const size_t field_00e4                 = 0x00e4;
+    static const size_t flag_00e8                  = 0x00e8;  // byte
+    static const size_t field_00ec                 = 0x00ec;  // dword
+    static const size_t field_00f0                 = 0x00f0;
+    static const size_t field_0110                 = 0x0110;  // dword
+    static const size_t field_0114                 = 0x0114;  // dword
+    static const size_t field_0118                 = 0x0118;  // dword (last RaptureActor field — also seen
+                                                              //   accessed by CharaActor's own ctor as
+                                                              //   parent_or_owner)
+}  // namespace RAPTURE_OFFSET
 
 namespace OFFSET {
 

@@ -306,11 +306,23 @@ might cause stale UI state.
 
 The remaining items in the work pool:
 
-1. **Map RaptureActor's field layout** — same recipe as
-   CharaActor (extract from ctor + dtor at the surfaced RVAs), and
-   merge the resulting offset catalog into the same header.
-   Together with CharaActor's offsets, this gives a near-complete
-   field schema for any character actor.
+1. ✅ **Map RaptureActor's field layout** — done 2026-05-02. Added
+   `RAPTURE_OFFSET` namespace to `include/actor/chara_actor.h` with
+   18 distinct field offsets recovered from ctor (`FUN_007cef80`,
+   376 B) + dtor (`FUN_007ced70`, 235 B). RaptureActor's class size
+   is only ~284 bytes — much smaller than CharaActor (11,172 bytes).
+   Despite providing 71 vtable slots of behaviour, RaptureActor's
+   own data is a few sub-object pointers + small scalars; the bulk
+   of an actor's state is contributed by the most-derived class
+   (CharaActor / WeaponActor / etc.).
+
+   The RaptureActor field offsets are SHARED across all 16
+   CDevActor subclasses — the same offsets are valid for
+   `WeaponActor`, `BgModelActor`, `LightActor`, etc. since they
+   all inherit from RaptureActor → CDevActor. Useful for
+   garlemald-server when it constructs SetActorProperty packets
+   for ANY actor type.
+
 2. Move on to work-pool items #2..#6 (Status controllers,
    Action queue, Damage display, Status effect tick, Battle Regimen UI).
 
