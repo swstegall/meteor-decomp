@@ -323,8 +323,27 @@ The remaining items in the work pool:
    garlemald-server when it constructs SetActorProperty packets
    for ANY actor type.
 
-2. Move on to work-pool items #2..#6 (Status controllers,
-   Action queue, Damage display, Status effect tick, Battle Regimen UI).
+2. ✅ **Status controllers** — done 2026-05-02. See
+   `docs/actor_status.md` (10 controller types + delegate-richness
+   pattern + active-state pointer follow-up identified).
+
+3. ✅ **Action queue + motion dispatch** — done 2026-05-02. See
+   `docs/actor_action.md` (7-class subsystem mapped, pipeline
+   documented, per-class CharaActor storage offsets identified as
+   follow-up).
+
+4. ✅ **Damage display path** — done 2026-05-02. See
+   `docs/actor_damage.md` (`Plate` family + `RaptureActionDamageCallClip`
+   cutscene-clip family mapped, packet-shape requirements for
+   garlemald itemised, two follow-up passes identified).
+
+5. **Status effect tick / display**. Per-status-effect rendering
+   (icon, duration bar, color). Probably driven by the
+   `CharaStatusBattle` controller + a separate effects list on the
+   actor.
+
+6. **Battle Regimen (combo) UI**. How does the client display the
+   "next skill in chain" prompt?
 
 ## Cross-references in this workspace
 
