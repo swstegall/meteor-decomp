@@ -2,14 +2,15 @@
 
 > Last updated: 2026-05-04 — slot 2 (Receive) static-decoded from
 > asm dump; Task A confirmed `0x0130c778` is the `0xE0000000`
-> `NO_ACTOR` sentinel (not the local player actor id); Task B
-> confirmed `FUN_00cc7a50` is `ActorRegistry::lookup_actor`, AND
-> surfaced new architectural finding that the registry splits
-> across TWO backing collections via predicate `FUN_00cd80f0`.
-> Triggered by 2026-05-03 garlemald smoke-test debugging where the
-> SimpleContent man0g0 cinematic hung at "Now Loading" after
-> talking to Yda the second time, even after fixing 4 server-side
-> director-flow bugs.
+> `NO_ACTOR` sentinel; Task B confirmed `FUN_00cc7a50` is
+> `ActorRegistry::lookup_actor` with a two-collection split; Task
+> B.1 surfaced that the partition predicate `FUN_00cd80f0` is a
+> 7-byte navigation thunk into a nested sub-object hierarchy, with
+> the real body at `FUN_00d035d0` shared across 6 registry-like
+> functions (likely 2 sibling registries). Triggered by 2026-05-03
+> garlemald smoke-test debugging where the SimpleContent man0g0
+> cinematic hung at "Now Loading" after talking to Yda the second
+> time, even after fixing 4 server-side director-flow bugs.
 
 ## TL;DR for garlemald porters
 
@@ -331,18 +332,57 @@ Actor*`, AND surfaced new architectural finding that the registry
 splits across two backing collections via predicate `FUN_00cd80f0`.
 See §3 of "Critical findings" above for full analysis.
 
-**Follow-up (Task B.1, recommended next):** Decompile
-`FUN_00cd80f0` (the predicate that picks between the two backing
-collections). The function is presumably small — likely a single
-bit test or comparison on the actor id. Knowing the split criterion
-lets us understand the FFXIV 1.x actor-id namespace, which is
-load-bearing for understanding why directors (id `0x66080000+`),
-mobs, NPCs, and PCs end up in different parts of the registry.
+**Follow-up (Task B.1, ✅ DONE 2026-05-04):** `FUN_00cd80f0` is a
+7-byte navigation thunk, NOT the predicate body itself:
+
+```asm
+MOV ECX, [ECX + 0x1c4]    ; navigate: this = (*ECX)->[+0x1c4]
+JMP FUN_00d035d0          ; tail-call the real predicate
+```
+
+This surfaces TWO additional architectural findings:
+
+**Registry has a nested object hierarchy.** Combined with the
+caller's `MOV ECX, [ESI]; CALL FUN_00cd80f0`, the layout is:
+
+```
+Registry              (ECX from caller)
+  [+0x0]   → subobject_1 ptr     (loaded by caller's MOV ECX,[ESI])
+    [+0x1c4] → id_classifier ptr (loaded inside the thunk)
+```
+
+Two levels of sub-object before we reach the predicate. Canonical
+C++ composition; the `[+0x1c4]` sub-object is probably an "id
+classifier" / "namespace policy" component shared across registries.
+
+**Thunk shared across 6 registry-like functions** — direct evidence
+of multiple parallel registries with the same id-classification
+policy:
+
+- `FUN_00cc70b0`, `FUN_00cc7190`, `FUN_00cc7a50` — the `0x00cc7`
+  cluster (our `lookup_actor` + 2 neighbors, probably `add_actor`
+  / `remove_actor` siblings on the same registry).
+- `FUN_00d2fe00`, `FUN_00d30160`, `FUN_00d303c0` — the `0x00d2/d30`
+  cluster, distant from the `0x00cc7` cluster — likely a SIBLING
+  registry with the same sub-object layout (candidate: a "directors
+  registry" or "instance-actors registry" built from the same base
+  class).
+
+This supports the theory that **directors live in a different
+registry than world actors**, and the kick gate's `+0x5c` flag
+might be set by a different opcode pipeline depending on which
+registry the target was registered into.
+
+**Follow-up (Task B.2, recommended next):** Decompile `FUN_00d035d0`
+(the actual predicate body). It should be small (called via
+tail-jump from the thunk) and reveal what bit / range / state of
+the actor id determines the partition.
 
 Also worth applying labels in Ghidra:
 - `FUN_00cc7a50` → `ActorRegistry::lookup_actor`
-- `FUN_00cd80f0` → `ActorRegistry::id_partition_predicate` (rename
-  to its real name once we decode it)
+- `FUN_00cd80f0` → `ActorRegistry::id_partition_predicate_thunk`
+- `FUN_00d035d0` → `ActorRegistry::id_partition_predicate` (real
+  body — rename once decoded)
 - `FUN_00cd8160` → `ActorRegistry::lookup_collection_a`
 - `FUN_00cd81d0` → `ActorRegistry::lookup_collection_b`
 
