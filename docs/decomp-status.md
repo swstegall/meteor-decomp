@@ -688,6 +688,91 @@ on the user-supplied callback object.
 the 5 schema flags from `chara_list_validation.md` get their
 definitive answer.
 
+### Update — `FUN_00da76b0` decompile confirms garlemald's chara-list structure is CORRECT
+
+Decompile of `FUN_00da76b0` (the actual chara-list deserializer)
+shows it accesses each per-character record at exactly the offsets
+garlemald already writes them to:
+
+```c
+local_304[0] = param_2 + idx * 0x1d0;          // record N at payload offset N*0x1d0
+bVar5 = *(byte *)(record + 0x18) & 0x3f;        // match key at record+0x18
+puVar13 = (undefined4 *)(record + 0x10);        // copy 0x1d0 B from record+0x10
+                                                 //   for idx=0: starts at payload+0x10
+                                                 //   for idx=1: starts at payload+0x1e0
+FUN_00891f00(local_2f8);                         // per-character field deserializer
+```
+
+Garlemald's writes at `lobby-server/src/packets/send.rs`:
+
+```rust
+const ENTRY_STRIDE: usize = 0x1D0;               // ← matches deserializer
+let entry_start = 0x10 + ENTRY_STRIDE * char_count;
+//   entry 0 at payload+0x10..0x1e0  ← exactly where deserializer reads from
+//   entry 1 at payload+0x1e0..0x3b0
+c.write_u32(0);  c.write_u32(chara.id);          // entry-relative +0x10..+0x18
+c.write_u8(total as u8);                         // ← match key at +0x18 (deserializer reads param_2+0x18)
+```
+
+**Architectural verdict**: garlemald's chara-list packet structure
+is correct in every dimension that matters:
+
+- ✅ Opcode `0x0D` (dispatched through `ServiceLoginOperation::vtable[1]`,
+  not `LobbyProtoDownDummyCallback`)
+- ✅ Per-entry stride `0x1D0` (464 bytes)
+- ✅ Entries at payload offset `0x10 + N*0x1D0`
+- ✅ `total` byte at entry-relative `+0x08` is the match key the
+  deserializer uses to find existing internal records
+- ✅ Base64 appearance blob embedded inside each entry's tail
+- ✅ 16-byte per-packet header (CHR_SEQ + flags + count + pad)
+  precedes the first entry
+
+The "5 schema flags" from
+`build/wire/ffxivgame.chara_list_validation.md` (e.g. `current_level: u16`
+vs `mainSkillLevel: i8`, `tribe: u8` vs `Utf8String`) are
+**field-type bugs INSIDE each 464-byte entry**, not an architectural
+problem. Resolving them requires one more decompile pass:
+`FUN_00891f00` — the actual per-character field parser called with
+the 464-byte buffer. That function's individual `MOV/MOVZX [reg+offset]`
+reads tell us the exact type and width of each field.
+
+Two paths to resolve the field-type flags when ready:
+1. **Decompile `FUN_00891f00` in Ghidra** — directly maps each
+   field's offset and width.
+2. **Empirical observation** — boot fresh-start, send chara-list
+   with known byte patterns at suspected field positions, watch
+   what the client renders. Slower but doesn't need more Ghidra.
+
+### Final summary — chara-list mystery closed
+
+After multiple wrong turns (patcher subsystem, retainer dispatcher,
+opcode-swap claim), the chara-list architecture is now fully
+understood:
+
+- **Opcode `0x0D`** (garlemald is correct)
+- **`ServiceLoginOperation::vtable[1]` (`FUN_00daa9f0`)** dispatches
+  the lobby list opcodes (0x0D / 0x15 / 0x16 / 0x17)
+- **`FUN_00da76b0`** is the chara-list deserializer; it accesses
+  464-byte entries at offsets garlemald already writes
+- **`FUN_00891f00`** (called with the 464-byte buffer) is the
+  per-character field parser — TBD if/when the 5 schema flags
+  become a priority
+- **The `LobbyProtoDownDummyCallback` no-op stub for opcode 0x0D
+  is genuinely unused in this build** — both dispatch paths
+  physically exist but the operation-step path is the live one
+
+Reusable pattern for finding any lobby-list deserializer:
+
+1. Identify which `LobbyOperation` corresponds to the lobby phase
+   (lobby login / service login / chara make / game login).
+2. Decompile its `vtable[1]` — it'll be a packet-opcode dispatcher
+   with a switch on `*(short *)(packet+2)` and per-opcode handlers
+   labeled with `*_SEQ:` / `*_Count:` log strings.
+3. Each case dispatches to a per-opcode deserializer with
+   `(packet+0x10)` (the payload).
+4. The deserializer follows the same shape: container init on first
+   packet, iterate per-record at `payload + idx * record_stride`.
+
 ### Update — `FUN_00da4d80` is the RETAINER deserializer (not chara-list)
 
 After cross-checking against garlemald's existing `retainer_list_packets`
