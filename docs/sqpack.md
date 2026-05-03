@@ -161,10 +161,20 @@ stamped via Phase 2.5 cluster pipeline).
   needs a one-byte buffer reordering or a `/GS`-trigger local rearrange.
 - 🟡 **Push `ReadNextChunkHeader` (74/81) to GREEN** — 91 % match;
   inner-loop register allocation differs by one MOV.
-- 🔲 **Functional re-derive of the path builder @ `0x0004b3a0`** —
-  615 B. Verifiable by feeding known resource_ids and string-comparing
-  the output against a Python reference (single line of
-  `f"{(rid >> 24) & 0xFF:02X}/.../{(rid) & 0xFF:02X}.DAT"`).
+- ✅ **Functional re-derive of the path builder @ `0x0004b3a0`** —
+  done 2026-05-02. Source at
+  [`src/ffxivgame/sqpack/PathBuilder.cpp`](../src/ffxivgame/sqpack/PathBuilder.cpp);
+  Python ref + scan tool at [`tools/sqpack_path.py`](../tools/sqpack_path.py).
+  Format string recovered: `\data\<b3:02X>\<b2:02X>\<b1:02X>\<b0:02X>.DAT`
+  (verbatim from `.rdata 0x00b672bc`). Cross-validated against
+  `SeventhUmbral/dataobjects/FileManager.cpp::CFileManager::GetResourcePath`
+  (which uses `/` separators but otherwise identical). Self-test in
+  the .cpp covers 8 canonical resource_ids; Python `--scan` mode
+  successfully roundtrips path → resource_id against 140,180 real
+  DAT files in a retail install.
+  The "modded resource lookup" path (taken when `[0x01266b64] == 0`)
+  is unimplemented — garlemald doesn't have replaceable resources so
+  the standard path suffices.
 - 🔲 **Walk PackRead's full non-virtual interface** — confirmed
   consumer surface is the FUN_00cc6700 (InstallUnpacker::Unpack) +
   FUN_00cc66e0 (D2 trampoline) pair. ChunkRead<u32,u32> base methods
