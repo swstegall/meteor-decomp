@@ -33,11 +33,26 @@ import argparse
 import os
 import struct
 import sys
+import zlib
 
 # Import the path resolver from the sibling tool.
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 from sqpack_path import build_path  # noqa: E402
+
+# Decompression layer (Phase 4 exit-criterion #4):
+# The binary statically links zlib 1.2.3 ("inflate 1.2.3 Copyright
+# 1995-2005 Mark Adler" at .rdata 0xd16e71). The inflate function is
+# at VA 0xd4f640 (5,451 B) — confirmed by:
+#   - "incorrect header check" string xref at file 0x94f822 hits
+#     `MOV [EDX+0x18], 0x1114208` (zlib's `state->msg = "..."` pattern).
+#   - PackRead::ProcessChunk → FUN_00d42590 (PackRead::ProcessNextChunk,
+#     427 B) → FUN_00d4f510 (inflateInit_ thunk, 25 B) → FUN_00d4f640
+#     (inflate). Architecture confirmed.
+# Python's zlib.decompress() is byte-compatible with zlib 1.2.3 and is
+# what we use here; for matching-decomp work, the inflate function is
+# already byte-identical (since it IS the upstream zlib binary linked
+# verbatim — no SE custom modifications).
 
 
 # Known file-type magics — surfaced empirically from a real install
@@ -63,6 +78,30 @@ def looks_like_chunked(data: bytes) -> bool:
         return False
     chunk_size = struct.unpack_from("<I", data, 4)[0]
     return 8 + chunk_size <= len(data) and chunk_size > 0
+
+
+def looks_like_zlib(payload: bytes) -> bool:
+    """zlib stream starts with a 2-byte header — the first byte's low
+    nibble is the compression method (0x8 = deflate); the (header[0],
+    header[1]) pair must satisfy the modular check (header[0]*256 +
+    header[1]) % 31 == 0. Common pairs: 0x78 0x9c (default), 0x78 0xda
+    (best), 0x78 0x01 (fastest)."""
+    if len(payload) < 2:
+        return False
+    if (payload[0] & 0x0f) != 0x08:
+        return False
+    return ((payload[0] << 8) | payload[1]) % 31 == 0
+
+
+def try_inflate(payload: bytes) -> bytes | None:
+    """Best-effort zlib inflate. Returns decompressed bytes on success,
+    None on failure."""
+    if not looks_like_zlib(payload):
+        return None
+    try:
+        return zlib.decompress(payload)
+    except zlib.error:
+        return None
 
 
 def walk_chunks(data: bytes, byteswap: bool = False, limit: int = 32):
@@ -117,6 +156,8 @@ def main() -> int:
                     help="force chunk-walk even if heuristic says not chunked")
     ap.add_argument("--byteswap", action="store_true",
                     help="byte-swap chunk_size (matches PackRead.m_flag15=1)")
+    ap.add_argument("--inflate", action="store_true",
+                    help="zlib-inflate each chunk's payload (and dump first bytes)")
     args = ap.parse_args()
 
     rid = int(args.resource_id, 0)
@@ -147,15 +188,32 @@ def main() -> int:
     chunked = args.chunks or (magic is None and looks_like_chunked(data))
     if chunked:
         print(f"Chunks:     (PackRead format, byteswap={args.byteswap})")
-        print(f"  {'idx':>4}  {'offset':>10}  {'hdr (u32)':>12}  {'size':>10}  status")
+        print(f"  {'idx':>4}  {'offset':>10}  {'hdr (u32)':>12}  {'size':>10}  zlib?  status")
         for idx, off, hdr, sz, status in walk_chunks(
                 data, byteswap=args.byteswap):
             if idx is None:
-                print(f"  ----  {off:>10}  {'':>12}  {'':>10}  {status}")
+                print(f"  ----  {off:>10}  {'':>12}  {'':>10}  {'':>5}  {status}")
             else:
-                print(f"  {idx:>4}  {off:>10}  0x{hdr:08x}  {sz:>10}  {status}")
+                payload = data[off+8:off+8+sz]
+                inflated = try_inflate(payload) if args.inflate else None
+                z_marker = "  yes" if looks_like_zlib(payload) else "  no "
+                line = f"  {idx:>4}  {off:>10}  0x{hdr:08x}  {sz:>10}  {z_marker}  {status}"
+                print(line)
+                if inflated is not None:
+                    print(f"           → inflated to {len(inflated)} bytes; "
+                          f"first 32: {inflated[:32].hex()}")
     else:
-        print(f"Chunks:     n/a (file does not look chunk-formatted)")
+        # Even when not chunk-formatted, the whole file MIGHT be zlib-
+        # compressed (some installer DAT bodies are raw zlib streams).
+        if looks_like_zlib(data):
+            print(f"Chunks:     n/a; whole file looks like a raw zlib stream")
+            if args.inflate:
+                inflated = try_inflate(data)
+                if inflated is not None:
+                    print(f"           → inflated to {len(inflated)} bytes; "
+                          f"first 32: {inflated[:32].hex()}")
+        else:
+            print(f"Chunks:     n/a (file does not look chunk-formatted)")
 
     print()
     print(f"First {min(args.hexdump_bytes, len(data))} bytes:")

@@ -201,8 +201,30 @@ A working `tools/sqpack-cat <resource_id>` that:
    files use file-type-specific magics (GTEX texture, SEDB sound DB,
    MapL map layout, PWIB unknown, `#fil` CSV text) and aren't
    PackRead-chunked at all — those are recognised and skipped.
-4. 🔲 **Decompression layer** — TBD. Locate via zlib magic
-   (`78 9c` / `78 da`) or zlib symbol names in `.rdata`.
+4. ✅ **Decompression layer** — done 2026-05-02. The binary
+   statically links zlib 1.2.3 (`"inflate 1.2.3 Copyright 1995-2005
+   Mark Adler"` at `.rdata 0xd16e71`). Found the inflate chain by
+   xref-walking the `"incorrect header check"` error string at
+   `.rdata 0xd14208`:
+   - `FUN_00d4f640` (5,451 B) — zlib's `inflate()` itself
+   - `FUN_00d4f510` (25 B) — `inflateInit_` thunk
+   - `FUN_00d42590` (427 B) — `PackRead::ProcessNextChunk`, the
+     bridge that wraps a chunk payload in a `z_stream` and drives
+     inflate
+
+   Chain: `PackRead::ProcessChunk → FUN_00d42590 →
+   FUN_00d4f510 → FUN_00d4f640`.
+
+   `tools/sqpack_cat.py` now exposes `--inflate` which inflates each
+   chunk's payload (when the zlib heuristic hits — first byte's low
+   nibble is 0x8 for deflate, header word `% 31 == 0`). End-to-end
+   verified against a synthetic chunked DAT with a known
+   zlib-compressed payload — round-trips perfectly.
+
+   For matching-decomp purposes, `inflate()` is already byte-identical
+   in the binary (it IS the upstream zlib 1.2.3 binary linked verbatim;
+   no SE customization). No need to re-derive it. For tools, Python's
+   `zlib.decompress()` and Rust's `flate2` crate are byte-compatible.
 
 Plus byte-matching `PackRead::~PackRead` (✅ GREEN), `Rewind`
 (✅ GREEN), `ReadNext` (✅ GREEN), and ideally the constructor
