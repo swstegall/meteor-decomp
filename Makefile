@@ -32,6 +32,9 @@ help:
 	@echo "  make extract-opcodes      Phase 3: opcode → vtable-slot map (zone/lobby/chat Down)"
 	@echo "  make extract-up-opcodes   Phase 3: Up-direction CPB ctor inventory + RX-opcode validation"
 	@echo "  make extract-crypt-engine Phase 3: decode LobbyCryptEngine 9 slots + validate Blowfish init"
+	@echo "  make decode-lpb           Phase 6: decode shipped client/script/*.le.lpb wrapper"
+	@echo "  make decompile-lpb        Phase 6: unluac-decompile build/lpb/*.luac → build/lua/*.lua"
+	@echo "  make lpb-corpus           Phase 6: decode-lpb + decompile-lpb (corpus pipeline)"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
 	@echo "  make clean                wipe build/"
@@ -204,3 +207,78 @@ diff:
 
 progress:
 	$(PY) $(TOOLS)/progress.py
+
+# --- Phase 6 follow-ups: shipped Lua script extraction ----------------
+
+# Decode all 2671 shipped client/script/*.le.lpb files from a 1.x install
+# to standard Lua 5.1 bytecode (build/lpb/*.luac), then optionally run
+# unluac on each to get readable Lua source (build/lua/*.lua). Together
+# this turns the install's obfuscated client-side script tree into a
+# grep-able corpus — see docs/lpb_corpus_survey.md for what's in it.
+#
+# Required:
+#   FFXIV_INSTALL  path to the 1.x install root (the dir that contains
+#                  client/script/, e.g. .../FINAL FANTASY XIV).
+#                  Defaults to ../ffxiv-install-environment/.../FINAL_FANTASY_XIV
+# Optional:
+#   UNLUAC_JAR     path to unluac.jar (Java; for the decompile pass).
+#                  Defaults to /tmp/unluac/unluac.jar; if absent, the
+#                  decompile pass will print install instructions.
+#   PARALLEL_JOBS  worker count for the unluac pass (default: 8).
+.PHONY: decode-lpb decompile-lpb lpb-corpus
+
+REPO_ROOT      := $(shell pwd)
+FFXIV_INSTALL  ?= $(REPO_ROOT)/../ffxiv-install-environment/target/prefix/drive_c/Program Files (x86)/SquareEnix/FINAL FANTASY XIV
+UNLUAC_JAR     ?= /tmp/unluac/unluac.jar
+PARALLEL_JOBS  ?= 8
+
+decode-lpb:
+	@if [ ! -d "$(FFXIV_INSTALL)/client/script" ]; then \
+	    echo "error: \$$FFXIV_INSTALL/client/script not found." >&2; \
+	    echo "       set FFXIV_INSTALL=<path-to-FINAL_FANTASY_XIV-dir>" >&2; \
+	    echo "       (the dir that contains client/script/, ffxivgame.exe, etc.)" >&2; \
+	    exit 1; \
+	fi
+	$(PY) $(TOOLS)/decode_lpb.py "$(FFXIV_INSTALL)" --out $(BUILD)/lpb
+
+decompile-lpb:
+	@if [ ! -d "$(BUILD)/lpb" ]; then \
+	    echo "error: $(BUILD)/lpb missing — run 'make decode-lpb' first" >&2; \
+	    exit 1; \
+	fi
+	@if [ ! -f "$(UNLUAC_JAR)" ]; then \
+	    echo "error: $(UNLUAC_JAR) not found." >&2; \
+	    echo "       Download unluac from:" >&2; \
+	    echo "         https://sourceforge.net/projects/unluac/files/latest/download" >&2; \
+	    echo "       Then place the .jar at /tmp/unluac/unluac.jar" >&2; \
+	    echo "       (or set UNLUAC_JAR=<path>) and re-run." >&2; \
+	    exit 1; \
+	fi
+	@if ! command -v java >/dev/null 2>&1; then \
+	    echo "error: 'java' not on PATH (unluac requires JDK 8+)" >&2; \
+	    exit 1; \
+	fi
+	@mkdir -p $(BUILD)/lua
+	@n=$$(find $(BUILD)/lpb -name '*.luac' | wc -l | tr -d ' '); \
+	echo ">>> Decompiling $$n .luac files via unluac (P=$(PARALLEL_JOBS))…"
+	@find $(BUILD)/lpb -name '*.luac' -print0 \
+	    | xargs -0 -n 1 -P $(PARALLEL_JOBS) -I '{}' bash -c '\
+	        src="$$1"; rel="$${src#$(BUILD)/lpb/}"; out="$(BUILD)/lua/$${rel%.luac}.lua"; \
+	        mkdir -p "$$(dirname "$$out")"; \
+	        java -jar "$(UNLUAC_JAR)" "$$src" > "$$out" 2>/dev/null \
+	    ' _ '{}'
+	@n=$$(find $(BUILD)/lua -name '*.lua' 2>/dev/null | wc -l | tr -d ' '); \
+	echo ">>> Done: $$n .lua files in $(BUILD)/lua/"
+
+lpb-corpus: decode-lpb decompile-lpb
+	@echo
+	@echo "Corpus ready. Try:"
+	@echo "  grep -r 'processEvent020_3' $(BUILD)/lua --include='*.lua' -l"
+	@echo "  grep -r '_defineBaseClass'  $(BUILD)/lua --include='*.lua'"
+	@echo "  grep -r '/Director/Quest/'  $(BUILD)/lua --include='*.lua'"
+	@echo
+	@echo "Single-script lookup by source name (e.g. Man0g0):"
+	@echo "  $(PY) tools/decode_lpb.py '$(FFXIV_INSTALL)' Man0g0"
+	@echo "  java -jar $(UNLUAC_JAR) build/lpb/Man0g0.luac"
+	@echo
+	@echo "See docs/lpb_corpus_survey.md for what's in the corpus."

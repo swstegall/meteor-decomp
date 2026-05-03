@@ -204,16 +204,21 @@ matching family's `BaseClass.lpb` script for the client to bind. The
 ## How to query the corpus
 
 ```bash
-# Bulk decompile all .lpb to .lua (40s with 8-way parallelism)
-make decode-lpb FFXIV_INSTALL=<path>     # TODO: add this Make target
+# One-command corpus pipeline (decode + decompile, ~40s total).
+# Set FFXIV_INSTALL=<path-to-FINAL_FANTASY_XIV> if not at the
+# default ../ffxiv-install-environment/.../FINAL_FANTASY_XIV.
+# UNLUAC_JAR defaults to /tmp/unluac/unluac.jar — download from
+# https://sourceforge.net/projects/unluac/files/latest/download
+make lpb-corpus
 
-# Or directly:
-python3 tools/decode_lpb.py <install>    # → build/lpb/*.luac
-find build/lpb -name "*.luac" -print0 | xargs -0 -n 1 -P 8 -I '{}' bash -c '
-  src="$1"; rel="${src#build/lpb/}"; out="build/lua/${rel%.luac}.lua"
-  mkdir -p "$(dirname "$out")"
-  java -jar /path/to/unluac.jar "$src" > "$out" 2>/dev/null
-' _ '{}'
+# Or run the two passes separately:
+make decode-lpb           # → build/lpb/*.luac (~0.5s, decodes the
+                          #   rle\x0c XOR-0x73 wrapper + filename cipher)
+make decompile-lpb        # → build/lua/*.lua (~40s with 8 workers)
+
+# Single-script lookup by source name:
+python3 tools/decode_lpb.py '$FFXIV_INSTALL' Man0g0
+java -jar /tmp/unluac/unluac.jar build/lpb/Man0g0.luac
 
 # Then grep across the corpus for any pattern:
 grep -r "processEvent020_3" build/lua --include="*.lua" -l    # quests with this method
