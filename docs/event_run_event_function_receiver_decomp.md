@@ -332,9 +332,54 @@ silently even after the kick gate is cleared.
 
 ## Open follow-ups (still deferrable)
 
-1. **Decompile FUN_00d132b0** — the sibling predicate body. Likely
-   structurally parallel to FUN_00d035d0 (type-tag check) but on
-   a different tag value. Confirms the staged-classifier pattern.
+1. **~~Decompile FUN_00d132b0~~ — ✅ DONE 2026-05-04.** It's a
+   **circular-linked-list set-membership test** (not a tag check
+   like FUN_00d035d0):
+
+   ```c
+   bool FUN_00d132b0(this, ulong *key_ptr) {
+       void *root = this[+0x100];                // container root
+       Node *cur = *root;                        // first node
+       while (cur != root) {                     // until cycle back
+           if (cur->key /* +0x8 */ == *key_ptr) return true;
+           cur = cur->next /* +0x0 */;
+       }
+       return false;
+   }
+   ```
+
+   **The two classifiers use DIFFERENT backing data structures** —
+   not just different predicates on the same shape:
+
+   | Classifier | Sub-obj offset | Predicate body | Backing structure | Returns |
+   |---|---|---|---|---|
+   | **Type-tag** | `[+0x1c4]` | `FUN_00d035d0` | hashmap w/ metadata bytes | `meta[0] == 0x0F` |
+   | **Set membership** | `[+0x1c8]` | `FUN_00d132b0` | circular linked-list set, key at +0x8 | `key in set?` |
+
+   Strong inference: `[+0x1c4]` is the **main actor registry**
+   (hashmap-backed for O(1) lookup), and `[+0x1c8]` is a
+   **pending / placeholder set** (linked-list for cheap
+   insert/remove of transient queue entries).
+
+   This re-interprets RunEventFunction Phase 1's three lookups:
+     1. `lookup_actor` (uses `[+0x1c4]`) — find in main registry
+     2. `FUN_00cc7180` predicate (uses `[+0x1c8]`) — check pending set
+     3. `FUN_00cc78c0` (uses `[+0x1c8]` with create-flag) — register
+        a placeholder in the pending set
+
+   So an actor queued for spawn but not yet fully spawned can
+   still receive RunEventFunction packets — the engine queues
+   them against a placeholder until the real actor arrives.
+
+   **Strengthened garlemald implication:** the post-warp re-spawn
+   fix may need to ALSO re-create pending-set entries for
+   "expected" actors, not just the main-registry entries via
+   AddActor. Otherwise pending RunEventFunction items for actors
+   not-yet-arrived will never resolve. (Mirroring pmeteor's
+   `playerSession.UpdateInstance(aroundMe, true)` semantics
+   should cover this — it re-broadcasts the FULL state of the
+   area, not just the actor list.)
+
 2. **Identify FUN_00cc70b0 + FUN_00cc7190** — these are referenced
    by the `id_partition_predicate_thunk`'s xref list but we
    haven't decompiled them. Likely add/remove siblings.
