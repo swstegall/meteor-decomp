@@ -517,19 +517,69 @@ Also worth applying labels in Ghidra:
 - `FUN_00cd8160` → `ActorRegistry::lookup_collection_a`
 - `FUN_00cd81d0` → `ActorRegistry::lookup_collection_b`
 
-### Task C — Decode the `+0x5c` actor flag
+### Task C — Decode the `+0x5c` actor flag setter — ⚠ PARTIAL 2026-05-04
 
-The `EAX+0x5c` byte test is the kick-gate. Navigate to the
-ActorBase (or whatever class the looked-up object is) — RVA
-near the `0x00cc7a50` lookup. Look for:
-- The struct definition's field at offset `+0x5c`
-- The setter that flips this byte (likely called from the
-  actor-spawn pipeline)
-- The corresponding `0x...` opcode whose receiver flips the byte
+Attempted via Ghidra binary-pattern search for `c6 ?? 5c 01`
+(MOV byte ptr [reg+0x5c], 1) across the entire ffxivgame.exe
+binary. Returned ~35 disassembled "set to 1" hits and ~9
+disassembled "set to 0" hits.
 
-If we can identify the spawn-side opcode that flips `+0x5c`,
-garlemald can ensure that opcode's packet is sent for every
-post-warp actor BEFORE the trailing KickEvent.
+**The search generates too many false positives to identify the
+actor-specific writer.** Many unrelated classes happen to have a
+byte field at offset `+0x5c`:
+
+- The `0x55a/0x549/0x546` cluster (~28 hits) is a **boxing /
+  variant factory** pattern: each function calls a shared
+  `FUN_00559de0` allocator, does typed conversion (CVTTSS2SI for
+  float→int, MOVSS for floats, etc.), then sets `+0x5c=1` to mark
+  the variant as "value populated". Different class entirely
+  (some `Variant` / `Box` wrapper).
+- `FUN_00a42c90` (set+clear within 32 bytes) is a **scoped guard
+  / sync primitive**: sets `[global+0x5c]=1`, spins on
+  `vtable[6]()`, clears `[global+0x5c]=0`. Different class
+  (some sync object).
+- Other scattered hits are class-private flag bytes for
+  unrelated unrelated classes (`PixelShader::vftable` adjacency
+  showed `[ESI+0x5c]` in a renderer constructor).
+
+Identifying the actor-class writer specifically requires a
+**class-hierarchy decomp via RTTI** to first identify the actor
+base class (likely something like `CharaActor`, `BattleNpcActor`,
+or a base `Actor`), then find writes to its specific `+0x5c`
+field. That's a separate phase of work; not done here.
+
+**Why this doesn't block the garlemald porting fix:** The
+universal rule "spawn must precede kick" is established
+regardless of which exact opcode flips `+0x5c` — garlemald's
+existing spawn pipeline already emits whatever opcodes the engine
+needs (because in non-warp scenarios, kicks land successfully).
+The fix in `apply_do_zone_change_content` is to **re-emit the
+spawn packets after the post-warp `DeleteAllActors` wipe**,
+mirroring pmeteor's `playerSession.UpdateInstance(aroundMe,
+true)`. The semantic is "make sure every actor in the new area
+has a fresh spawn packet on the client before any kick fires".
+
+**Open follow-up (Task C.1, deferrable):** Decompile the actor
+base class via:
+1. Find the spawn-side opcode handlers (start with opcode `0xCA`
+   = `OP_ADD_ACTOR` per `build/wire/ffxivgame.opcodes.md` —
+   `ZoneProtoDownCallbackInterface` slot 19, dispatcher RVA
+   `0x009bfd10`). Note: the abstract `*CallbackInterface` and
+   the `*DummyCallback` derived classes both ship 3-byte RET stubs
+   at slot 19; the real concrete handler is in a derived class
+   not yet identified.
+2. Look at the dispatcher (`FUN_00dbfd10`, 4682 bytes) which uses
+   `byte_table[opcode-1] → case_table[index] → vftable[index+2]`
+   chain — the case stubs starting at `0x009bfd3c` (case 0) plus
+   `case * 0x15` give the per-case dispatch entry.
+3. Trace AddActor's case stub through the runtime session class's
+   vftable to find the actual handler that constructs an Actor
+   object and writes its `+0x5c` flag.
+
+The 916-byte function `FUN_00b8b560` is one of the more
+suspicious actor-related writers (set/clear pattern in a complex
+state-machine function); worth decompiling later as a starting
+point for the Actor RTTI search.
 
 ### Task D — Decompile slot 3 (48 B) to confirm it's the dispatch entry
 
