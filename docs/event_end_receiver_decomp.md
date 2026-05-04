@@ -200,9 +200,61 @@ slot 3 doesn't affect the response.
 
 ## Open follow-ups
 
-1. **Decompile `FUN_008a09e0`** — the shared end-event processor
-   that most case bodies tail-jump to. ~70+ callers per the
-   pattern above.
+1. **~~Decompile `FUN_008a09e0`~~ — ✅ DONE 2026-05-04** (with a
+   workaround — see "tooling note" below). It's a **6-case
+   sub-dispatcher** on a method-descriptor's type byte, NOT a
+   monolithic processor. ~44 bytes including the trailing
+   jump table:
+
+   ```c
+   void FUN_008a09e0(MethodDescriptor *desc) {
+       uint8_t type = desc[0];          // type byte at offset 0
+       if (type > 5) return;            // default: bail
+       switch (type) {
+         case 0: /* JMP 0x006e1080 — 1-arg signature variant */
+         case 1: /* JMP 0x006e10a0 — 1-arg, different layout */
+         case 2: /* JMP 0x006e10c0 — 1-arg, third layout */
+         case 3: /* PUSH staging[4] + staging[8]; CALL 0x006e10e0 — multi-arg */
+         case 4: /* (not in visible bytes) */
+         case 5: /* (not in visible bytes) */
+       }
+   }
+   ```
+
+   **Architectural insight — compile-time RPC dispatch.** This is
+   a polymorphic method-binding pattern, not a simple switch. The
+   receiver stores pointers to **method-descriptor objects** at
+   `receiver[+0x18 + N*offset]`. Each descriptor has a leading
+   type byte (0..5) that encodes its calling convention / field
+   layout, and FUN_008a09e0 is the generic dispatcher that decodes
+   the layout and forwards to the right per-signature thunk in the
+   `0x006e10xx` range.
+
+   This is classic MSVC `std::function` / `member-pointer-bind`
+   machinery — the parent end-event dispatcher (FUN_008a13a0, 102
+   cases) selects WHICH method to call based on the event-type
+   byte; this sub-dispatcher then selects HOW to call it based on
+   the method's signature class (6 variants).
+
+   So the "102 end-event types" are really:
+   - 102 distinct event-type slots in the receiver
+   - Each slot points to a method descriptor (one of 6 signature shapes)
+   - Two-level dispatch: (event type → method ptr) → (method type → calling thunk)
+
+   Much smaller and more efficient than the 102-case appearance
+   suggests — the actual calling code paths are bounded by 6
+   signature thunks, not 102 unique handlers.
+
+   **Tooling note — meteor-decomp asm-tree gap.** FUN_008a09e0
+   is a real function in the binary but isn't enumerated in
+   `asm/ffxivgame/`. Recovered via direct PE-header parse of
+   `orig/ffxivgame.exe`. This is an analysis-pass gap —
+   indirect-jump-only targets (reached only via case-table JMPs
+   without any direct CALL) aren't auto-promoted to function
+   heads by the static analyzer. There are almost certainly more
+   such functions (the case table at 0x008a149c has 100+ entries
+   reached only via indirect jump from FUN_008a13a0). Worth
+   flagging as a tooling improvement opportunity.
 2. **Decompile `FUN_008a10c0`** — the alternative processor a few
    case bodies CALL into instead.
 3. **Map out the 102 event-type cases** in `FUN_008a13a0`'s jump
