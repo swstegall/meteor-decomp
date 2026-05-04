@@ -1,0 +1,222 @@
+# Phase 7 — `EndClientOrderEventReceiver` decomp
+
+> First written 2026-05-04 — third receiver in the cinematic
+> dispatch chain, completing the trio with KickEvent and
+> RunEventFunction. Compact doc because the receiver is mostly
+> structural rather than complex; the bulk of the interest is the
+> per-receiver pattern confirmation it provides.
+
+## TL;DR
+
+`EndClientOrderEventReceiver` is the **client-side handler for the
+end-of-cinematic packet**. Unlike its siblings (`KickClient` and
+`StartServerOrder`), it does NO actor-readiness gating — it
+unconditionally dispatches via slot 3 even if the actor lookup
+returns NULL. This is by design: end-event has to work even when
+the actor has been removed in the meantime (otherwise event
+state could never be cleaned up for despawned actors).
+
+Slot 2 (the network entry) is a **15-byte no-op success-writer**
+— writes `0x01` to the out-result byte and returns. The actual
+end-event work happens via slot 3 (`FUN_0089e2d0`, 73 B), which
+calls `ActorRegistry_lookup_actor` then dispatches to a
+**102-case jump-table dispatcher** at `FUN_008a13a0` based on a
+single event-type byte.
+
+## Vtable map (5 slots)
+
+The 5-slot pattern matches `KickClient` and `StartServerOrder`
+exactly — confirms this is a **shared template-style class
+shape** across the entire `*EventReceiver` family.
+
+| Slot | rva (meteor-decomp) | absolute (Ghidra) | Size | Role |
+|---|---|---|---|---|
+| 0 | `0x004a1100` | `0x008a1100` | (small) | Scalar deleting destructor |
+| 1 | `0x0049d180` | `0x0089d180` | (small) | `New()` factory |
+| 2 | `0x0049d200` | `0x0089d200` | **15 B** | **`Receive()` — no-op success writer** |
+| 3 | `0x0049e2d0` | `0x0089e2d0` | 73 B | **Auxiliary dispatch — actor lookup + 102-case event-type dispatcher** |
+| 4 | `0x0049d210` | `0x0089d210` | 15 B | Predicate — `[ECX+8] != NO_ACTOR` (identical to KickEvent slot 4) |
+
+## Slot 2 (Receive) — full disassembly
+
+```asm
+0x0089d200:
+    MOV EAX, [ESP+4]                 ; arg0 = out result byte ptr
+    MOV CL, [0x012c41af]              ; load SUCCESS byte (0x01) — same
+                                      ;  CommandUpdaterBase RTTI string
+                                      ;  trick used by KickReceiver
+    MOV [EAX], CL                     ; *out_result = SUCCESS
+    RET 8
+```
+
+That's the entire Receive method. **No actor lookup, no flag
+check, no state mutation.** The packet is acknowledged
+unconditionally as success.
+
+## Slot 3 (Auxiliary dispatch) — annotated
+
+```asm
+0x0089e2d0:
+    SUB ESP, 0x1c                     ; allocate stack staging
+    PUSH ESI
+    MOV ESI, ECX                      ; this = receiver
+    MOV ECX, [ESP+0x24]               ; arg = registry / context
+    LEA EAX, [ESI+8]                  ; arg = &receiver[+8] (actor id ptr)
+    PUSH EAX
+    CALL ActorRegistry_lookup_actor   ; resolve actor (NO null-check after!)
+                                      ; EAX = actor pointer (or NULL)
+
+    LEA EDX, [ESI+0x10]               ; receiver field at +0x10
+    LEA ECX, [ESI+0xd]                ; receiver field at +0xd
+    MOV [ESP+0x8],  EDX               ; stage struct: many fields...
+    MOV [ESP+0x14], EDX
+    LEA EDX, [ESP+0x4]                ; pointer to staging area
+    ADD ESI, 0xc                      ; receiver += 0xc (advance)
+    PUSH EDX                          ; push staging area
+    MOV [ESP+0x8],  EAX               ; ...actor ptr (may be NULL!)
+    MOV [ESP+0x10], ECX               ; ...receiver[+0xd] address
+    MOV [ESP+0x14], EAX               ; ...actor ptr again
+    MOV [ESP+0x1c], ECX               ; ...receiver[+0xd] address again
+    MOV [ESP+0x20], ESI               ; ...receiver+0xc
+
+    CALL FUN_008a13a0                 ; the actual end-event-type dispatcher
+    POP ESI
+    ADD ESP, 0x1c
+    RET 4
+```
+
+**Critical observation**: there is NO null-check on the
+`ActorRegistry_lookup_actor` return value before the staging
+struct is built and `FUN_008a13a0` is called. If the actor
+lookup returns NULL, the dispatcher receives a NULL actor
+pointer and proceeds anyway. This means **EndEvent can clean
+up state for an actor that no longer exists in the registry** —
+a deliberate design choice for the cleanup-side packet.
+
+The receiver fields accessed:
+- `+0x8` — actor id (passed to lookup)
+- `+0xc` — unknown (passed via staging at +0x20; possibly the event-type byte the dispatcher reads as `[ECX]`)
+- `+0xd` — small field passed twice
+- `+0x10` — pointer/struct passed twice
+
+## Slot 4 (Predicate) — full disassembly
+
+```asm
+0x0089d210:
+    MOV ECX, [ECX+8]                  ; load receiver[+8] (the actor id)
+    XOR EAX, EAX
+    CMP ECX, [0x0130c778]             ; compare to NO_ACTOR sentinel
+    SETNZ AL                          ; return (actor_id != NO_ACTOR)
+    RET
+```
+
+**Identical structure to KickEvent's slot 4** — same `[ECX+8] !=
+NO_ACTOR` predicate using the same sentinel global. This confirms
+slot 4 is a **shared template-instantiated predicate** across all
+`*EventReceiver` classes (it's just "is this kick/end/etc.
+targeting a real actor id?").
+
+## FUN_008a13a0 — the 102-case event-type dispatcher
+
+The actual end-event work happens here. The function starts with
+a jump-table dispatch:
+
+```asm
+MOVSX EAX, byte [ECX]                 ; event_type = staging[0] (byte)
+CMP EAX, 0x65                          ; if > 0x65 (= 101)
+JA <default_case>                      ; → default
+MOVZX EAX, byte [EAX + 0x8a149c]       ; case_index = byte_table[event_type]
+JMP [EAX*4 + 0x8a1464]                 ; handler = case_table[case_index]
+```
+
+So end-events are a **discriminated union** with up to 102 event
+types (0..101). Each type has a small case body (mostly tail-jump
+to a shared processor at `0x008a09e0`, a few CALL into
+`0x008a10c0`). The case bodies generally:
+
+```asm
+MOV EAX, [ESP+4]                      ; load staging
+MOV ECX, [EAX+0x18]                   ; load per-type method ptr from receiver
+MOV [ESP+4], EAX
+JMP 0x008a09e0                        ; tail-jump to shared processor
+```
+
+So each event type maps to a per-type method pointer at
+`receiver[+0x18 + offset]` (different cases load different fields)
+and a generic processor consumes (event-type, method-ptr,
+staging) tuples.
+
+## Implications for garlemald
+
+**EndEvent is NOT a hang risk** for the man0g0 cinematic. Even
+if the post-warp actor list is empty when the EndEvent packet
+arrives, the receiver:
+1. Dispatches via slot 3 → calls `ActorRegistry_lookup_actor`
+   (returns NULL, but no gate)
+2. Stages the NULL actor pointer + receiver fields
+3. Calls `FUN_008a13a0` which dispatches by event-type byte
+4. The per-type handler may or may not crash on NULL actor —
+   needs case-by-case inspection — but the receiver itself doesn't
+   silently drop
+
+This rules out "EndEvent silent drop" as a tonight's-hang root
+cause. The hang is at the **KICK** stage (`+0x5c` gate) and
+possibly cascades to **RunEventFunction** (`+0x7d` gate). EndEvent
+will eventually land regardless.
+
+**Garlemald porting note for the EndEvent TX builder:** if
+garlemald emits EndEvent packets, the wire format includes the
+event-type byte at `staging[0]` (= `receiver[+0xc]`). This is a
+discriminated-union opcode; up to 102 type variants. The exact
+mapping (what each byte value means) needs the per-case decomp
+of the 102 handlers in `FUN_008a13a0`'s jump table — substantial
+work, deferred.
+
+## Architectural insight — the consistent receiver shape
+
+All three `*EventReceiver` classes share an identical 5-slot vtable
+template, with predictable slot semantics:
+
+| Slot | Role | KickEvent | RunEventFunction | EndEvent |
+|---|---|---|---|---|
+| 0 | Destructor | trivial | trivial | trivial |
+| 1 | `New()` factory | 125 B | small | small |
+| 2 | `Receive()` (network entry) | **207 B (3-way state machine + gates)** | **28 B trampoline → 344 B inner handler** | **15 B no-op success-writer** |
+| 3 | Auxiliary dispatch | 48 B | 48 B (small) | 73 B (actor lookup + 102-case dispatcher) |
+| 4 | `[ECX+8] != NO_ACTOR` predicate | 15 B (identical) | 15 B (likely identical) | 15 B (identical) |
+
+The complexity gradient at slot 2 is informative:
+- **KickEvent** has the most logic at slot 2 (managing kick state, both gates)
+- **RunEventFunction** delegates to a separate inner handler
+- **EndEvent** does almost nothing at slot 2; the work is in slot 3
+
+This suggests slot 2 is the **synchronous network-receive entry**
+that returns a result byte, while slot 3 is the **deferred /
+async dispatch entry** that does the heavy lifting. KickEvent's
+slot 2 is heavy because the kick gate itself needs to be checked
+synchronously to return an accurate result byte. EndEvent's slot
+2 returns success unconditionally because the cleanup work in
+slot 3 doesn't affect the response.
+
+## Open follow-ups
+
+1. **Decompile `FUN_008a09e0`** — the shared end-event processor
+   that most case bodies tail-jump to. ~70+ callers per the
+   pattern above.
+2. **Decompile `FUN_008a10c0`** — the alternative processor a few
+   case bodies CALL into instead.
+3. **Map out the 102 event-type cases** in `FUN_008a13a0`'s jump
+   table at `0x008a149c` (byte table) → `0x008a1464` (case
+   addresses). This would tell us what end-events the engine
+   recognizes (probably things like "noticeEvent end", "talkEvent
+   end", "pushEvent end", "emoteEvent end", etc.). Substantial
+   work but high-payoff for understanding the wire format.
+
+## Cross-references
+
+- `docs/event_kick_receiver_decomp.md` — KickEvent receiver
+  (slot-2 heavy) — the 5-slot pattern was first identified here
+- `docs/event_run_event_function_receiver_decomp.md` —
+  RunEventFunction receiver (slot-2 trampoline) — the inner
+  handler was the most complex single piece of cinematic
+  dispatch we've decoded
