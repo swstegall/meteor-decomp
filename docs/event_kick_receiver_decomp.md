@@ -41,11 +41,23 @@ end, and the kick silently drops.
 
 ## Vtable map (5 slots)
 
-| Slot | RVA | Size | Role (inferred) |
+> ⚠ **2026-05-04 NOTE: the RVAs in this table are SUSPECT.** Per a
+> Ghidra GUI confirmation pass, RVA `0x0049e450` lands inside OpenSSL
+> X509 code (`crypto/x509/x509_att.c`), not the kick receiver. The
+> RVAs were transcribed from the prior session's notes and may have
+> a consistent offset error (the asm-dump labels reference jumps to
+> `0x0089e4xx`, suggesting the real slot 2 might be at `0x0089e450`
+> with all listed RVAs needing `+0x400000` correction — but this
+> needs Ghidra GUI verification by walking the vtable at
+> `KickClientOrderEventReceiver::vftable` directly). Re-confirm by
+> navigating to the vtable address and reading out the slot pointers
+> before relying on these addresses for further analysis.
+
+| Slot | RVA *(suspect — needs re-confirm)* | Size | Role (inferred) |
 |---|---|---|---|
 | 0 | `0x004a1b90` | 30 B | Scalar deleting destructor (standard MSVC pattern: `CALL <body>; TEST [esp+8],1; JZ skip; PUSH ESI; CALL _free; skip:`) |
 | 1 | `0x0049f530` | 125 B | `New()` factory — `PUSH 0x84` (size=132) → `operator new` → 6-arg ctor at `0x0089f2b0` constructing from member offsets `(ESI+8, ESI+0xc, ESI+0x68, ESI+0x10, ESI+0x14, ESI+0x6c)` |
-| 2 | `0x0049e450` | **207 B** | **`Receive()` — the actor-lookup + flag-check entry. See per-slot analysis below.** |
+| 2 | `0x0049e450` *(see warning above)* | **207 B** | **`Receive()` — the actor-lookup + flag-check entry. See per-slot analysis below.** |
 | 3 | `0x0049d230` | 48 B | Auxiliary dispatch — `CALL 0x00cc7a50` (actor lookup) + `CALL 0x006ee680` (Director-base entry per Phase 6 doc — likely `_dispatchEvent` or similar) |
 | 4 | `0x0049d260` | 15 B | Predicate — compares `[ECX+8]` against `[0x0130c778]` (the `0xE0000000` `NO_ACTOR` sentinel — see §2 below), returns `SETNZ AL`. So slot 4 = "is this kick targeting a real (non-null) actor id?" — used by callers that want to skip processing of zero-target kicks. |
 
