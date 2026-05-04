@@ -445,9 +445,24 @@ silently even after the kick gate is cleared.
    `+0x5c` writer hunt (Task C of the kick-receiver doc); deferred
    to the same class-hierarchy decomp pass.
 
-6. **Decompile FUN_00cc9330** — the per-item destructor for the
-   8-byte queue item, surfaced via FUN_0077a210's analysis. Will
-   reveal what the 8-byte item actually contains (likely a
-   `(actor_id, function_id_or_callback_ptr)` pair, but the
-   presence of a real destructor — not just a no-op — suggests
-   one or both fields involve smart-pointer/weak-ref ownership).
+6. **~~Decompile FUN_00cc9330~~ — ✅ DONE 2026-05-04.** The
+   destructor is a **single `RET` byte** — a no-op. The 8-byte
+   event-queue item is **trivially destructible**.
+
+   This overturns the earlier guess that "the presence of a real
+   destructor suggests smart-pointer ownership." The SEH frame
+   in FUN_0077a210 is over-engineered for this case — it's a
+   generic `std::_Destroy_range<T>` template instantiation that
+   always emits SEH machinery regardless of whether the actual
+   T has a throwing destructor. Compiler being defensive on a
+   trivial type.
+
+   **The 8-byte event-queue item is plain old data** — most
+   likely a simple `(u32 actor_id, u32 function_id_or_callback_index)`
+   pair. No reference counting, no smart pointers, no virtual
+   cleanup needed.
+
+   For garlemald porting purposes, this is the cleanest possible
+   answer: the equivalent struct can be a trivially-copyable
+   `(u32, u32)` tuple. The compiler's pessimistic SEH wrapping
+   doesn't change the semantic — the data is plain.
