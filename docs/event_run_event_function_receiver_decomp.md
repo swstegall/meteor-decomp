@@ -203,15 +203,145 @@ list-of-pairs, garlemald needs to encode it consistently.
   (or wherever the TX builder lives) — porting target for the
   wire-format encoding side.
 
-## Open follow-ups
+## Sibling-method decomp results — 2026-05-04
 
-1. **Identify FUN_00cc7180, FUN_00cc78c0, FUN_00cc72a0** — quick
-   3-function decomp pass would close out the registry API
-   surface. Each is probably small (<50 bytes) since they're
-   sibling lookups.
-2. **Decompile FUN_008a1370** — the "post-loop completion check"
-   called twice in the inner handler. If it's a "queue exhausted?"
-   predicate, our Phase 1/2/3 decomp interpretation is solid.
-3. **Decompile FUN_0077a210** — the "shift/move" call in Phase 3's
-   dequeue. Probably a vector::erase-style helper. Useful for
-   understanding the receiver's memory model but not blocking.
+Closed the 3-method follow-up. Each turned out to be a small
+wrapper around an inner body, surfacing **two more architectural
+findings** beyond just labelling the methods.
+
+### FUN_00cc7180 (7-byte navigation thunk)
+
+```asm
+MOV ECX, [ECX + 0x1c8]         ; navigate: this = (*this)[+0x1c8]
+JMP FUN_00cd80e0               ; tail-call (whose body is itself
+                               ;  a thunk to FUN_00d132b0)
+```
+
+The inner FUN_00cd80e0 (11 bytes) IS the body — but it's another
+thunk: `MOV ECX, [ECX+0x1c8]; JMP FUN_00d132b0`. So the chain is
+two thunks deep before reaching the real predicate at
+`FUN_00d132b0`.
+
+**Architectural finding #1 — sibling classifier sub-objects.**
+This thunk is **structurally parallel** to the
+`id_partition_predicate_thunk` (FUN_00cd80f0) we already found:
+
+| Thunk | Nav offset | Tail-call target | Role (inferred) |
+|---|---|---|---|
+| `FUN_00cd80f0` | `[+0x1c4]` | `FUN_00d035d0` | **Type-tag predicate** (collection A vs B; tag == `0x0F`) |
+| `FUN_00cd80e0` | `[+0x1c8]` | `FUN_00d132b0` | **Sibling predicate** (used by FUN_00cc7180; semantic TBD) |
+
+The registry has **multiple classifier sub-objects at adjacent
+offsets** — staged classifier pattern. Each classifier (+0x1c4,
++0x1c8, possibly more) is its own object with its own predicate +
+lookup table. The parent registry navigates to the right one
+based on which lookup method was called.
+
+### FUN_00cc78c0 (26-byte lookup wrapper)
+
+```asm
+MOV EAX, [ESP+0x4]             ; arg0 = lookup key
+MOV ECX, [ECX]                 ; this = *this
+PUSH 0                         ; push 0 (probably "create if missing"?)
+PUSH EAX                       ; push key
+CALL FUN_00cdde20              ; call the heavyweight lookup body
+TEST EAX, EAX
+JNZ +3
+RET 4                          ; null → return 0
+MOV EAX, [EAX]                 ; deref entry → actor pointer
+RET 4
+```
+
+The inner FUN_00cdde20 is **1187 bytes** and operates on the
+`[+0x1c8]` classifier (the SAME one FUN_00cc7180's thunk
+navigates to). The leading `PUSH 0` is the second arg, probably a
+"create if missing" or "lazy resolution" boolean flag.
+
+**Why this exists:** RunEventFunction's Phase 1 calls this AFTER
+both `lookup_actor` and `FUN_00cc7180`'s predicate fail — meaning
+this is the **fallback "find or register placeholder"** path that
+keeps the queue making progress when the actor isn't yet known.
+
+### FUN_00cc72a0 (18-byte flag-read wrapper)
+
+```asm
+MOV EAX, [ESP+0x4]             ; arg0 = actor pointer
+MOV ECX, [ECX]                 ; this = *this
+PUSH EAX
+CALL FUN_00cd7a30              ; alias resolver
+MOV AL, [EAX + 0x7d]           ; READ byte at +0x7d of result
+RET 4
+```
+
+The inner FUN_00cd7a30 (29 bytes) is an **alias resolver**:
+
+```c
+void *FUN_00cd7a30(this, EDX /* actor_ptr */) {
+  if (EDX == NULL) return NULL;
+  EAX = this[+0x1bc];                       // registry's "focus" obj
+  if (EDX == *EAX) return EAX;              // if actor matches focus
+                                            //  → return focus obj
+  return EDX[+0x4];                         // else return actor[+0x4]
+                                            //  (an aliased pointer
+                                            //  stored inside the actor)
+}
+```
+
+So FUN_00cc72a0 = "look up the canonical / aliased object for
+this actor, then return the byte flag at offset `+0x7d`".
+
+**Architectural finding #2 — second actor flag at `+0x7d`.**
+This is a NEW actor flag distinct from the `+0x5c` we found via
+the kick receiver. Both must be set for a full kick → run-event
+chain to land:
+
+| Actor flag | Set by | Read by | Inferred semantic |
+|---|---|---|---|
+| `+0x5c` | spawn-side opcode (TBD) | `KickReceiver` Branch A & B2 | **"Ready for event reception"** (kick gate) |
+| `+0x7d` | TBD | `RunEventFunction` Phase 3 dispatcher (via FUN_00cc72a0) | **"Ready for event dispatch"** |
+
+The fact that they're at different offsets — and read at
+different stages of the dispatch chain — strongly suggests they
+represent different lifecycle states:
+
+- `+0x5c` is set early (probably when `AddActor` is processed)
+  and gates whether the actor can RECEIVE event packets at all.
+- `+0x7d` is set later (probably when the actor's event-handling
+  subsystem is initialized — e.g. after the actor's vtable
+  bindings are registered) and gates whether the event body can
+  actually RUN against it.
+
+For garlemald's post-warp re-spawn fix: re-broadcasting `AddActor`
+will set `+0x5c`. Whether that's enough to also restore `+0x7d`
+depends on whether `+0x7d` is set in the same opcode pipeline OR
+in a follow-up packet (e.g. the actor's per-instance Lua-binding
+setup). If garlemald's re-broadcast only re-fires `AddActor` and
+not the binding-setup packets, RunEventFunction may STILL drop
+silently even after the kick gate is cleared.
+
+**Updated registry-method roster (the `0x00cc7` cluster):**
+
+| RVA | Confirmed role | Body shape |
+|---|---|---|
+| `0x00cc70b0` | (xref-only — likely add/remove sibling) | TBD |
+| `0x00cc7180` | Sibling predicate using `[+0x1c8]` classifier | Thunk → FUN_00cd80e0 → FUN_00d132b0 |
+| `0x00cc7190` | (xref-only — likely add/remove sibling) | TBD |
+| `0x00cc72a0` | Read actor's `+0x7d` "event dispatch ready" flag | Wrapper around FUN_00cd7a30 alias resolver |
+| `0x00cc78c0` | Heavyweight "find or placeholder" lookup on `[+0x1c8]` classifier | Wrapper around 1187-byte FUN_00cdde20 |
+| `0x00cc7a50` | `ActorRegistry::lookup_actor` (Actor* or NULL) | Wrapper that partitions by `[+0x1c4]` then dispatches to A or B |
+
+## Open follow-ups (still deferrable)
+
+1. **Decompile FUN_00d132b0** — the sibling predicate body. Likely
+   structurally parallel to FUN_00d035d0 (type-tag check) but on
+   a different tag value. Confirms the staged-classifier pattern.
+2. **Identify FUN_00cc70b0 + FUN_00cc7190** — these are referenced
+   by the `id_partition_predicate_thunk`'s xref list but we
+   haven't decompiled them. Likely add/remove siblings.
+3. **Decompile FUN_008a1370** — the "post-loop completion check"
+   called twice in the inner handler.
+4. **Decompile FUN_0077a210** — the "shift/move" call in Phase 3's
+   dequeue. Probably a vector::erase-style helper.
+5. **Find what sets actor `+0x7d`** — same difficulty as the
+   `+0x5c` writer hunt (Task C of the kick-receiver doc); deferred
+   to the same class-hierarchy decomp pass.
