@@ -400,8 +400,54 @@ silently even after the kick gate is cleared.
    Phase 2's check (`if (queue_empty) goto done_success`) and
    Phase 3's loop-tail check (`if (queue_empty) break`) both gate
    on the same simple emptiness predicate. No surprises.
-4. **Decompile FUN_0077a210** — the "shift/move" call in Phase 3's
-   dequeue. Probably a vector::erase-style helper.
+4. **~~Decompile FUN_0077a210~~ — ✅ DONE 2026-05-04.** It's
+   `std::_Destroy_range` (the MSVC stdlib helper that runs
+   destructors over `[begin, end)`):
+
+   ```c
+   void destroy_range_8b(void *begin, void *end, ... /* unused */) {
+       // SEH frame for exception-safe destruction
+       while (begin != end) {
+           FUN_00cc9330(begin);    // per-item destructor
+           begin += 8;             // 8-byte stride
+       }
+   }
+   ```
+
+   `FUN_00cc9330` is the per-item destructor for the 8-byte
+   event-actor item type — an open follow-up if anyone wants to
+   know what the 8-byte item actually contains (probably some
+   smart-pointer / weak-ref pair given there's a real destructor).
+
+   **Subtle finding — Phase 3 is LIFO, not FIFO.** The call
+   pattern in Phase 3 is `FUN_0077a210(end-8, end, ...)` followed
+   by `this->_Last -= 8` — this destroys exactly ONE element
+   (the back of the vector) per loop iteration. That's
+   `std::vector::pop_back` semantics, not `pop_front`.
+
+   So the inner handler's Phase 3 processes pending items in
+   REVERSE order of arrival, popping from the back. Most likely
+   for performance (pop_back is O(1); pop_front on a contiguous
+   vector would shift everything O(n)).
+
+   This refines the inner-handler interpretation:
+   - Phase 1 (forward): look up resolution candidates for ALL
+     items (doesn't pop)
+   - Phase 3 (backward, LIFO): pop + dispatch from the back;
+     stop on first failure
+   - Items that fail Phase 3's gates remain in the queue for the
+     next Receive() call
+
+   So a single Receive call dispatches as many TRAILING items as
+   it can; items "behind" a failed one (= older items) wait for
+   the next call.
 5. **Find what sets actor `+0x7d`** — same difficulty as the
    `+0x5c` writer hunt (Task C of the kick-receiver doc); deferred
    to the same class-hierarchy decomp pass.
+
+6. **Decompile FUN_00cc9330** — the per-item destructor for the
+   8-byte queue item, surfaced via FUN_0077a210's analysis. Will
+   reveal what the 8-byte item actually contains (likely a
+   `(actor_id, function_id_or_callback_ptr)` pair, but the
+   presence of a real destructor — not just a no-op — suggests
+   one or both fields involve smart-pointer/weak-ref ownership).
