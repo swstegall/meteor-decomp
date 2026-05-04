@@ -1,18 +1,13 @@
 # Phase 7 — `KickClientOrderEventReceiver` decomp + garlemald implications
 
-> Last updated: 2026-05-04 — slot 2 (Receive) static-decoded from
-> asm dump; Task A confirmed `0x0130c778` is the `0xE0000000`
-> `NO_ACTOR` sentinel; Task B confirmed `FUN_00cc7a50` is
-> `ActorRegistry::lookup_actor` with a two-collection split; Task
-> B.1 confirmed `FUN_00cd80f0` is a 7-byte navigation thunk into a
-> nested id-classifier sub-object; Task B.2 confirmed the partition
-> predicate at `FUN_00d035d0` is a TYPE-TAG-based metadata lookup
-> (collection B = "actor type tag == `0x0F`", everything else =
-> collection A) — the partition is runtime-assigned by spawn-side
-> opcodes, not derived from the id namespace. Triggered by
-> 2026-05-03 garlemald smoke-test debugging where the SimpleContent
-> man0g0 cinematic hung at "Now Loading" after talking to Yda the
-> second time, even after fixing 4 server-side director-flow bugs.
+> Last updated: 2026-05-04 — slot 2 (Receive) at absolute address
+> `0x0089e450` (Ghidra) / rva `0x0049e450` (meteor-decomp). Tasks
+> A, B, B.1, B.2 closed via Ghidra GUI; Ghidra Decompiler view of
+> slot 2 produced a corrected three-way branch interpretation that
+> supersedes the prior asm-only reading. Triggered by 2026-05-03
+> garlemald smoke-test debugging where the SimpleContent man0g0
+> cinematic hung at "Now Loading" after talking to Yda the second
+> time, even after fixing 4 server-side director-flow bugs.
 
 ## TL;DR for garlemald porters
 
@@ -81,7 +76,77 @@ encodes the kick payload's per-field offsets:
 The exact field shapes need a Ghidra GUI pass to confirm — see
 "Open Ghidra GUI tasks" below.
 
-## Slot 2 (`Receive`) — annotated
+## Slot 2 (`Receive`) — Ghidra decomp (CORRECTED 2026-05-04)
+
+After the Ghidra GUI confirmed slot 2's address (`0x0089e450`)
+and produced the decomp below, the prior asm-only reading was
+revised: it's a **three-way** branch (Branch A / B1 / B2), not
+two-way; receiver field `+0x80` is a load-bearing "primary kick"
+flag; and the `context_root[+0x128]` / `[+0x12c]` pair forms a
+current/previous-target state machine.
+
+```c
+char *KickReceiver::Receive(int receiver_this, char *out_result) {
+  *out_result = 0x01;                    // pre-init to "success" (default)
+                                         // (loaded from a clever offset into
+                                         // the CommandUpdaterBase RTTI string
+                                         // at 0x012c41af = string + 0x3f)
+  
+  context_root = vtable[1][+0xc];        // navigate to engine context root
+                                         // (via the trampoline at 0x00cc7510)
+  
+  if (context_root[+0x12c] != NO_ACTOR) {
+    // ─── BRANCH A: target IS set — kick on existing target ───
+    actor = ActorRegistry_lookup_actor(receiver_this + 0xc);
+    if (actor == NULL ||
+        actor[+0x5c] == 0 ||              // ← the kick gate
+        FUN_006e11d0() != 0) {            // ← additional Branch-A-only gate
+      *out_result = FAILURE_CODE;         // (DAT_0134c560)
+    }
+    return out_result;
+  }
+  
+  // target NOT set — init path
+  if (context_root[+0x128] == NO_ACTOR) {
+    // ─── BRANCH B1: completely fresh, no previous target ───
+    if (receiver[+0x80] != 0) {           // "is this a primary kick?" flag
+      context_root[+0x12c] = receiver[+0xc];   // store target id
+      *out_result = FAILURE_CODE;
+      return out_result;
+    }
+    // (else fall through → return success, no-op kick)
+  } else {
+    // ─── BRANCH B2: previous target stored at [+0x128] ───
+    FUN_0089e200(receiver + 0x6c);        // some trigger setup
+    actor = ActorRegistry_lookup_actor(context_root + 0x128);
+    if (actor == NULL ||
+        actor[+0x5c] == 0) {              // ← same kick gate, re-applied
+      *out_result = FAILURE_CODE;
+      return out_result;
+    }
+  }
+  return out_result;
+}
+```
+
+### Implications of the three-way branch
+
+The state machine across `context_root[+0x128]` / `[+0x12c]`:
+
+| `[+0x128]` | `[+0x12c]` | Meaning | What slot 2 does |
+|---|---|---|---|
+| NO_ACTOR | NO_ACTOR | No kick ever; idle | Branch B1: store target if `receiver[+0x80]` set, else no-op |
+| NO_ACTOR | set | Primary kick in progress on `[+0x12c]` | Branch A: look up `[+0x12c]`, gate on `+0x5c`, gate on `FUN_006e11d0()` |
+| set | NO_ACTOR | Previous target stored, init pending | Branch B2: look up `[+0x128]`, gate on `+0x5c` |
+| set | set | (state shouldn't normally occur — Branch A wins) | Branch A path |
+
+The takeaway: **garlemald's `KickEventPacket` builder must
+correctly emit the receiver's `+0x80` flag** — without it,
+Branch B1 falls through to a silent no-op (the kick never
+establishes the target), which would look identical to a
+"silent drop" failure mode on the client.
+
+### The original asm-only reading (kept for cross-reference)
 
 ```asm
 0x0049e450:
