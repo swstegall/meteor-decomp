@@ -255,8 +255,79 @@ slot 3 doesn't affect the response.
    such functions (the case table at 0x008a149c has 100+ entries
    reached only via indirect jump from FUN_008a13a0). Worth
    flagging as a tooling improvement opportunity.
-2. **Decompile `FUN_008a10c0`** — the alternative processor a few
-   case bodies CALL into instead.
+2. **~~Decompile `FUN_008a10c0`~~ — ✅ DONE 2026-05-04.** Even
+   simpler than FUN_008a09e0; ~33 bytes of real code + 6-entry
+   jump table:
+
+   ```c
+   void FUN_008a10c0(StagingStruct *staging /* in ECX */) {
+       void *adjusted_this = staging + 0xc;
+       MethodDescriptor *desc = staging[+0x18];
+       uint8_t type = desc[0];
+       if (type > 5) return;
+       switch (type) {
+         case 0: return;                  // EXPLICIT no-op
+         case 1: return;                  // EXPLICIT no-op
+         case 2: JMP 0x004a0640;          // tail-call cleanup
+         case 3: JMP 0x004a0660;          // tail-call cleanup
+         case 4: return;                  // EXPLICIT no-op
+         case 5: return;                  // EXPLICIT no-op
+       }
+   }
+   ```
+
+   Jump table at `0x008a10e4` confirms — 4 of 6 entries point to
+   the same `RET` instruction at `0x008a10e1`; only cases 2 and 3
+   reach actual handlers.
+
+   **Architectural insight — two-axis end-event taxonomy.**
+   Combined with FUN_008a09e0, the end-event dispatcher has TWO
+   orthogonal axes:
+
+   | Sub-dispatcher | Active | No-op | Phase |
+   |---|---|---|---|
+   | `FUN_008a09e0` | 6 of 6 | 0 | **Invoke** — handles all 6 method-signature classes |
+   | `FUN_008a10c0` | 2 of 6 | 4 | **Post-invoke cleanup** — only for stateful method-classes (2 + 3) |
+
+   So:
+   - `FUN_008a09e0` = "invoke" sub-dispatcher (per-signature calling thunks)
+   - `FUN_008a10c0` = "cleanup" sub-dispatcher (only types 2 + 3 are stateful)
+
+   This is consistent with classic generic-dispatch patterns
+   where some method classes are stateful (need cleanup) and
+   others are stateless (don't). The compiler/runtime emits both
+   dispatchers from a template; each specializes in a different
+   lifecycle phase.
+
+   For garlemald porting, this confirms the wire format is
+   structurally simple: per-event-type, the receiver carries a
+   method descriptor whose first byte is one of 6 well-defined
+   values, and the cleanup behavior is determined entirely by
+   that byte.
+
+   **Updated end-event dispatch architecture summary:**
+
+   ```
+   FUN_008a13a0 (102-case event-type dispatcher)
+     ↓ key: event_type byte at staging[0]
+     ↓ each case loads receiver[+0x18+offset] (= MethodDescriptor*)
+
+   FUN_008a09e0 (6-case INVOKE sub-dispatcher)
+     ↓ for stateless event types: tail-jump → call thunk → done
+     ↓ for stateful event types: tail-jump → call thunk → fall through
+
+   FUN_008a10c0 (6-case CLEANUP sub-dispatcher)
+     ↓ for stateful event types (case 2 + 3): tail-jump to
+       cleanup thunk at 0x004a0640 / 0x004a0660
+     ↓ for stateless event types: explicit RET (no-op)
+   ```
+
+   So the 102 "end-event types" really resolve to:
+   - 102 distinct event-type slots in the receiver
+   - Each slot points to a method descriptor (one of 6 signature
+     shapes; only shapes 2 & 3 need post-invoke cleanup)
+   - Three-level dispatch: (event type → method ptr) → (method
+     type → invoke thunk) → optional (method type → cleanup thunk)
 3. **Map out the 102 event-type cases** in `FUN_008a13a0`'s jump
    table at `0x008a149c` (byte table) → `0x008a1464` (case
    addresses). This would tell us what end-events the engine
