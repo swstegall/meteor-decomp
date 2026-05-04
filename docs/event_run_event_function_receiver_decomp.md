@@ -383,8 +383,23 @@ silently even after the kick gate is cleared.
 2. **Identify FUN_00cc70b0 + FUN_00cc7190** — these are referenced
    by the `id_partition_predicate_thunk`'s xref list but we
    haven't decompiled them. Likely add/remove siblings.
-3. **Decompile FUN_008a1370** — the "post-loop completion check"
-   called twice in the inner handler.
+3. **~~Decompile FUN_008a1370~~ — ✅ DONE 2026-05-04.** Trivial
+   37-byte predicate; it's `is_queue_empty()`:
+
+   ```c
+   bool FUN_008a1370(this) {
+       void *first = this->_First;        // [+4]
+       if (first == NULL) return true;    // unallocated → empty
+       void *last = this->_Last;          // [+8]
+       return ((last - first) / 8) == 0;  // empty range
+   }
+   ```
+
+   **Confirms the Phase 1/2/3 decomp interpretation of the inner
+   handler is correct** — it's a textbook drain-the-queue pattern:
+   Phase 2's check (`if (queue_empty) goto done_success`) and
+   Phase 3's loop-tail check (`if (queue_empty) break`) both gate
+   on the same simple emptiness predicate. No surprises.
 4. **Decompile FUN_0077a210** — the "shift/move" call in Phase 3's
    dequeue. Probably a vector::erase-style helper.
 5. **Find what sets actor `+0x7d`** — same difficulty as the
