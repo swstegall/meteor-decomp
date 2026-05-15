@@ -224,8 +224,8 @@ entry pointers at `0xdc0f5c` (jump table).
 | #1 | Group class hierarchy inventory | ✅ done (this doc) |
 | #2 | PacketProcessor dispatch pattern | ✅ done (this doc) |
 | #3 | SharedWork slot map | 🟡 partial (slots 0..27 listed; semantic role of slots 13..18 needs deeper trace) |
-| #4 | EntryBuilderBase 19-slot map | 🔲 pending — walk slots 0..18 to identify per-event hooks |
-| #5 | PacketRequestBase 13-slot map | 🔲 pending — walk slots 0..12 (send-side mirror of PacketProcessor) |
+| #4 | EntryBuilderBase 19-slot map | ✅ done (this doc, "EntryBuilderBase + EntryBuilder slot maps" section below) |
+| #5 | PacketRequestBase 13-slot map | ✅ done (this doc, "PacketRequestBase slot map" section below) |
 | #6 | OnlineStatusUpdater + BreakupBuilder slot maps | 🔲 pending |
 | #7 | 0x0133 / 0x017A wire-format derivation from packet captures | ✅ done (this doc, "Retail wire format" section below) |
 | #8 | Audit garlemald's per-member SharedWork serialization vs. the 16-byte stride | 🔲 pending — `map-server/src/runtime/broadcast.rs` |
@@ -326,6 +326,147 @@ Per pmeteor `GenericDataPacket.cs`. The Lua-param encoding follows
 int = type-marker + LE u32; etc.). Decoded by the receiving Lua VM
 as variadic args to a script handler keyed by the leading class-name
 (e.g. `"attention"` → `attentionMessage` Lua handler).
+
+## Group::PacketRequestBase slot map (item #5)
+
+`PacketRequestBase` (13 slots, RVA `0xbd4120`) is the **abstract base
+of every send-side packet-emitter** in the Group subsystem. The 5
+known subclasses (`EntryBuilderBase`, `MemberInfoUpdater`,
+`PropertyUpdater`, `WorkSyncUpdater`, `BreakupBuilder`) all derive from
+it and add their per-event payload state on top.
+
+### PacketRequestBase slot map
+
+| Slot | Body RVA | Bytes | Role |
+|---:|---|---:|---|
+| 0 | `0x2d0c20` | 27 | Destructor — calls parent dtor at `0x6d0b90` (the *same* parent dtor that `EntryBuilderBase` slot 0 calls, confirming the inheritance edge `EntryBuilderBase → PacketRequestBase`) |
+| 1 | `0x6b7340` | 3 | `xor eax,eax; ret` — returns 0/false (inherited stub) |
+| 2 | `0x2d0c10` | 5 | `xor eax,eax; xor edx,edx; ret` — returns u64 (0, 0) (default sequence pair) |
+| 3 | `0x2ce2e0` | 1 | `ret` — empty no-op |
+| 4 | `0x773290` | 3 | `mov al,1; ret` — returns 1 (true) — default `IsActive` |
+| 5 | `0x1c5c80` | — | Inherited LuaControl helper |
+| 6, 7 | `0x672a20` | 3 | `ret 0xc` — accept 12-byte arg, do nothing (subclasses override for member add/remove) |
+| 8 | `__purecall` | — | **Subclasses MUST override — the `Send` / `Build` hook** |
+| 9 | `0x1b8d90` | — | Inherited LuaControl no-op |
+| 10 | `0x40fa00` | — | Inherited |
+| 11 | `0x1c5c80` | — | Inherited |
+| 12 | `0x837620` | 5 | `xor al,al; ret 8` — returns 0 (false), accepts 8-byte arg — likely `IsCompleted` / `IsBuilt` default |
+
+So `PacketRequestBase` is a 5-method-real, 8-method-stub abstract:
+1. dtor
+2. `IsActive()` (default true)
+3. `IsCompleted()` (default false)
+4. `OnAddMember()` (default no-op)
+5. `OnRemoveMember()` (default no-op)
+6. `Send/Build()` (`__purecall`)
+
+The shared inheritance edge `EntryBuilderBase → PacketRequestBase`
+explains why their slot 0 dtors share the same parent (`0x6d0b90`).
+PacketRequestBase is the actual abstract send-side base; the
+`*Updater` and `*Builder` classes specialize the abstract Build hook.
+
+## Group::EntryBuilderBase + EntryBuilder slot maps (item #4)
+
+`EntryBuilderBase` (19 slots, RVA `0xbd415c`) is the **single-use,
+self-destructing builder** that produces an outbound packet for one
+group event. `EntryBuilder` (RVA `0xbd442c`) is the concrete subclass
+used for party/content groups; `EntryLinkShellBuilder` (RVA `0xbd447c`)
+is the linkshell variant. They share the abstract slot shape.
+
+### EntryBuilderBase object layout (deduced from slot bodies)
+
+```c
+struct EntryBuilderBase {
+  /* +0x00 */ void**   vtable;
+  /* +0x10 */ uint8_t  inline_data[24];   // payload area passed to slot 6/7
+  /* +0x28 */ uint64_t sequence_pair;     // slot 2 = get, slot 3 = reset
+  /* +0x30 */ uint8_t  state_flag;        // slot 4: == 1, slot 5: == 0
+};
+
+// EntryBuilder extends with a pimpl-pointer pattern:
+struct EntryBuilder : EntryBuilderBase {
+  /* +0x38 */ BuilderImpl* impl;          // most overrides forward here
+  /* +0x3c */ uint16_t    member_count;   // slot 9 returns this
+  /* +0x3e */ uint8_t     is_complete;    // slot 17 sets, slot 18 reads
+};
+```
+
+### EntryBuilderBase slot map
+
+| Slot | Body RVA | Bytes | Role |
+|---:|---|---:|---|
+| 0 | `0x2d0cd0` | 93 | Destructor (SEH-protected, calls parent dtor at `0x6d0b90`, optional `operator delete`) |
+| 1 | `0x6b7340` | 3 | `xor eax,eax; ret` — trivial returns 0/false (inherited stub) |
+| 2 | `0x2d0c90` | 7 | `GetSequencePair()` — returns `[+0x28]` in EAX, `[+0x2c]` in EDX (a u64 pair) |
+| 3 | `0x2d0ca0` | 9 | `ResetSequencePair()` — zeros `[+0x28..+0x2c]` |
+| 4 | `0x2d0cb0` | 10 | `IsState1()` — returns `[+0x30] == 1` |
+| 5 | `0x2d0cc0` | 9 | `IsState0()` — returns `[+0x30] == 0` |
+| 6 | `0x672a20` | 3 | `ret 0xc` — base no-op (subclasses override) |
+| 7 | `0x672a20` | 3 | (same as 6) |
+| 8 | `0x5d364d` | — | `__purecall` — subclasses MUST override (the build hook) |
+| 9 | `0x1b8d90` | — | Inherited `LuaControl` no-op |
+| 10 | `0x40fa00` | — | Inherited |
+| 11 | `0x1c5c80` | — | Inherited |
+| 12 | `0x837620` | — | Inherited (shared across many classes — likely `GetClassId`) |
+| 13 | `0x5d364d` | — | `__purecall` — subclasses MUST override |
+| 14 | `0x5d364d` | — | `__purecall` — subclasses MUST override (the detach/finalize hook) |
+| 15 | `0x376340` | — | Inherited |
+| 16 | `0x130890` | — | Inherited |
+| 17 | `0x2ce2e0` | 1 | `ret` — empty no-op |
+| 18 | `0x773290` | 3 | `mov al,1; ret` — returns true (default `IsActive`?) |
+
+### EntryBuilder concrete overrides
+
+13 of the 19 slots are overridden by `EntryBuilder` — almost everything
+delegates through the pimpl at `[+0x38]`:
+
+| Slot | Override RVA | Bytes | Role |
+|---:|---|---:|---|
+| 0 | `0x2dac90` | 27 | Concrete dtor (calls `0x6cb760` parent dtor) |
+| 1 | `0x2c0550` | 7 | `GetInnerWork()` — returns `[[+0x38] + 4]` (the SharedWork ptr from the impl) |
+| 6 | `0x2cac90` | 32 | `OnAddMember(member, sub_idx)` — calls `0x6ca270` with `(impl, payload, &inline_data, sub_idx, 1)` |
+| 7 | `0x2cacb0` | 32 | `OnRemoveMember` — same shape, calls `0x6ca590` |
+| 8 | `0x2cb7e0` | 8 | `Build()` — tail-jumps `[+0x38]->build_method` (`0x6cb5f0`) |
+| 9 | `0x2da9b0` | 5 | `GetMemberCount()` — returns u16 at `[+0x3c]` |
+| 10 | `0x2c3550` | 8 | Forward to `[+0x38]` impl (slot variant) |
+| 11 | `0x2c0ce0` | 8 | Forward to `[+0x38]` impl |
+| 13 | `0x2c01e0` | 4 | `GetImpl()` — returns `[+0x38]` (the pimpl pointer) |
+| 14 | `0x2cb7f0` | 101 | **`Detach(out_subpacket)`** — see below |
+| 15 | `0x2c0560` | 3 | `ret 4` — accepts 4-byte arg, ignores |
+| 16 | `0x2cd680` | 8 | Forward to `[+0x38]` impl |
+| 17 | `0x2c0570` | 5 | `MarkComplete()` — sets `[+0x3e] = 1` |
+| 18 | `0x2da9c0` | 4 | `IsComplete()` — returns `[+0x3e]` |
+
+### Slot 14 — `EntryBuilder::Detach(out_subpacket)`
+
+The most important override. SEH-protected, takes one out-pointer arg.
+Decoded body:
+
+```cpp
+SubPacket EntryBuilder::Detach(SubPacket** out_subpacket) {
+    SubPacket* impl_handoff = this->impl_;     // +0x38
+    this->impl_ = nullptr;                     // detach ownership
+    *out_subpacket = impl_handoff;             // hand to caller
+    if (this != nullptr) {
+        // Tail-call vtable[0] (dtor) with delete-flag = 1
+        this->vtable[0](this, 1);              // self-destruct
+    }
+    return *out_subpacket;
+}
+```
+
+This is the **single-use builder pattern**: `EntryBuilder` is created
+on the heap, populated by repeated `OnAddMember` / `OnRemoveMember`
+calls, then `Detach` hands off the constructed packet to the caller
+and immediately deletes the builder. Mirrors C# `using
+(EntryBuilder b = …) { … }` but C++-side via explicit ownership
+transfer.
+
+The 19-slot vtable is therefore the **complete event-emission API
+for one group transition** — Add/Remove members, Build, Mark complete,
+finally Detach. The pimpl at `+0x38` holds the actual SubPacket
+under construction; the EntryBuilder is just the typed lifecycle
+wrapper.
 
 ### Practical impact for garlemald
 
