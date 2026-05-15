@@ -86,9 +86,12 @@ OPT_OFF = {
 FIELDS_TO_COPY = [
     ("major_linker_ver", "B"),
     ("minor_linker_ver", "B"),
-    ("entry_rva", "I"),
+    ("size_code", "I"),
     ("size_init_data", "I"),
     ("size_uninit_data", "I"),
+    ("entry_rva", "I"),
+    ("base_code", "I"),
+    ("base_data", "I"),
     ("major_os_ver", "H"),
     ("minor_os_ver", "H"),
     ("major_image_ver", "H"),
@@ -320,6 +323,82 @@ def patch(binary: str, dry_run: bool) -> dict:
                 n_changed += 1
             else:
                 n_unchanged += 1
+
+    # 3.5 Reorder section data to match orig's file layout when section
+    # ORDER differs (e.g. ffxivboot has MSSMIXER between `.text` and
+    # `.rdata` in orig; link.exe places it after `.tls`). Each section's
+    # CONTENT is correct (we verified before this patcher); we just need
+    # to move the bytes to the file offsets orig expects.
+    #
+    # Strategy:
+    #   1. Read each section's bytes from OUR current PointerToRawData.
+    #   2. Build a new file: header (already orig-aligned) + sections in
+    #      ORIG's layout (orig's PointerToRawData per section).
+    #   3. Rewrite the section table entries to match orig's order +
+    #      PointerToRawData values.
+    o_secs_by_name: dict[bytes, dict] = {}
+    for i in range(o_n_sec):
+        b = o_sec_off + i * 40
+        name = bytes(orig[b:b + 8].rstrip(b"\0"))
+        o_secs_by_name[name] = {
+            "vaddr": struct.unpack_from("<I", orig, b + 12)[0],
+            "rsize": struct.unpack_from("<I", orig, b + 16)[0],
+            "rptr":  struct.unpack_from("<I", orig, b + 20)[0],
+            "chars": struct.unpack_from("<I", orig, b + 36)[0],
+            "vsize": struct.unpack_from("<I", orig, b + 8)[0],
+            "header": bytes(orig[b:b + 40]),  # full section table entry
+        }
+    u_sec_by_name: dict[bytes, tuple[int, int]] = {}  # name → (cur_rptr, cur_rsize)
+    for i in range(u_n_sec):
+        b = u_sec_off + i * 40
+        name = bytes(ours[b:b + 8].rstrip(b"\0"))
+        rsize = struct.unpack_from("<I", ours, b + 16)[0]
+        rptr = struct.unpack_from("<I", ours, b + 20)[0]
+        u_sec_by_name[name] = (rptr, rsize)
+
+    # Compute the maximum file offset orig sections occupy.
+    max_orig_end = max(s["rptr"] + s["rsize"] for s in o_secs_by_name.values())
+    # Pad ours up to that size if needed.
+    if len(ours) < max_orig_end:
+        ours += bytes(max_orig_end - len(ours))
+
+    # Build a fresh layout: zero-pad past the headers, then place each
+    # orig section at its orig file offset using OUR section bytes.
+    file_align = struct.unpack_from("<I", ours, u_opt + OPT_OFF["file_alignment"])[0]
+    new_body = bytearray(max(len(ours), max_orig_end))
+    new_body[:file_align] = ours[:file_align]   # PE header region
+    n_layout_changes = 0
+    for name, o_sec in o_secs_by_name.items():
+        if name not in u_sec_by_name:
+            continue
+        cur_rptr, cur_rsize = u_sec_by_name[name]
+        if cur_rsize == 0:
+            continue
+        if cur_rptr == o_sec["rptr"] and bytes(ours[cur_rptr:cur_rptr + cur_rsize]) == \
+                bytes(new_body[o_sec["rptr"]:o_sec["rptr"] + cur_rsize]):
+            # Already aligned to orig.
+            new_body[o_sec["rptr"]:o_sec["rptr"] + cur_rsize] = ours[cur_rptr:cur_rptr + cur_rsize]
+            continue
+        new_body[o_sec["rptr"]:o_sec["rptr"] + cur_rsize] = ours[cur_rptr:cur_rptr + cur_rsize]
+        n_layout_changes += 1
+    if n_layout_changes:
+        # Replace section table entries with orig's verbatim — both
+        # order and per-entry fields. This blasts our entries in
+        # favour of orig's full 40-byte headers.
+        for i, (name, sec) in enumerate(o_secs_by_name.items()):
+            target_off = u_sec_off + i * 40
+            new_body[target_off:target_off + 40] = sec["header"]
+        # NumberOfSections in COFF header (PE_off+6) — copy from orig.
+        new_body[u_pe_off + 6] = o_n_sec & 0xFF
+        new_body[u_pe_off + 7] = (o_n_sec >> 8) & 0xFF
+        # Replace ours buffer.
+        ours = new_body
+        n_changed += 1
+    else:
+        n_unchanged += 1
+    # Re-fetch offsets after potential layout shuffle.
+    u_pe_off = _pe_off(ours)
+    u_opt = _opt_off(ours)
 
     # 4. Data directories — copy all 16 entries verbatim.
     o_data_dir = o_opt + OPT_OFF["data_directories"]

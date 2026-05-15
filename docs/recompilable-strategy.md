@@ -211,11 +211,18 @@ that produces *something* and `tools/diff_pe.py` quantifies the gap.
 
 ### Stage F — bytewise PE diff = 0 (✅ ffxivlogin landed 2026-05-15)
 - Exit criterion: `cmp orig/<bin>.exe build/link/<bin>.exe` is empty.
-- `ffxivlogin.exe`: ✅ **byte-identical** as of 2026-05-15.
-  `make relink BINARY=ffxivlogin.exe` rebuilds + relinks + patches
-  to a 100% match (403,296 / 403,296 bytes).
-- The other four binaries (`ffxivconfig`, `ffxivupdater`,
-  `ffxivboot`, `ffxivgame`) are next, in size order.
+All five binaries land byte-identical as of 2026-05-15:
+
+| Binary             | Size        | Status              |
+|--------------------|-------------|---------------------|
+| `ffxivlogin.exe`   |     403,296 | ✅ BYTE-IDENTICAL   |
+| `ffxivupdater.exe` |     640,344 | ✅ BYTE-IDENTICAL   |
+| `ffxivconfig.exe`  |   3,471,240 | ✅ BYTE-IDENTICAL   |
+| `ffxivboot.exe`    |  12,961,112 | ✅ BYTE-IDENTICAL   |
+| `ffxivgame.exe`    |  15,996,808 | ✅ BYTE-IDENTICAL   |
+
+`make relink BINARY=<bin>.exe` rebuilds, relinks, patches, and produces
+output that `cmp` confirms is byte-identical to orig.
 
 ## Why ffxivlogin first
 

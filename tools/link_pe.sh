@@ -26,17 +26,25 @@ if [[ ! -d "$obj_dir" ]]; then
     exit 1
 fi
 
-# Entry point — read from PE layout JSON unless overridden.
-if [[ -n "${2:-}" ]]; then
+# Entry symbol selection:
+#   - If `_section_text_blob*.cpp` was emitted (Phase 2.7 blob path),
+#     use `_text_blob` as the entry symbol — first chunk always
+#     defines that symbol regardless of single vs. multi-chunk output.
+#     Actual entry RVA gets fixed up post-link via postlink_patch.py.
+#   - Else fall back to FUN_<va> derived from PE layout's entry_rva.
+if ls "src/${bin}/_passthrough/"_section_text_blob*.cpp >/dev/null 2>&1; then
+    entry_sym="_text_blob"
+elif [[ -n "${2:-}" ]]; then
     entry_va="$2"
+    entry_sym="FUN_${entry_va}"
 else
     entry_va=$(python3 -c "
 import json
 pe = json.loads(open('build/pe-layout/${bin}.json').read())
 print(f'{int(pe[\"image_base\"], 16) + int(pe[\"entry_rva\"], 16):08x}')
 ")
+    entry_sym="FUN_${entry_va}"
 fi
-entry_sym="FUN_${entry_va}"
 
 # Subsystem from PE.
 subsys=$(python3 -c "
