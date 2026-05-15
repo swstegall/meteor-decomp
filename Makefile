@@ -33,6 +33,8 @@ help:
 	@echo "  make link                 Phase 2.7: link.exe + postlink patcher (BINARY=)"
 	@echo "  make relink               Phase 2.7: emit-text-blob + emit-data-sections + compile + link"
 	@echo "  make diff-pe              Phase 2.7: byte-level diff vs orig PE (BINARY=)"
+	@echo "  make swap-rosetta         Phase 2.8: splice _rosetta/<sym>.cpp into relink (BINARY=, FUNC=)"
+	@echo "  make list-swaps           Phase 2.8: list active rosetta swaps (BINARY=)"
 	@echo "  make extract-net          Phase 3: net-class vtable → fn_rva map"
 	@echo "  make extract-gam          Phase 3: GAM property registry (id → type)"
 	@echo "  make emit-gam-header      Phase 3: include/net/gam_registry.h from GAM"
@@ -360,6 +362,18 @@ relink: emit-text-blob emit-data-sections compile-passthrough link
 
 diff-pe:
 	$(PY) $(TOOLS)/diff_pe.py $(PASSTHROUGH_BIN_STEM)
+
+# Splice a hand-written `_rosetta/<sym>.cpp` into the relink at the
+# function's RVA, replacing the byte-blob's coverage there.
+#   make swap-rosetta BINARY=ffxivlogin.exe FUNC=FUN_00401350
+#   make relink       BINARY=ffxivlogin.exe                  # rebuild
+.PHONY: swap-rosetta list-swaps
+swap-rosetta:
+	@if [ -z "$(FUNC)" ]; then echo "usage: make swap-rosetta BINARY=<bin>.exe FUNC=FUN_<va>"; exit 1; fi
+	$(PY) $(TOOLS)/swap_rosetta.py $(PASSTHROUGH_BIN_STEM) $(FUNC)
+
+list-swaps:
+	$(PY) $(TOOLS)/swap_rosetta.py $(PASSTHROUGH_BIN_STEM) --list
 
 # --- Phase 6 follow-ups: shipped Lua script extraction ----------------
 

@@ -224,6 +224,37 @@ All five binaries land byte-identical as of 2026-05-15:
 `make relink BINARY=<bin>.exe` rebuilds, relinks, patches, and produces
 output that `cmp` confirms is byte-identical to orig.
 
+### Stage G — per-function rosetta swap (✅ landed 2026-05-15)
+- `tools/swap_rosetta.py <bin> FUN_<va>` (or `make swap-rosetta
+  BINARY=<bin>.exe FUNC=FUN_<va>`) splices a hand-written
+  `_rosetta/<sym>.cpp` into the relink in place of the byte-blob's
+  coverage at the function's RVA.
+- Pipeline:
+  1. Wrap the rosetta source in `#pragma code_seg(".text$X<rva>")`
+     so cl.exe places its `.text` contribution at the right
+     subsection key — the merged `.text` then sorts the swap into
+     the hole instead of appending it after the last chunk.
+  2. Compile via cl-wine.sh.
+  3. Patch the .obj's `.text$X*` align bits to 1 byte.
+  4. Verify the .obj's .text matches orig bytes at the RVA — if not,
+     ABORT (don't ship a regression).
+  5. Append the swap to `_swap_manifest.json`.
+  6. `emit_text_blob.py` reads the manifest and splits the blob at
+     each swap boundary, leaving holes that the swap's
+     `.text$X<rva>` subsection fills via lexicographic sort.
+- **Critical bug fix that unblocked this**: text-blob chunks now
+  use the chunk's RVA as the `.text$X<key>` subsection key (not the
+  body offset). Otherwise a swap's `.text$X<rva>` keys against a
+  different namespace than the chunks and lands in the wrong
+  position. Both must use the same key space.
+- Validated end-to-end on ffxivlogin: `FUN_00401350` (3-byte
+  `__thiscall` empty stub) swapped from a hand-written
+  `void C::empty1(int) {}` → `make relink` produces a binary that is
+  STILL byte-identical to orig, with the link map confirming
+  `?empty1@C@@QAEXH@Z` at offset 0x350 of the merged `.text`.
+- Idempotent: re-running `swap-rosetta` on the same fn no-ops; the
+  manifest deduplicates.
+
 ## Why ffxivlogin first
 
 It's the smallest (403 KB, 4 sections, 2,239 functions) and has the
@@ -239,7 +270,8 @@ new categories of input.
 - Stage C: ✅ landed (data-section emitter)
 - Stage D: ✅ landed (link.exe driver)
 - Stage E: ✅ landed (post-link patcher with cert + checksum + DOS stub)
-- Stage F: ✅ landed for ffxivlogin (byte-identical)
+- Stage F: ✅ landed for all 5 binaries (byte-identical)
+- Stage G: ✅ landed (per-function rosetta swap on ffxivlogin)
 
 The recompilable-client effort hit its ffxivlogin milestone in one
 session. The other four binaries are next; for each, the recipe is:

@@ -65,6 +65,53 @@ LICENSE_HEADER = """\
 DEFAULT_CHUNK_BYTES = 1_000_000  # ~1 MB per chunk, ~30 MB source — safe
 
 
+def _load_swaps(binary: str) -> list[tuple[int, int]]:
+    """Read `_swap_manifest.json` and return [(rva, size)] of byte
+    ranges to SKIP when emitting the blob — those RVAs are filled by
+    a `_swap_FUN_<va>.cpp` wrapped rosetta source instead."""
+    manifest_path = SRC / binary / "_passthrough" / "_swap_manifest.json"
+    if not manifest_path.exists():
+        return []
+    manifest = json.loads(manifest_path.read_text())
+    return sorted(
+        ((s["rva"], s["size"]) for s in manifest.get("swaps", [])),
+        key=lambda t: t[0],
+    )
+
+
+def _split_chunks_by_swaps(
+    body: bytes, text_vaddr: int, swaps: list[tuple[int, int]],
+    max_chunk: int,
+) -> list[tuple[int, bytes]]:
+    """Walk `body` (orig .text) and produce a list of (start_offset, bytes)
+    chunks to emit. Each `swap` (rva, size) drops a hole at `rva-text_vaddr`,
+    splitting the surrounding chunks. Chunks larger than `max_chunk` are
+    further split at byte boundaries so cl.exe's heap doesn't OOM."""
+    # Build a list of "byte spans" to emit: walk body offset cursor,
+    # for each swap split a hole, then carry on.
+    spans: list[tuple[int, int]] = []  # (offset, length)
+    cursor = 0
+    for swap_rva, swap_size in swaps:
+        swap_off = swap_rva - text_vaddr
+        if swap_off < 0 or swap_off >= len(body):
+            continue
+        if cursor < swap_off:
+            spans.append((cursor, swap_off - cursor))
+        cursor = swap_off + swap_size
+    if cursor < len(body):
+        spans.append((cursor, len(body) - cursor))
+
+    # Now further split each span if larger than max_chunk.
+    chunks: list[tuple[int, bytes]] = []
+    for off, length in spans:
+        n_sub = (length + max_chunk - 1) // max_chunk
+        for i in range(n_sub):
+            sub_off = off + i * max_chunk
+            sub_len = min(max_chunk, length - i * max_chunk)
+            chunks.append((sub_off, body[sub_off:sub_off + sub_len]))
+    return chunks
+
+
 def emit(binary: str, dry_run: bool = False, chunk_bytes: int = DEFAULT_CHUNK_BYTES) -> dict:
     pe_path = PE_LAYOUT / f"{binary}.json"
     orig_path = ORIG / f"{binary}.exe"
@@ -72,53 +119,68 @@ def emit(binary: str, dry_run: bool = False, chunk_bytes: int = DEFAULT_CHUNK_BY
     text_sec = next(s for s in pe["sections"] if s["name"] == ".text")
     orig_bytes = orig_path.read_bytes()
     body = orig_bytes[text_sec["raw_pointer"]:text_sec["raw_pointer"] + text_sec["raw_size"]]
+    text_vaddr = text_sec["virtual_address"]
 
     out_dir = SRC / binary / "_passthrough"
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # Single-chunk path — keep the original output filename / symbol so
-    # callers (link_pe.sh) can still detect "Phase 2.7 single-blob" mode.
-    if len(body) <= chunk_bytes:
+    # Wipe stale chunk files so removing a swap doesn't leave orphans.
+    for stale in out_dir.glob("_section_text_blob*.cpp"):
+        stale.unlink()
+
+    swaps = _load_swaps(binary)
+    chunks = _split_chunks_by_swaps(body, text_vaddr, swaps, chunk_bytes)
+
+    # Single-chunk fast path (no swaps, body fits in one chunk).
+    if not swaps and len(chunks) == 1:
         out_path = out_dir / "_section_text_blob.cpp"
-        src = _emit_one_chunk(binary, body, "_text_blob", 0, len(body), text_sec, single=True)
+        src = _emit_one_chunk(binary, chunks[0][1], "_text_blob",
+                              chunks[0][0], chunks[0][0] + len(chunks[0][1]),
+                              text_sec, single=True)
         if not dry_run:
             out_path.write_text(src)
-        return {"binary": binary, "bytes": len(body), "chunks": 1,
+        return {"binary": binary, "bytes": len(body), "chunks": 1, "swaps": 0,
                 "out": str(out_path.relative_to(REPO_ROOT))}
 
-    # Multi-chunk path — emit one .cpp per chunk + an entry stub that
-    # link_pe.sh can target via /ENTRY:_text_blob.
+    # Multi-chunk path. The first chunk's symbol is always `_text_blob`
+    # so link_pe.sh's /ENTRY:_text_blob keeps working.
     written: list[str] = []
-    n_chunks = (len(body) + chunk_bytes - 1) // chunk_bytes
-    for i in range(n_chunks):
-        start = i * chunk_bytes
-        end = min(start + chunk_bytes, len(body))
-        chunk = body[start:end]
-        # Function symbol: _text_blob_<offset> for clarity.
+    for i, (start, chunk) in enumerate(chunks):
+        end = start + len(chunk)
         sym = "_text_blob" if i == 0 else f"_text_blob_{start:08x}"
         out_path = out_dir / f"_section_text_blob_{i:03d}.cpp"
         src = _emit_one_chunk(binary, chunk, sym, start, end, text_sec, single=False)
         if not dry_run:
             out_path.write_text(src)
         written.append(out_path.name)
-    return {"binary": binary, "bytes": len(body), "chunks": n_chunks,
+    return {"binary": binary, "bytes": len(body), "chunks": len(chunks),
+            "swaps": len(swaps),
             "out": ", ".join(written[:3]) + ("…" if len(written) > 3 else "")}
 
 
 def _emit_one_chunk(binary: str, body: bytes, sym: str, start: int,
                     end: int, text_sec: dict, single: bool) -> str:
+    """Emit one naked-asm function chunk.
+
+    The subsection key is the RVA (text_vaddr + body_offset), NOT the
+    body_offset itself, so it sorts lexicographically alongside swap
+    subsections that key on RVA. If we used body_offset, a swap at
+    `.text$X00001350` would land AFTER `.text$X00000353` (the chunk
+    after the hole) instead of inside the hole.
+    """
+    chunk_rva = text_sec["virtual_address"] + start
     lines = [LICENSE_HEADER, ""]
     lines.append(f"// AUTO-GENERATED by tools/emit_text_blob.py — do not edit.")
     lines.append(f"// {binary}.exe `.text` section bytes [{start}..{end}) as a naked-asm fn.")
     lines.append(f"//   chunk size: {len(body):,} bytes")
-    lines.append(f"//   chunk vaddr: 0x{text_sec['virtual_address'] + start:08x}")
+    lines.append(f"//   chunk vaddr: 0x{chunk_rva:08x}")
     if not single:
         lines.append(f"//   (one of multiple chunks; cl.exe OOMs on >~9 M `_emit` lines)")
     lines.append("//")
     lines.append("// CNT_CODE + MEM_EXECUTE + MEM_READ section characteristics match")
     lines.append("// orig's `.text` (naked function in `code_seg` gets these flags).")
     lines.append("")
-    lines.append(f'#pragma code_seg(".text$X{start:08x}")')
+    lines.append(f'#pragma code_seg(".text$X{chunk_rva:08x}")')
     lines.append(f'#pragma comment(linker, "/INCLUDE:_{sym}")')
     lines.append(f'extern "C" __declspec(naked) void {sym}() {{')
     lines.append('    __asm {')
