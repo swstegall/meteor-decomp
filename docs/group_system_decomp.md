@@ -255,7 +255,7 @@ entry pointers at `0xdc0f5c` (jump table).
 | #6 | OnlineStatusUpdater + BreakupBuilder slot maps | ✅ done (this doc, "OnlineStatusUpdater + BreakupBuilder" section below) |
 | #7 | 0x0133 / 0x017A wire-format derivation from packet captures | ✅ done (this doc, "Retail wire format" section below) |
 | #8 | Audit garlemald's per-member SharedWork serialization vs. the 16-byte stride | ✅ no-op (the 16-byte stride is the engine's INTERNAL post-parse storage; the wire format is separate at 0x30 bytes/member — verified against `garlemald-server/map-server/src/packets/send/groups.rs:55 encode_group_member_at`) |
-| #9 | Find the runtime registration site for ZoneProtoDownCallbackInterface — gives us the real 0x0133 handler RVA | 🔲 pending — search for code that writes a vtable ptr into the dispatcher's `ecx` arg storage |
+| #9 | Find the runtime registration site for ZoneProtoDownCallbackInterface — gives us the real 0x0133 handler RVA | ✅ done — there is no runtime registration. See `docs/network_dispatch_dual_paths.md`: the dispatch chain uses `DummyCallback` whose per-opcode slots are `ret 0xc` stubs. Group-related opcodes (0x017A / 0x0133 / 0x017C-F / 0x0183) are consumed by `Group::PacketProcessor` (queue walk + 2-subdec) instead. The dedicated Receiver classes (Phase 7) handle Kick/Run/End/SetEventStatus/etc. |
 
 ## Retail wire format — 0x017A SynchGroupWorkValues vs 0x0133 GenericDataPacket
 
