@@ -293,6 +293,7 @@ new categories of input.
 - Stage G: ✅ landed (per-function rosetta swap on ffxivlogin)
 - Stage H: ✅ landed (multi-function rosetta swap, source-file granularity)
 - Stage I: ✅ landed (functional validation — `tools/validate_relink.sh`)
+- Stage J: ✅ landed (cross-binary swap fan-out — bulk swap_rosetta on all 5)
 
 ### Stage H — multi-function rosetta swap (✅ landed 2026-05-15)
 - `tools/swap_source_file.py` handles hand-written multi-fn source
@@ -324,6 +325,34 @@ new categories of input.
   byte ranges, same outcome). No observable difference at any layer.
 - Validation result: 5/5 binaries match install at SHA-256 level
   (33,472,800 bytes).
+
+### Stage J — cross-binary swap fan-out (✅ landed 2026-05-15)
+- `python3 tools/swap_rosetta.py <bin> --bulk --jobs N` ran against
+  every binary using the comment-hint matcher + extern neutraliser
+  improvements from Stage H.
+- Per-binary swap totals after fan-out (each relink remains
+  byte-identical to orig):
+
+  | Binary             | Candidates | Accepted | byte_mismatch | prefilter_extern |
+  |--------------------|-----------:|---------:|--------------:|-----------------:|
+  | `ffxivgame.exe`    |     38,593 |    2,762 |             — |                — |
+  | `ffxivboot.exe`    |     26,103 |    2,556 |         1,911 |           21,636 |
+  | `ffxivupdater.exe` |        433 |       78 |             6 |              349 |
+  | `ffxivlogin.exe`   |        281 |        4 |            11 |              266 |
+  | `ffxivconfig.exe`  |        185 |        2 |             6 |              177 |
+
+  (ffxivgame totals are from the Stage G-era bulk run, not re-run in
+  this fan-out.) The bulk JSON for each lives at
+  `build/wire/<bin>.bulk_swap.json`.
+- Stage J confirms: the swap pipeline scales without per-binary tuning.
+  ffxivupdater's 78 accepted (vs the 4 baseline of ffxivlogin) is the
+  representative win — it hosts more straight-forward pre-deduped
+  rosetta sources and the comment-hint matcher catches them.
+- Why the byte_mismatch count varies so widely: most rosetta candidates
+  are cluster-derived placeholders that compile to *similar*-looking
+  bytes (right shape, wrong constants/relocs). Stage J accepts only
+  exact matches against orig; rejected ones still hold their place via
+  the text-blob passthrough.
 
 The recompilable-client effort hit its ffxivlogin milestone in one
 session. The other four binaries are next; for each, the recipe is:
