@@ -391,15 +391,35 @@ slot 3 doesn't affect the response.
    waitable predicates) need a cleanup hook to release them.
    Stateless events (most) skip cleanup entirely.
 
-   For garlemald the headline finding: the `event_type` byte is
-   load-bearing for cleanup correctness on stateful events
-   (types 2 + 3 in the 50..55 cleanup band). Garlemald
-   currently always sends `event_type=0` (per
-   `event/dispatcher.rs`), which is the OnCommand invoke path.
-   For correct cleanup on push / emote / notice events, garlemald
-   needs to send `event_type=2 or 3` in the corresponding
-   `EndEventPacket` so the cleanup dispatcher fires. Surfaced
-   by this analysis as a likely gap.
+   **Status of the cleanup band (50..55):** unused by both
+   garlemald and Project Meteor in normal play.
+   `EndEventPacket.event_type` is sourced from
+   `session.current_event_type`, which the server populates from
+   the client's `EventStartPacket.event_type`. The CLIENT engine
+   only ever sends 0..5 (per the trigger that fired —
+   talk/push/emote/notice/command), never 50..55. So slots
+   6..11 (cleanup chain) never fire from the standard quest-script
+   path on either server. This was initially flagged as a
+   "garlemald gap" but tracing the dispatcher echo loop and the
+   decompiled client scripts (`build/lua/`) found no scenario
+   where the engine emits `event_type ≥ 50` in EventStart.
+   Cleanup is supported infrastructure that nothing currently
+   exercises. **No garlemald change required.**
+
+   Open question — what triggers the cleanup band? Hypotheses
+   worth a future investigation pass:
+   - Special engine events (cinematic teardown, instance
+     dismissal) emitted outside the quest-script path
+   - Internal client-driven cleanup (the receiver might call
+     itself with event_type+50 after an invoke), but no static
+     evidence of this
+   - Dead code from an earlier protocol revision that's no
+     longer reachable
+
+   To answer empirically: instrument the relinked
+   `ffxivgame.exe` (via `make swap-rosetta` on `FUN_008a13a0`'s
+   case bodies) to log when slots 6..11 fire, then run a long
+   gameplay session and observe.
 
    Decoder script (re-runnable to refresh):
 
