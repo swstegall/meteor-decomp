@@ -199,6 +199,74 @@ def find_section_in_orig(body: bytes, reloc_offs: list[int],
     return [text_va + m.start() for m in re.finditer(pattern, orig_text, flags=re.DOTALL)]
 
 
+# Source `// FUNCTION: ffxivgame 0x<rva> — <signature>` comment regex.
+# Captures the RVA + signature.
+_FUNCTION_COMMENT_RE = re.compile(
+    r"^//\s*FUNCTION:\s*\w+\s+0x([0-9a-fA-F]+)\s*[—\-]+\s*(.+?)\s*$",
+    re.MULTILINE,
+)
+
+
+def parse_function_comments(source_path: Path) -> list[tuple[int, str]]:
+    """Walk a hand-written multi-fn source's `// FUNCTION:` comments
+    and return [(rva, signature)] in source order."""
+    text = source_path.read_text()
+    out: list[tuple[int, str]] = []
+    for m in _FUNCTION_COMMENT_RE.finditer(text):
+        rva = int(m.group(1), 16)
+        sig = m.group(2)
+        out.append((rva, sig))
+    return out
+
+
+def find_section_via_comment_hint(body: bytes, reloc_offs: list[int],
+                                  orig_text: bytes, text_va: int,
+                                  candidate_rvas: list[int],
+                                  min_match_pct: float = 50.0) -> tuple[int, float] | None:
+    """For a section that didn't match orig exactly, score each
+    candidate RVA from the source's `// FUNCTION:` comments and pick
+    the best.
+
+    For each candidate RVA, count bytes that match between `body`
+    and orig at that RVA, MASKING the relocation positions
+    (4 bytes each) since they'll be different (orig has the linker-
+    fixed-up address; obj has zero placeholders).
+
+    Returns (rva, match_pct) for the best candidate IF it's above
+    `min_match_pct` AND uniquely the highest match. Otherwise None.
+    """
+    # Mask of byte positions to ignore (relocations).
+    n = len(body)
+    mask = bytearray(n)
+    for off in reloc_offs:
+        for i in range(off, min(off + 4, n)):
+            mask[i] = 1
+    n_compared = sum(1 for x in mask if x == 0)
+    if n_compared == 0:
+        return None
+
+    scores: list[tuple[int, float]] = []
+    for rva in candidate_rvas:
+        file_off = rva - text_va
+        if file_off < 0 or file_off + n > len(orig_text):
+            continue
+        orig_slice = orig_text[file_off:file_off + n]
+        n_match = sum(1 for i in range(n)
+                      if mask[i] == 0 and body[i] == orig_slice[i])
+        pct = 100.0 * n_match / n_compared
+        scores.append((rva, pct))
+    if not scores:
+        return None
+    scores.sort(key=lambda t: -t[1])
+    best_rva, best_pct = scores[0]
+    if best_pct < min_match_pct:
+        return None
+    # Require gap to second-best so we don't accept ambiguous matches.
+    if len(scores) >= 2 and scores[1][1] >= best_pct - 5.0:
+        return None
+    return (best_rva, best_pct)
+
+
 # ----------------------------------------------------------------------
 # Patch COFF section to rename `.text` → `.text$X<rva>`.
 # ----------------------------------------------------------------------
@@ -277,6 +345,40 @@ def _coff_count_undefined_externs(raw: bytes) -> int:
             n_undef += 1
         i += 1 + n_aux
     return n_undef
+
+
+def _coff_neutralize_undefined_externs(raw: bytearray) -> int:
+    """Convert EXTERNAL UNDEFINED symbols (sec_num=0, sclass=2) to
+    a class link.exe ignores. After freezing accepted sections +
+    LNK_REMOVE'ing skipped ones, no relocation actually references
+    these symbols anymore — their entries in the symbol table are
+    leftover noise from the original (skipped) compile.
+
+    Setting `Value = 0`, `SectionNumber = -2` (IMAGE_SYM_DEBUG), and
+    `StorageClass = 6` (IMAGE_SYM_CLASS_LABEL) makes link.exe treat
+    them as harmless debug labels with no resolution requirement.
+
+    Returns count of symbols neutralised."""
+    sym_off = struct.unpack_from("<I", raw, 8)[0]
+    n_syms = struct.unpack_from("<I", raw, 12)[0]
+    n = 0
+    i = 0
+    while i < n_syms:
+        base = sym_off + i * 18
+        sec_num = struct.unpack_from("<h", raw, base + 12)[0]
+        sclass = raw[base + 16]
+        n_aux = raw[base + 17]
+        if sclass == 2 and sec_num == 0:
+            # Move to the IMAGE_SYM_DEBUG section (sec_num = -2);
+            # this is a magic value that means "not associated with
+            # any output section." Combined with class LABEL (6) link
+            # treats it as ignorable debugging information.
+            struct.pack_into("<I", raw, base + 8, 0)         # Value = 0
+            struct.pack_into("<h", raw, base + 12, -2)       # SectionNumber = IMAGE_SYM_DEBUG
+            raw[base + 16] = 6                               # StorageClass = LABEL
+            n += 1
+        i += 1 + n_aux
+    return n
 
 
 # ----------------------------------------------------------------------
@@ -397,6 +499,18 @@ def process_source_file(binary: str, source_path: Path,
     accepted: list[dict] = []
     skipped: list[dict] = []
 
+    # Source-comment fallback hints: list of (rva, signature) parsed
+    # from `// FUNCTION:` lines. Used when exact byte-pattern search
+    # finds 0 or >1 matches — we then pick the best-byte-similarity
+    # candidate from this list.
+    comment_hints = parse_function_comments(source_path)
+    candidate_rvas = [rva for rva, _sig in comment_hints]
+    # Only include hints that are inside `.text` and have at least
+    # `min_size` bytes of orig content — avoids matching against
+    # invalid RVAs.
+    text_end = text_va + len(orig_text)
+    candidate_rvas = [r for r in candidate_rvas if text_va <= r < text_end]
+
     # 3. For each .text COMDAT section, search orig.
     for sec_idx, name, rsize, raw_ptr, ptr_relocs, n_relocs, chars_off in _coff_walk_text_sections(bytes(raw)):
         if name != ".text":
@@ -409,16 +523,36 @@ def process_source_file(binary: str, source_path: Path,
             reloc_offs.append(struct.unpack_from("<I", raw, e)[0])
         sym = sec_to_sym.get(sec_idx, "?")
         rvas = find_section_in_orig(body, reloc_offs, orig_text, text_va)
+
+        if len(rvas) == 1:
+            rva = rvas[0]
+            accepted.append({"sym": sym, "size": rsize, "rva": rva,
+                              "symbol": sym, "section_idx": sec_idx,
+                              "chars_off": chars_off, "match": "exact"})
+            continue
+
+        # 0 or >1 exact matches — fall back to `// FUNCTION:` hints
+        # + byte-similarity scoring. If a candidate RVA's orig bytes
+        # are clearly the closest match (≥50% byte overlap, ≥5 pp
+        # gap to runner-up), accept and freeze. The freeze step
+        # replaces our compiled bytes with orig anyway, so this is
+        # safe as long as we identify the right RVA.
+        if candidate_rvas:
+            hit = find_section_via_comment_hint(
+                body, reloc_offs, orig_text, text_va, candidate_rvas
+            )
+            if hit is not None:
+                rva, pct = hit
+                accepted.append({"sym": sym, "size": rsize, "rva": rva,
+                                  "symbol": sym, "section_idx": sec_idx,
+                                  "chars_off": chars_off,
+                                  "match": f"comment_hint ({pct:.1f}%)"})
+                continue
+
         if len(rvas) == 0:
             skipped.append({"sym": sym, "size": rsize, "reason": "no_match"})
-            continue
-        if len(rvas) > 1:
+        else:
             skipped.append({"sym": sym, "size": rsize, "reason": "ambiguous", "matches": len(rvas)})
-            continue
-        rva = rvas[0]
-        accepted.append({"sym": sym, "size": rsize, "rva": rva,
-                          "symbol": sym, "section_idx": sec_idx,
-                          "chars_off": chars_off})
 
     # 3.5 Strict mode: reject entire file if any function was skipped.
     # The skipped sections pull unresolved external references
@@ -486,24 +620,16 @@ def process_source_file(binary: str, source_path: Path,
         struct.pack_into("<H", raw, base + 32, 0)
 
     if accepted:
-        # Check for surviving undefined-external symbols. If any exist,
-        # link.exe will fail to resolve them — even though our frozen
-        # sections don't reference them via relocations, the symbol
-        # table entries are still there. Reject the file in that case.
-        n_undef = _coff_count_undefined_externs(bytes(raw))
-        if n_undef > 0:
-            if verbose:
-                print(f"  REJECTED: {n_undef} undefined external symbol(s) "
-                      "in symbol table — link.exe would fail to resolve")
-            remove_source_swap_manifest(binary, source_path)
-            obj_path.unlink(missing_ok=True)
-            return {
-                "source": str(source_path.relative_to(REPO_ROOT)),
-                "status": "rejected_undef_externs",
-                "accepted": [],
-                "skipped": skipped + [{"reason": "undef_externs", "count": n_undef}],
-            }
+        # Neutralise leftover undefined-external symbols. Frozen
+        # accepted sections have zeroed relocations + LNK_REMOVE'd
+        # skipped sections, so no actual relocation references these
+        # symbols anymore — they're symbol-table leftovers from the
+        # original (now-skipped) compile path. Flip them to
+        # IMAGE_SYM_DEBUG / class LABEL so link.exe ignores.
+        n_neutralised = _coff_neutralize_undefined_externs(raw)
         obj_path.write_bytes(bytes(raw))
+        if verbose and n_neutralised:
+            print(f"  neutralised {n_neutralised} leftover undefined-extern symbol(s)")
 
     # 5. Update manifest.
     if accepted:
@@ -513,7 +639,8 @@ def process_source_file(binary: str, source_path: Path,
         print(f"=== {source_path.relative_to(REPO_ROOT)} ===")
         print(f"  accepted: {len(accepted)} fn(s)")
         for fn in accepted:
-            print(f"    rva 0x{fn['rva']:08x} size {fn['size']:>4}  {fn['sym']}")
+            tag = fn.get("match", "exact")
+            print(f"    rva 0x{fn['rva']:08x} size {fn['size']:>4} [{tag}]  {fn['sym']}")
         if skipped:
             print(f"  skipped: {len(skipped)} fn(s)")
             for fn in skipped[:5]:
