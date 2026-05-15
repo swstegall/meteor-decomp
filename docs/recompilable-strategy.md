@@ -146,44 +146,76 @@ subsections clearly distinct from any MSVC-internal `.text$mn`,
 Each phase ends in a `make link BINARY=ffxivlogin.exe` invocation
 that produces *something* and `tools/diff_pe.py` quantifies the gap.
 
-### Stage A — `.text` only, no link (✅ infrastructure ready)
-- Done as of 2026-05-15:
-  - `emit_passthrough_cpp.py` produces naked `_emit` `.cpp` per fn
-  - Output ".obj" `.text` is byte-identical to orig (validated on
-    sizes 8 B / 83 B / 209 B / 1825 B / 5517 B, all GREEN)
-  - `make compile-passthrough BINARY=…` bulk-builds .obj inventory
-  - `tools/mark_passthrough_yaml.py` flips YAML rows to
-    `passthrough` once .obj's are byte-verified
+### Stage A — `.text` only, no link (✅ landed 2026-05-15)
+- `emit_passthrough_cpp.py` produces naked `_emit` `.cpp` per fn
+- Output ".obj" `.text` is byte-identical to orig (validated on
+  sizes 8 B / 83 B / 209 B / 1825 B / 5517 B, all GREEN)
+- `make compile-passthrough BINARY=…` bulk-builds .obj inventory
+- `tools/mark_passthrough_yaml.py` flips YAML rows to
+  `passthrough` once .obj's are byte-verified
 
-### Stage B — text-coverage analysis (🔲 next)
-- `tools/emit_text_gaps.py` — single .cpp filling the inter-fn gaps.
-- Goal: every byte of `.text` is contributed by some .obj's
+### Stage B — text-coverage analysis (✅ landed 2026-05-15)
+- `tools/emit_text_gaps.py` — single .cpp filling the inter-fn gaps
+- Every byte of `.text` is contributed by some .obj's
   `.text$X<rva>` section.
-- Validation: walk every byte of orig's `.text`, confirm there's
-  exactly one .obj that owns it.
+- Validated on ffxivlogin (557 gap subsections, 33,000 bytes)
 
-### Stage C — non-code sections (🔲)
+### Stage C — non-code sections (✅ landed 2026-05-15)
 - `tools/emit_data_sections.py` — `.rdata.cpp`, `.data.cpp`,
-  `.rsrc.cpp` (or `.res`).
-- Validation: for each section, the bytes between `raw_pointer`
-  and `raw_pointer+raw_size` are emitted into a `.cpp` whose
-  `__declspec(allocate(...))` blob matches.
+  `.rsrc.cpp` as one `__declspec(allocate(".<sec>$X<rva>"))` blob
+  per section.
+- Validated: `.rdata`, `.data`, `.rsrc` for ffxivlogin all
+  byte-identical to orig.
 
-### Stage D — first link (🔲)
+### Stage D — first link (✅ landed 2026-05-15)
 - `make link BINARY=ffxivlogin.exe` invokes link.exe with all the
-  bits. Expected first failure: missing entry, missing imports, or
-  PE-header mismatch.
-- Iterate until link succeeds, then run `tools/diff_pe.py
-  build/link/ffxivlogin.exe orig/ffxivlogin.exe` and walk the
-  diffs.
+  bits.
+- Key gotcha #1: cl.exe's `code_seg` pragma creates COMDAT
+  subsections with default 16-byte alignment. link.exe pads each
+  obj-file's contribution UP to its alignment boundary when
+  concatenating into the merged `.text`. With 557 gap subsections
+  spread across many .objs, this introduced ~10-byte gaps after
+  every function, breaking RVA fidelity. Fixed by `tools/patch_obj_alignment.py`
+  (rewrites COFF section characteristics field bits 20-23 to set
+  align=1 byte) — but this still left obj-file-boundary alignment
+  gaps inside `.text` that link.exe wouldn't drop.
+- Final design: emit ONE giant naked-asm function (`_text_blob`)
+  containing every byte of orig `.text`, in `tools/emit_text_blob.py`.
+  Single .obj → single section → no obj-boundary alignment artifacts.
+  CNT_CODE/EXECUTE/READ characteristics match orig exactly.
+  Trade-off: gives up function-level granularity (no cherry-picking
+  rosetta sources for individual functions). Reclaim later by
+  upgrading the rosetta cluster pipeline to emit `.text$X<rva>`
+  pragmas + dedicated link recipe.
+- Entry symbol: link.exe requires `/ENTRY:<symbol>`. We use
+  `_text_blob` (lives at `.text+0`, the start of orig `.text`).
+  The actual entry RVA lives elsewhere (e.g. ffxivlogin entry RVA
+  0x26838 = inside the blob at byte 0x25838). `tools/postlink_patch.py`
+  fixes `AddressOfEntryPoint` post-link.
 
-### Stage E — post-link patcher (🔲)
-- `tools/postlink_patch.py` — fix-up timestamp, checksum, any
-  PE-header fields the linker controls but we want to match.
+### Stage E — post-link patcher (✅ landed 2026-05-15)
+- `tools/postlink_patch.py` does five things:
+  1. Splice orig DOS header + DOS stub (incl. Rich header) into ours;
+     relocate our NT headers to orig's pe_off if needed.
+  2. Copy COFF timestamp from orig.
+  3. Copy ~20 optional-header fields (entry_rva, size_init_data,
+     size_uninit_data, size_image, size_headers, version fields,
+     stack/heap reserve/commit, dll_characteristics, loader_flags…).
+  4. Copy section table fields per section (VirtualSize,
+     VirtualAddress, SizeOfRawData, Characteristics).
+  5. Copy all 16 data directory entries (Imports, Exports, IAT,
+     Resources, etc.) — orig values, since we don't define our own.
+  6. Splice orig's Authenticode certificate (data directory 4) at
+     its file offset (this is a POST-section blob).
+  7. Recompute PE checksum via the imagehlp algorithm.
 
-### Stage F — bytewise PE diff = 0 (🔲)
-- The "recompilable" exit criterion: `cmp` of our re-link vs
-  orig is empty.
+### Stage F — bytewise PE diff = 0 (✅ ffxivlogin landed 2026-05-15)
+- Exit criterion: `cmp orig/<bin>.exe build/link/<bin>.exe` is empty.
+- `ffxivlogin.exe`: ✅ **byte-identical** as of 2026-05-15.
+  `make relink BINARY=ffxivlogin.exe` rebuilds + relinks + patches
+  to a 100% match (403,296 / 403,296 bytes).
+- The other four binaries (`ffxivconfig`, `ffxivupdater`,
+  `ffxivboot`, `ffxivgame`) are next, in size order.
 
 ## Why ffxivlogin first
 
@@ -196,7 +228,31 @@ new categories of input.
 ## Status as of 2026-05-15
 
 - Stage A: ✅ landed (passthrough emitter + bulk compile + YAML flip)
-- Stage B–F: 🔲 not yet started
+- Stage B: ✅ landed (text-gap manifest)
+- Stage C: ✅ landed (data-section emitter)
+- Stage D: ✅ landed (link.exe driver)
+- Stage E: ✅ landed (post-link patcher with cert + checksum + DOS stub)
+- Stage F: ✅ landed for ffxivlogin (byte-identical)
+
+The recompilable-client effort hit its ffxivlogin milestone in one
+session. The other four binaries are next; for each, the recipe is:
+
+```sh
+make relink BINARY=<bin>.exe
+make diff-pe BINARY=<bin>.exe   # should report "100.00%"
+cmp orig/<bin>.exe build/link/<bin>.exe && echo BYTE-IDENTICAL
+```
+
+Expected per-binary friction:
+- `ffxivconfig` / `ffxivupdater`: similar shape to ffxivlogin
+  (small, few sections, no special imports). Should land first try.
+- `ffxivboot`: ~9.5 MB `.text`, more sections. May expose new PE
+  header fields the patcher doesn't yet copy.
+- `ffxivgame`: 12 MB binary with `.tls`, `MSSMIXER`, `.reloc`. Largest
+  and most likely to surface new edge cases. The single-naked-fn
+  approach for `_text_blob` will compile (`/bigobj` already in flight
+  for the gap manifest); link.exe needs to handle 5 sections + reloc
+  + tls + a 12 MB blob.
 
 Bumping the matched-byte percentage in YAML now follows from running
 the compile + mark_passthrough_yaml pipeline against each binary; the

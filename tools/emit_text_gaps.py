@@ -171,10 +171,15 @@ def find_text_gaps(binary: str) -> list[tuple[int, int]]:
 
 
 def emit_gap_subsection(rva: int, body: bytes) -> str:
-    """One `.text$X<rva>` subsection: pragma + naked function + bytes."""
+    """One `.text$X<rva>` subsection: pragma + naked function + bytes.
+
+    Symbol name is `_gap_<rva>` in C source; MSVC's cdecl name
+    decoration prepends another `_`, giving the linker symbol
+    `__gap_<rva>`. The /INCLUDE directive must use the linker form.
+    """
     lines = []
     lines.append(f'#pragma code_seg(".text$X{rva:08x}")')
-    lines.append(f'#pragma comment(linker, "/INCLUDE:_gap_{rva:08x}")')
+    lines.append(f'#pragma comment(linker, "/INCLUDE:__gap_{rva:08x}")')
     lines.append(f'extern "C" __declspec(naked) void _gap_{rva:08x}() {{')
     lines.append('    __asm {')
     for i, b in enumerate(body):

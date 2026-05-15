@@ -256,7 +256,19 @@ def emit_one(binary: str, target: str, image_base: int, sections: list[dict],
 def cmd_all(binary: str, image_base: int, sections: list[dict],
             orig_bytes: bytes, yaml_path: Path, dry_run: bool, force: bool,
             max_count: int | None, status_filter: set[str],
-            order_by_size_desc: bool = False) -> dict:
+            order_by_size_desc: bool = False,
+            include_rosetta: bool = False) -> dict:
+    """When `include_rosetta=False` (default), skip functions that
+    already have a `_rosetta/<sym>.cpp` — preserves source-level
+    decomp as the canonical match.
+
+    When `include_rosetta=True`, emit a `_passthrough/FUN_<va>.cpp`
+    for every YAML row in the status filter EVEN IF a rosetta source
+    exists. Use this when you need a complete `.obj` inventory at
+    every RVA for the link step — rosetta `.objs` lack the
+    `.text$X<rva>` section pragma so they don't land at the orig
+    RVA on their own.
+    """
     rosetta_dir = SRC_ROOT / binary / "_rosetta"
     out_dir = SRC_ROOT / binary / "_passthrough"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -292,16 +304,19 @@ def cmd_all(binary: str, image_base: int, sections: list[dict],
         # `QueryInterface`, etc.) each get their own file.
         rva_va = rva + image_base
         fun_name = f"FUN_{rva_va:08x}"
-        # Don't overwrite an existing _rosetta source — it's the better
-        # path. Check by both symbol-name AND rva-key, so we catch
-        # rosetta sources written under either convention.
-        rosetta_candidates = [
-            rosetta_dir / f"{symbol}.cpp",
-            rosetta_dir / f"{fun_name}.cpp",
-        ]
-        if any(p.exists() for p in rosetta_candidates):
-            n_skipped_rosetta += 1
-            continue
+        # Don't overwrite an existing _rosetta source unless the caller
+        # opts in via --include-rosetta. Default skip preserves
+        # source-level decomp as the canonical match. The opt-in path
+        # is for the link step (every RVA needs a .text$X<rva>-pragma'd
+        # .obj; rosetta sources don't have that).
+        if not include_rosetta:
+            rosetta_candidates = [
+                rosetta_dir / f"{symbol}.cpp",
+                rosetta_dir / f"{fun_name}.cpp",
+            ]
+            if any(p.exists() for p in rosetta_candidates):
+                n_skipped_rosetta += 1
+                continue
         out_path = out_dir / f"{fun_name}.cpp"
         if out_path.exists() and not force:
             n_skipped_existing += 1
@@ -341,6 +356,8 @@ def main() -> int:
     ap.add_argument("--max", type=int, default=None, help="Cap --all output count (for smoke-test runs)")
     ap.add_argument("--biggest-first", action="store_true",
                     help="With --all + --max, emit largest functions first (highest byte yield per .cpp)")
+    ap.add_argument("--include-rosetta", action="store_true",
+                    help="With --all, emit passthroughs even for functions that have a _rosetta/<sym>.cpp. Use for link prep (every RVA needs a .text$X<rva>-pragma'd .obj).")
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--force", action="store_true", help="Overwrite existing _passthrough .cpp")
     args = ap.parse_args()
@@ -358,10 +375,19 @@ def main() -> int:
     orig_bytes = orig_path.read_bytes()
 
     if args.all:
-        status_filter = set(args.status) if args.status else {"unmatched"}
+        # When --include-rosetta is set, also flip the default status
+        # filter to include `matched` rows (otherwise we'd skip them
+        # all since most rosetta'd rows have status=matched).
+        if args.status:
+            status_filter = set(args.status)
+        elif args.include_rosetta:
+            status_filter = {"unmatched", "matched", "passthrough"}
+        else:
+            status_filter = {"unmatched"}
         stats = cmd_all(binary, image_base, sections, orig_bytes, yaml_path,
                         args.dry_run, args.force, args.max, status_filter,
-                        order_by_size_desc=args.biggest_first)
+                        order_by_size_desc=args.biggest_first,
+                        include_rosetta=args.include_rosetta)
         print(f"=== passthrough emit ({binary}) ===")
         for k, v in stats.items():
             print(f"  {k}: {v}")

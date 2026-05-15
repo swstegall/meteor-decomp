@@ -26,6 +26,13 @@ help:
 	@echo "  make mark-passthrough     Phase 2.6: flip YAML status to passthrough for GREEN .objs (BINARY=)"
 	@echo "  make mark-passthrough-all Phase 2.6: mark-passthrough across all five binaries"
 	@echo "  make passthrough          Phase 2.6: emit + compile + mark (universal byte-fallback)"
+	@echo "  make emit-text-gaps       Phase 2.6: fill inter-function .text gap bytes (BINARY=)"
+	@echo "  make emit-data-sections   Phase 2.6: byte-blob .cpp per non-code section (BINARY=)"
+	@echo "  make recompile-coverage   Phase 2.6: emit + gaps + data-sections + compile + mark"
+	@echo "  make emit-text-blob       Phase 2.7: orig .text as one naked-asm function (BINARY=)"
+	@echo "  make link                 Phase 2.7: link.exe + postlink patcher (BINARY=)"
+	@echo "  make relink               Phase 2.7: emit-text-blob + emit-data-sections + compile + link"
+	@echo "  make diff-pe              Phase 2.7: byte-level diff vs orig PE (BINARY=)"
 	@echo "  make extract-net          Phase 3: net-class vtable → fn_rva map"
 	@echo "  make extract-gam          Phase 3: GAM property registry (id → type)"
 	@echo "  make emit-gam-header      Phase 3: include/net/gam_registry.h from GAM"
@@ -250,6 +257,12 @@ PASSTHROUGH_OBJ_DIR  = $(BUILD)/obj/_passthrough/$(PASSTHROUGH_BIN_STEM)
 # free of __security_cookie references that would force us to also
 # bring in the cookie init runtime when linking.
 PASSTHROUGH_FLAGS    ?= /c /O2 /Oy /GR- /EHs- /Gy /MT /Zc:wchar_t /Zc:forScope /TP
+# `_text_gaps.cpp` on ffxivgame has ~70k subsections, exceeding COFF's
+# 65535 limit — that file needs /bigobj. Smaller files don't, and
+# /bigobj forces the alternate ANON object header format that breaks
+# our `tools/patch_obj_alignment.py` COFF parser. So apply /bigobj
+# only to files that need it (recipe: per-file detection in the loop).
+PASSTHROUGH_FLAGS_BIGOBJ = $(PASSTHROUGH_FLAGS) /bigobj
 
 emit-passthrough:
 	@if [ -n "$(FUNC)" ]; then \
@@ -272,7 +285,12 @@ compile-passthrough:
 	        name=$$(basename "$$cpp" .cpp); \
 	        obj="$(PASSTHROUGH_OBJ_DIR)/$$name.obj"; \
 	        if [ -f "$$obj" ] && [ "$$obj" -nt "$$cpp" ] && [ -z "$(FORCE)" ]; then exit 0; fi; \
-	        if ! $(TOOLS)/cl-wine.sh $(PASSTHROUGH_FLAGS) /Fo"$$obj" "$$cpp" >/dev/null 2>&1; then \
+	        if [ "$$name" = "_text_gaps" ]; then \
+	            flags="$(PASSTHROUGH_FLAGS_BIGOBJ)"; \
+	        else \
+	            flags="$(PASSTHROUGH_FLAGS)"; \
+	        fi; \
+	        if ! $(TOOLS)/cl-wine.sh $$flags /Fo"$$obj" "$$cpp" >/dev/null 2>&1; then \
 	            echo "  CL FAIL: $$name" >&2; \
 	        fi \
 	    ' _ '{}'
@@ -292,6 +310,56 @@ mark-passthrough:
 
 mark-passthrough-all:
 	$(PY) $(TOOLS)/mark_passthrough_yaml.py
+
+# Phase 2.6 — full-binary coverage (text gaps + non-code sections).
+#
+# After running `make passthrough` (function-level), these two
+# additional emitters cover:
+#   - emit-text-gaps: byte-fills the inter-function gap regions of
+#     `.text` so every byte of `.text` has a contributing .obj.
+#   - emit-data-sections: emits one .cpp per non-code PE section
+#     (`.rdata`, `.data`, `.rsrc`, `.tls`, etc.) as a single
+#     `__declspec(allocate(...))` byte array.
+#
+# Together with the function-level passthroughs they constitute
+# everything the linker needs to produce a byte-identical PE.
+
+.PHONY: emit-text-gaps emit-data-sections recompile-coverage
+emit-text-gaps:
+	$(PY) $(TOOLS)/emit_text_gaps.py $(or $(PASSTHROUGH_BIN_STEM),)
+
+emit-data-sections:
+	$(PY) $(TOOLS)/emit_data_sections.py $(or $(PASSTHROUGH_BIN_STEM),)
+
+# Land everything needed for a re-link in one go (per-binary).
+# Order: emit-passthrough (per-fn) → emit-text-gaps → emit-data-sections
+# → compile-passthrough (compiles every .cpp in _passthrough/) → mark.
+recompile-coverage: emit-passthrough emit-text-gaps emit-data-sections compile-passthrough mark-passthrough
+
+# --- Phase 2.7 — full PE re-link path (Stage D + E from docs/recompilable-strategy.md)
+#
+# `make relink BINARY=…` builds a byte-identical PE from scratch:
+#   1. emit-text-blob       — orig .text as one naked-asm function
+#   2. emit-data-sections   — orig .rdata/.data/.rsrc/.tls as byte blobs
+#   3. compile-passthrough  — produce one .obj per .cpp under _passthrough/
+#   4. link.exe             — link them via tools/link_pe.sh
+#   5. postlink_patch.py    — copy PE-header fields from orig + cert
+#
+# Output:    build/link/<bin>.exe
+# Verify:    `make diff-pe BINARY=…` runs tools/diff_pe.py
+.PHONY: emit-text-blob link relink diff-pe
+
+emit-text-blob:
+	$(PY) $(TOOLS)/emit_text_blob.py $(PASSTHROUGH_BIN_STEM)
+
+link:
+	$(TOOLS)/link_pe.sh $(PASSTHROUGH_BIN_STEM)
+	$(PY) $(TOOLS)/postlink_patch.py $(PASSTHROUGH_BIN_STEM)
+
+relink: emit-text-blob emit-data-sections compile-passthrough link
+
+diff-pe:
+	$(PY) $(TOOLS)/diff_pe.py $(PASSTHROUGH_BIN_STEM)
 
 # --- Phase 6 follow-ups: shipped Lua script extraction ----------------
 
