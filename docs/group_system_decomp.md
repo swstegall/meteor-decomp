@@ -226,7 +226,7 @@ entry pointers at `0xdc0f5c` (jump table).
 | #3 | SharedWork slot map | 🟡 partial (slots 0..27 listed; semantic role of slots 13..18 needs deeper trace) |
 | #4 | EntryBuilderBase 19-slot map | ✅ done (this doc, "EntryBuilderBase + EntryBuilder slot maps" section below) |
 | #5 | PacketRequestBase 13-slot map | ✅ done (this doc, "PacketRequestBase slot map" section below) |
-| #6 | OnlineStatusUpdater + BreakupBuilder slot maps | 🔲 pending |
+| #6 | OnlineStatusUpdater + BreakupBuilder slot maps | ✅ done (this doc, "OnlineStatusUpdater + BreakupBuilder" section below) |
 | #7 | 0x0133 / 0x017A wire-format derivation from packet captures | ✅ done (this doc, "Retail wire format" section below) |
 | #8 | Audit garlemald's per-member SharedWork serialization vs. the 16-byte stride | 🔲 pending — `map-server/src/runtime/broadcast.rs` |
 | #9 | Find the runtime registration site for ZoneProtoDownCallbackInterface — gives us the real 0x0133 handler RVA | 🔲 pending — search for code that writes a vtable ptr into the dispatcher's `ecx` arg storage |
@@ -364,6 +364,79 @@ The shared inheritance edge `EntryBuilderBase → PacketRequestBase`
 explains why their slot 0 dtors share the same parent (`0x6d0b90`).
 PacketRequestBase is the actual abstract send-side base; the
 `*Updater` and `*Builder` classes specialize the abstract Build hook.
+
+## Group::OnlineStatusUpdater + BreakupBuilder slot maps (item #6)
+
+Both classes derive from `PacketRequestBase` (via the same parent
+dtor `0x6d0b90` / `0x6cb760`). They share most of the inherited slot
+shape but diverge in their override count — **BreakupBuilder is the
+minimal subclass** (only 4 overrides), while **OnlineStatusUpdater is
+richer** (9 overrides) because it iterates a status array.
+
+### BreakupBuilder slot map (4 overrides)
+
+`BreakupBuilder` (19 slots, RVA `0xbd42a4`) is the one-shot "this
+group is being torn down" emitter.
+
+| Slot | Override RVA | Bytes | Role |
+|---:|---|---:|---|
+| 0 | `0x2d6ff0` | (dtor) | Concrete destructor |
+| 8 | `0x2d6f80` | 5 | `Send()` — `mov al,1; ret 4` (returns success, no per-member work) |
+| 13 | `0x6b7340` | 3 | `xor eax,eax; ret` (override the abstract `__purecall` to return null/0) |
+| 14 | `0x2da8a0` | 132 | `Detach(out_subpacket)` — SEH-protected single-use builder finalize + self-destruct |
+
+All other slots (1, 2..7, 9..12, 15..18) are inherited from
+`PacketRequestBase` unchanged — confirms BreakupBuilder is the
+minimal "fire-and-forget" packet emitter. No member iteration,
+no work-table state — just "I'm sending the breakup packet."
+
+### OnlineStatusUpdater slot map (9 overrides)
+
+`OnlineStatusUpdater` (19 slots, RVA `0xbd4254`) tracks online/offline
+state changes for each member of a group. Object layout deduced from
+slot 18 (`IsComplete`):
+
+```c
+struct OnlineStatusUpdater : PacketRequestBase {
+  /* +0x3c */ StatusEntry* status_array_begin;   // null if not started
+  /* +0x40 */ StatusEntry* status_array_end;     // size = (end-begin)/8
+  /* +0x48 */ uint32_t     expected_count;
+};
+```
+
+| Slot | Override RVA | Bytes | Role |
+|---:|---|---:|---|
+| 0 | `0x2d4130` | (dtor) | Concrete destructor |
+| 8 | `0x2bfc60` | 10 | `Send()` — tail-calls `(*ecx)->vtable[18]` (the inner status-list's IsComplete-or-similar) |
+| 12 | `0x2cb070` | — | (override of inherited slot 12) |
+| 13 | `0x6b7340` | 3 | Returns 0 (override `__purecall`) |
+| 14 | `0x2da930` | 121 | `Detach(out_subpacket)` — standard detach + self-destruct |
+| 15 | `0x2c3e00` | — | (override of inherited slot 15) |
+| 16 | `0x2c44d0` | — | (override of inherited slot 16) |
+| 17 | `0x2bfc70` | 1 | `MarkComplete()` — empty `ret` (no state change; the array length tracks completeness) |
+| 18 | `0x2c01f0` | 37 | **`IsComplete()`** — returns true when `((array_end - array_begin) / 8) == expected_count`. If `array_begin` is null, returns true only if `expected_count == 0` |
+
+### Practical impact for garlemald
+
+1. **The `EntryBuilder::Detach` self-destruct pattern means the engine
+   creates these on the heap.** When garlemald sends member-add /
+   member-remove broadcasts, the receiving client builds a fresh
+   `EntryBuilder` per event (via the `EntryBuilderCreate` factory),
+   feeds it the packet bytes, then calls `Detach` to extract the
+   resulting structure and destroy the builder. There's no expectation
+   on garlemald's end that the builder is reused across events.
+
+2. **OnlineStatusUpdater needs an explicit `expected_count` field on
+   the wire.** The Send + IsComplete logic checks `array_size ==
+   expected_count`, so the broadcast must declare up-front how many
+   member status entries follow. Garlemald's group broadcasts should
+   set this count correctly when emitting an OnlineStatus update — if
+   it sends fewer entries than declared, the client never marks the
+   updater complete and the UI hangs.
+
+3. **BreakupBuilder is trivial — garlemald should also keep its
+   breakup packet trivial.** A single fire-and-forget message; no
+   need for member-list payload.
 
 ## Group::EntryBuilderBase + EntryBuilder slot maps (item #4)
 
