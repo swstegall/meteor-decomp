@@ -227,9 +227,130 @@ entry pointers at `0xdc0f5c` (jump table).
 | #4 | EntryBuilderBase 19-slot map | 🔲 pending — walk slots 0..18 to identify per-event hooks |
 | #5 | PacketRequestBase 13-slot map | 🔲 pending — walk slots 0..12 (send-side mirror of PacketProcessor) |
 | #6 | OnlineStatusUpdater + BreakupBuilder slot maps | 🔲 pending |
-| #7 | 0x0133 wire-format derivation from packet captures | 🔲 pending — diff garlemald 0x0133 emissions against retail captures (`captures/retail_pcap_*`) using `packet-diff/` |
+| #7 | 0x0133 / 0x017A wire-format derivation from packet captures | ✅ done (this doc, "Retail wire format" section below) |
 | #8 | Audit garlemald's per-member SharedWork serialization vs. the 16-byte stride | 🔲 pending — `map-server/src/runtime/broadcast.rs` |
 | #9 | Find the runtime registration site for ZoneProtoDownCallbackInterface — gives us the real 0x0133 handler RVA | 🔲 pending — search for code that writes a vtable ptr into the dispatcher's `ecx` arg storage |
+
+## Retail wire format — 0x017A SynchGroupWorkValues vs 0x0133 GenericDataPacket
+
+**Discovery surprise:** opcode 0x0133 OUT (server→client) is **NOT** the
+SynchGroupWorkValues path. Two different opcodes carry related but
+distinct payloads:
+
+| Opcode | OUT body fmt | Use |
+|---|---|---|
+| `0x017A` | runningByteTotal + typed property entries + target | **SynchGroupWorkValues** — work-table sync (the actual 0x0133 semantic the wiki names "Group Created", but the OUT wire opcode is `0x017A`) |
+| `0x0133` | LuaParam-encoded variadic args | **GenericDataPacket** — `player:SendDataPacket(class, target, name, ...)` from Lua. Carries `attentionMessage` calls + similar Lua-driven RPCs |
+
+The IN side is opcode `0x0133` for `GROUP_CREATED` (client→server "I
+created group X via /_init"); garlemald's IN handler responds by
+sending an OUT `0x017A` SynchGroupWorkValues. Direction disambiguates
+the two semantic uses of 0x0133.
+
+### 0x017A SynchGroupWorkValues — exact wire layout
+
+Confirmed against retail captures `combat_autoattack #1..5` in
+`ffxiv_traces/`:
+
+```
+SubPacket size: 0xB0 (176 bytes total)
+SubPacket header (16 B): standard
+GameMessage header (16 B): unknown4=0x14, opcode=0x017A, unknown5=0,
+                           timestamp=u32, unknown6=0
+Body (144 bytes, padded to 0xB0 with zero):
+
+  body[0..8]   = u64 group_id (little-endian)
+                 retail uses 0x2680XXXX_XXXXXXXX for monster groups,
+                 0x80000000_XXXXXXXX for player-work groups
+  body[8]      = u8 runningByteTotal = total bytes of property entries
+                 + target trailer (written last by sender)
+  body[9..]    = property entries, packed in declared order:
+
+    type=1 (byte):    u8(1) + u32 LE id + u8 value          → 6 bytes
+    type=2 (short):   u8(2) + u32 LE id + u16 LE value      → 7 bytes
+    type=4 (int):     u8(4) + u32 LE id + u32 LE value      → 9 bytes
+    type=8 (long):    u8(8) + u32 LE id + u64 LE value      → 13 bytes
+    type=N (buffer):  u8(N) + u32 LE id + N bytes           → 5+N bytes
+                       (N is 5..0x80; type-tag IS the buffer size)
+
+  target trailer:
+    u8(0x82+len) + ASCII bytes                              → 1+len bytes
+    (the 0x82 base flips to 0x62 when isMore=true, signalling that
+     this is the second-or-later packet of a multi-packet sync)
+
+  remainder: 0x00 padding to 0xB0 total body
+```
+
+The `id` field is the **MurmurHash2** of the dotted property path
+(e.g. `MurmurHash2("contentGroupWork._globalTemp.director", 0)`). The
+`target` is the property-path leaf the client should drive (commonly
+`/_init` for group bring-up, or specific path strings for targeted
+field updates).
+
+### Cross-check against garlemald
+
+Garlemald's `build_synch_group_work_values_content_init` (in
+`map-server/src/packets/send/groups.rs:442`) matches the format
+**exactly** — confirms the existing builder is wire-correct.
+
+The retail capture shows ONE long property + target = 20 bytes
+`runningByteTotal`. Garlemald's content_init emits TWO properties
+(`contentGroupWork._globalTemp.director` int + `contentGroupWork.property[0]`
+byte) + target = 22 bytes runningByteTotal. The garlemald formulation
+follows pmeteor `ContentGroup.SendInitWorkValues`
+(`Map Server/Actors/Group/ContentGroup.cs:105`) and is structurally
+correct for a `/_init` reply; the retail capture happens to show a
+combat-time party-sync emission (different scenario, same wire shape).
+
+### `0x0133` GenericDataPacket — wire layout
+
+Confirmed against retail captures `accept_quest #1`,
+`local_leve_complete #1..7`:
+
+```
+SubPacket size: 0xE0 (224 bytes total)
+SubPacket header (16 B): standard
+GameMessage header (16 B): opcode=0x0133, ...
+Body (192 bytes = 0xC0):
+
+  body[0..]    = LuaUtils.WriteLuaParams(luaParams)
+                 — variadic Lua-typed values, e.g. for
+                   attentionMessage(p, textId, ...):
+                   ["attention" (string), worldMaster (actor),
+                    "" (empty string), textId (int), ...]
+  remainder: 0x00 padding
+```
+
+Per pmeteor `GenericDataPacket.cs`. The Lua-param encoding follows
+`LuaUtils.WriteLuaParams` (string = type-marker + ASCII + null-term;
+int = type-marker + LE u32; etc.). Decoded by the receiving Lua VM
+as variadic args to a script handler keyed by the leading class-name
+(e.g. `"attention"` → `attentionMessage` Lua handler).
+
+### Practical impact for garlemald
+
+1. **No wire-format gap** — garlemald's `build_synch_group_work_values_content_init`
+   matches retail bytes exactly. The SEQ_005 hang is not a malformed
+   0x017A packet.
+
+2. **The hang is upstream of the 0x017A reply.** If garlemald's IN
+   handler isn't receiving the 0x0133 GROUP_CREATED message in the
+   right shape (e.g. the synthetic group_id prefix `0x2680XXXX` or
+   `0x80000000` isn't being matched), the reply never fires. The
+   garlemald handler at `map-server/src/processor.rs:6325` filters by
+   `event_name == "/_init" && high == 0`; the `high == 0` check is the
+   right filter for content-director groups but excludes player-work
+   groups (`high & 0x80000000`). For SEQ_005 specifically, this is
+   the right filter (content-director group is what the cinematic
+   needs).
+
+3. **0x0133 OUT (GenericDataPacket) might be needed for SEQ_005 too.**
+   The C# project-meteor `attentionMessage(player, textId, ...)`
+   helper sends BOTH a SendGameMessage AND a SendDataPacket("attention",
+   …). If garlemald's tutorial cinematic currently only emits the
+   SetActorProperty path and skips the attentionMessage, popups won't
+   fire. Search `scripts/lua/quests/man/man0g0.lua` for
+   `attentionMessage` calls and audit garlemald's Lua binding side.
 
 ## Cross-references
 
