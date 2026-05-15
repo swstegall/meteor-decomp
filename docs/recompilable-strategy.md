@@ -291,6 +291,39 @@ new categories of input.
 - Stage E: ✅ landed (post-link patcher with cert + checksum + DOS stub)
 - Stage F: ✅ landed for all 5 binaries (byte-identical)
 - Stage G: ✅ landed (per-function rosetta swap on ffxivlogin)
+- Stage H: ✅ landed (multi-function rosetta swap, source-file granularity)
+- Stage I: ✅ landed (functional validation — `tools/validate_relink.sh`)
+
+### Stage H — multi-function rosetta swap (✅ landed 2026-05-15)
+- `tools/swap_source_file.py` handles hand-written multi-fn source
+  files in `crt/` / `sqex/` / `sqpack/` / `install/`. Each function
+  in the source compiles to a `/Gy` COMDAT `.text` section; we
+  auto-discover its RVA via reloc-aware byte-pattern search against
+  orig `.text`, then patch the .obj to rename the section to
+  `.text$X<rva>` + freeze the bytes (replace with orig + zero relocs).
+- Strict mode rejects files where any function is skipped OR the
+  .obj has surviving undefined external symbols (e.g. `_memcpy`,
+  `_imp_*` IAT thunks). Avoids LNK1120 link errors without needing
+  a fake import library.
+- ffxivgame yield: 7 fn(s) across 5 obj files (CRT helpers — Atol,
+  Strncmp, Strlen, Strcmp, Alloca, InitTerm, Exit). Multi-fn yield
+  is small because most hand-written sources have at least one
+  not-yet-byte-perfect function.
+- Future: rebuild .obj keeping only accepted sections instead of
+  whole-file rejection. Would unlock per-function granularity inside
+  partial multi-fn sources.
+
+### Stage I — functional validation (✅ landed 2026-05-15)
+- `tools/validate_relink.sh`: SHA-256s `build/link/<bin>.exe` vs
+  install `<bin>.exe` for all 5 binaries. Substitutes the install
+  with our re-link to prove the launcher / patcher / Wine pipeline
+  runs against our output exactly the same as orig.
+- Byte-identity ⇒ functional identity: the OS loader sees identical
+  bytes; `ffxivgame.patched.exe` produced by garlemald-client's
+  runtime PE patcher applies to our re-link the same way (same patch
+  byte ranges, same outcome). No observable difference at any layer.
+- Validation result: 5/5 binaries match install at SHA-256 level
+  (33,472,800 bytes).
 
 The recompilable-client effort hit its ffxivlogin milestone in one
 session. The other four binaries are next; for each, the recipe is:
