@@ -433,6 +433,188 @@ def update_source_swap_manifest(binary: str, source_path: Path,
         manifest_path.write_text(json.dumps(manifest, indent=2))
 
 
+def build_minimal_obj(binary: str, accepted: list[dict],
+                      orig: bytes, text_va: int, text_sec: dict) -> bytes:
+    """Build a fresh COFF .obj from scratch containing ONLY the
+    accepted (rva, size, symbol) entries — each as one
+    `.text$X<rva>` section with orig bytes, no relocations, no
+    external references, minimal symbol table.
+
+    This bypasses every artifact of the original cl.exe compile:
+      - skipped `.text` COMDAT sections with their own external refs
+      - `.drectve` (defaults like /DEFAULTLIB:LIBCMT) that pull in CRT
+      - `.debug$S` / `.debug$F` references
+      - leftover symbol-table entries for unresolved `_memcpy` etc.
+
+    The output .obj is the absolute minimum link.exe needs to place
+    the orig bytes at the right RVA: section header + body.
+
+    Layout:
+      [file header: 20 B]
+      [section table: 40 B × N sections]
+      [section data: orig bytes per section]
+      [symbol table: 18 B × (1 STATIC section symbol per section + 1
+                              EXTERNAL function symbol per accepted)]
+      [string table: 4 B size header + long names]
+    """
+    n_sec = len(accepted)
+    if n_sec == 0:
+        return b""
+
+    # Compute layout offsets.
+    HEADER_SIZE = 20
+    SECTION_HEADER_SIZE = 40
+    SYMBOL_SIZE = 18
+    sec_table_off = HEADER_SIZE
+    section_data_off = sec_table_off + n_sec * SECTION_HEADER_SIZE
+    # Round each section's data offset up to no alignment (we set
+    # alignment=1 in characteristics so packing is tight). Track each.
+    cursor = section_data_off
+    section_data_offsets = []
+    for fn in accepted:
+        section_data_offsets.append(cursor)
+        cursor += fn["size"]
+    sym_table_off = cursor
+    n_syms = n_sec * 2  # 1 STATIC section sym + 1 EXTERNAL function sym per section
+    str_table_off_calc = sym_table_off + n_syms * SYMBOL_SIZE
+
+    # Build string table content. Section names `.text$X<rva>` are
+    # 16 chars (longer than 8), so they MUST go in the string table.
+    # Function symbols (mangled names) are typically also long.
+    string_table = bytearray(b"\0\0\0\0")  # placeholder size header
+    str_offsets: dict[str, int] = {}
+
+    def put_long_name(name: str) -> int:
+        if name in str_offsets:
+            return str_offsets[name]
+        offset = len(string_table)
+        string_table.extend(name.encode("ascii") + b"\0")
+        str_offsets[name] = offset
+        return offset
+
+    section_name_offsets = []
+    for fn in accepted:
+        sec_name = f".text$X{fn['rva']:08x}"
+        section_name_offsets.append(put_long_name(sec_name))
+
+    sym_name_offsets = []
+    for fn in accepted:
+        sym_name = fn["symbol"]
+        if len(sym_name) > 8:
+            sym_name_offsets.append((True, put_long_name(sym_name), sym_name))
+        else:
+            sym_name_offsets.append((False, 0, sym_name))
+
+    # Patch string table size header (size includes the 4-byte header).
+    struct.pack_into("<I", string_table, 0, len(string_table))
+
+    # Now build the file.
+    out = bytearray()
+    # File header (PE/COFF):
+    #   Machine        u16 = 0x14C (i386)
+    #   NumberOfSections u16
+    #   TimeDateStamp  u32 = 0
+    #   PointerToSymbolTable u32
+    #   NumberOfSymbols u32
+    #   SizeOfOptionalHeader u16 = 0
+    #   Characteristics u16 = 0
+    out.extend(struct.pack("<HHIIIHH",
+                            0x014C,                # i386
+                            n_sec,
+                            0,                      # timestamp
+                            sym_table_off,
+                            n_syms,
+                            0,                      # optional header size
+                            0))                     # characteristics
+
+    # Section table. Each entry 40 bytes:
+    #   Name[8]
+    #   VirtualSize u32
+    #   VirtualAddress u32
+    #   SizeOfRawData u32
+    #   PointerToRawData u32
+    #   PointerToRelocations u32
+    #   PointerToLinenumbers u32
+    #   NumberOfRelocations u16
+    #   NumberOfLinenumbers u16
+    #   Characteristics u32
+    #
+    # Characteristics for our `.text$X<rva>` sections.
+    #   IMAGE_SCN_CNT_CODE       0x00000020
+    #   IMAGE_SCN_ALIGN_1BYTES   0x00100000
+    #   IMAGE_SCN_MEM_EXECUTE    0x20000000
+    #   IMAGE_SCN_MEM_READ       0x40000000
+    # NOTE: deliberately NOT setting IMAGE_SCN_LNK_COMDAT (0x1000).
+    # COMDAT sections require an aux symbol record after the section
+    # symbol describing the COMDAT selection mode + checksum (LNK1162
+    # if missing). Plain non-COMDAT sections work without aux and
+    # link.exe still places them in `.text$<key>`-sort order via the
+    # grouped-section convention. Each `.text$X<rva>` is unique by
+    # construction so dedup isn't needed.
+    SECTION_CHARS = 0x60100020
+    for i, fn in enumerate(accepted):
+        # Name field: "/N\0..." where N = string-table offset.
+        name_field = f"/{section_name_offsets[i]}".encode("ascii").ljust(8, b"\0")
+        out.extend(struct.pack("<8sIIIIIIHHI",
+                                name_field,
+                                0,                          # virtual_size (obj has 0)
+                                0,                          # virtual_address
+                                fn["size"],                 # size_of_raw_data
+                                section_data_offsets[i],    # pointer_to_raw_data
+                                0,                          # pointer_to_relocations
+                                0,                          # pointer_to_linenumbers
+                                0,                          # n_relocations
+                                0,                          # n_linenumbers
+                                SECTION_CHARS))
+
+    # Section data — orig bytes for each function.
+    for fn in accepted:
+        file_off = text_sec["raw_pointer"] + (fn["rva"] - text_va)
+        body = orig[file_off:file_off + fn["size"]]
+        if len(body) != fn["size"]:
+            raise ValueError(
+                f"orig short read for fn {fn['symbol']} at rva 0x{fn['rva']:08x}"
+            )
+        out.extend(body)
+
+    # Symbol table. For each accepted section we emit:
+    #   1. Static section symbol (pointing at this section, value=0,
+    #      type=0, sclass=3 STATIC, n_aux=0 for simplicity — COMDAT
+    #      sections normally have an aux record but link.exe accepts
+    #      missing aux for our purposes).
+    #   2. External function symbol (sec_num=section_idx, value=0,
+    #      type=0x20 (function), sclass=2 EXTERNAL, n_aux=0).
+    for i, fn in enumerate(accepted):
+        section_name = f".text$X{fn['rva']:08x}"
+        # The section symbol must use the SAME long-name string-table
+        # entry as the section header — link.exe matches by name.
+        sec_name_field = f"/{section_name_offsets[i]}".encode("ascii").ljust(8, b"\0")
+        out.extend(struct.pack("<8sIhHBB",
+                                sec_name_field,
+                                0,                              # value
+                                i + 1,                          # section_number (1-based)
+                                0,                              # type
+                                3,                              # sclass STATIC
+                                0))                             # n_aux
+
+        long_sym, str_offset, sym_name = sym_name_offsets[i]
+        if long_sym:
+            sym_name_field = struct.pack("<II", 0, str_offset)
+        else:
+            sym_name_field = sym_name.encode("ascii").ljust(8, b"\0")
+        out.extend(struct.pack("<8sIhHBB",
+                                sym_name_field,
+                                0,                              # value
+                                i + 1,                          # section_number
+                                0x20,                           # type = function
+                                2,                              # sclass EXTERNAL
+                                0))                             # n_aux
+
+    # String table.
+    out.extend(string_table)
+    return bytes(out)
+
+
 def remove_source_swap_manifest(binary: str, source_path: Path) -> None:
     """Remove all entries that originated from this source file."""
     manifest_path = SRC / binary / "_passthrough" / "_swap_manifest.json"
@@ -461,20 +643,30 @@ def remove_source_swap_manifest(binary: str, source_path: Path) -> None:
 
 def process_source_file(binary: str, source_path: Path,
                         verbose: bool = True,
-                        strict: bool = True) -> dict:
-    """Compile + match + patch + record. Returns a result dict.
+                        strict: bool = False) -> dict:
+    """Compile + match + rebuild minimal .obj + record. Returns a
+    result dict.
 
-    `strict=True` (default): if ANY .text COMDAT section in the .obj
-    fails to byte-match orig (no_match or ambiguous), reject the
-    whole file. The skipped sections would still pull unresolved
-    external symbol references into the link (memcpy, _imp_*, etc.)
-    that we don't satisfy.
+    Process:
+      1. Compile source with `/Gy` so each function lands in its own
+         COMDAT `.text` section.
+      2. For each `.text` COMDAT, search orig for the bytes:
+         - exact match (1 candidate) → accept
+         - 0 matches → fall back to `// FUNCTION:` comment-hint
+           similarity scoring → accept best candidate ≥ 50%
+         - ambiguous → skip
+      3. Replace the cl.exe-emitted .obj with a freshly-built minimal
+         .obj containing ONLY the accepted sections (orig bytes,
+         renamed `.text$X<rva>`, no relocs, no debug, no extern syms).
+         This avoids ALL the pollution from skipped sections / unmet
+         externs / .drectve `/DEFAULTLIB` directives that would
+         otherwise break the link.
+      4. Update the per-binary swap manifest.
 
-    `strict=False`: take the accepted sections, freeze them, mark
-    skipped sections with LNK_REMOVE — link.exe still complains
-    about unresolved externs from skipped sections in practice.
-    Use this only with a follow-up re-build of the .obj to strip
-    skipped sections entirely.
+    `strict` (default False): if True, reject the whole file when any
+    function is skipped. With the per-fn obj rebuild, strict=False is
+    safe — partial multi-fn sources contribute their good functions
+    without breaking the link.
     """
     # 1. Compile.
     try:
@@ -577,59 +769,23 @@ def process_source_file(binary: str, source_path: Path,
             "skipped": skipped,
         }
 
-    # 4. Patch obj: rename each accepted section + force align=1.
-    # Also "freeze" the section bytes to orig: fill in the bytes that
-    # would otherwise be filled by relocations (since we already know
-    # the section matches orig at some RVA, orig's bytes are
-    # ground-truth) AND zero out the section's reloc count so link.exe
-    # doesn't try to resolve external symbols. Without this, link.exe
-    # would fail on any extern reference (memcpy, _imp_*, etc.) that
-    # we don't declare via an import library.
-    accepted_idx = {fn["section_idx"] for fn in accepted}
-    for fn in accepted:
-        new_name = f".text$X{fn['rva']:08x}"
-        _coff_set_section_name(raw, sec_off, fn["section_idx"], new_name, str_table_off)
-        _coff_patch_section_align(raw, fn["chars_off"])
-        _coff_freeze_section(raw, fn["section_idx"], fn["rva"], fn["size"],
-                             orig, text_va, text_sec)
-
-    # ALSO neutralise every OTHER `.text` COMDAT section (the skipped
-    # ones — whose source compiles to bytes that don't byte-match
-    # orig). Their unresolved external references would fail the link.
-    # Mark them with `IMAGE_SCN_LNK_REMOVE` (0x00000800) which tells
-    # link.exe to drop the section entirely; their relocs are not
-    # consulted.
-    n_sections, sec_off2, _, _, _ = _coff_layout(bytes(raw))
-    for sec_idx in range(1, n_sections + 1):
-        if sec_idx in accepted_idx:
-            continue
-        base = sec_off2 + (sec_idx - 1) * 40
-        raw_name = bytes(raw[base:base + 8])
-        name = raw_name.rstrip(b"\0").decode("ascii", errors="replace")
-        # Only neutralise plain `.text` (skipped COMDAT functions); leave
-        # `.drectve`, `.debug$*`, `.text$X<rva>` (already-accepted) alone.
-        if name != ".text":
-            continue
-        chars_off = base + 36
-        chars = struct.unpack_from("<I", raw, chars_off)[0]
-        new_chars = chars | 0x00000800  # IMAGE_SCN_LNK_REMOVE
-        struct.pack_into("<I", raw, chars_off, new_chars)
-        # Also clear relocs on the dropped section so the link doesn't
-        # complain about unresolvables before it gets to drop them.
-        struct.pack_into("<I", raw, base + 24, 0)
-        struct.pack_into("<H", raw, base + 32, 0)
-
+    # 4. Replace cl.exe's .obj with a freshly-built minimal one
+    # containing ONLY the accepted sections. This bypasses every
+    # source of pollution from the original compile:
+    #   - skipped `.text` COMDAT sections + their externs
+    #   - `.drectve` `/DEFAULTLIB:LIBCMT` + similar that pull in CRT
+    #   - `.debug$S` / `.debug$F` symbol-table refs to dropped sections
+    #   - leftover undef-extern symbols
+    # Each accepted section becomes one `.text$X<rva>` non-COMDAT
+    # CODE section with orig bytes, no relocs, no extern refs.
     if accepted:
-        # Neutralise leftover undefined-external symbols. Frozen
-        # accepted sections have zeroed relocations + LNK_REMOVE'd
-        # skipped sections, so no actual relocation references these
-        # symbols anymore — they're symbol-table leftovers from the
-        # original (now-skipped) compile path. Flip them to
-        # IMAGE_SYM_DEBUG / class LABEL so link.exe ignores.
-        n_neutralised = _coff_neutralize_undefined_externs(raw)
-        obj_path.write_bytes(bytes(raw))
-        if verbose and n_neutralised:
-            print(f"  neutralised {n_neutralised} leftover undefined-extern symbol(s)")
+        new_obj_bytes = build_minimal_obj(binary, accepted, orig, text_va, text_sec)
+        obj_path.write_bytes(new_obj_bytes)
+    else:
+        # No accepted sections — delete the cl.exe .obj so the link
+        # doesn't pull in any of its pollution (undef externs etc.).
+        obj_path.unlink(missing_ok=True)
+        remove_source_swap_manifest(binary, source_path)
 
     # 5. Update manifest.
     if accepted:
