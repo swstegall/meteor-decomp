@@ -111,6 +111,32 @@ mid-marker is the second subdecoder's signal.
   point that callers use when they don't know if the processor is
   currently executing.
 
+### Wire vs runtime: 0x30 wire-slot vs 16-byte engine-internal storage
+
+A potential audit concern from item #1's findings was that
+`SharedWork::GetMemberAt` (slot 19) computes element offsets via
+`shl esi, 4` (i.e. `idx * 16` — 16-byte member stride). Garlemald's
+wire packets (`build_group_members_x08` / x16 / x32 / x64) use **0x30
+(48) bytes per member slot** — the on-the-wire layout includes a
+32-byte ASCII name field, two flag bytes, IDs, and 2 padding bytes.
+
+These two strides are **not in conflict**:
+
+- **Wire format** (`encode_group_member_at` at
+  `garlemald-server/map-server/src/packets/send/groups.rs:55`): 0x30
+  bytes per member slot, includes the full ASCII name.
+- **Engine post-parse storage** (`SharedWork::members[+0x14..+0x18]`):
+  16 bytes per entry — likely just `(actor_id, name_id_or_ptr,
+  flag_byte, padding)` after the engine condenses the wire data.
+
+The engine parses incoming X08/X16/X32/X64 packets, extracts the
+short fields it needs for fast lookup, and stores them in the 16-byte
+runtime member array. The wire-side and the runtime-side serve
+different purposes: the wire carries names + flags (for the UI),
+the runtime cares about ID-keyed lookup by index.
+
+Garlemald's wire emission is correct as-is. No gap to fix.
+
 ## Group::SharedWork — the work-table API
 
 `SharedWork` (28 slots, `0xbd4334`) is the heart of the per-group
@@ -228,7 +254,7 @@ entry pointers at `0xdc0f5c` (jump table).
 | #5 | PacketRequestBase 13-slot map | ✅ done (this doc, "PacketRequestBase slot map" section below) |
 | #6 | OnlineStatusUpdater + BreakupBuilder slot maps | ✅ done (this doc, "OnlineStatusUpdater + BreakupBuilder" section below) |
 | #7 | 0x0133 / 0x017A wire-format derivation from packet captures | ✅ done (this doc, "Retail wire format" section below) |
-| #8 | Audit garlemald's per-member SharedWork serialization vs. the 16-byte stride | 🔲 pending — `map-server/src/runtime/broadcast.rs` |
+| #8 | Audit garlemald's per-member SharedWork serialization vs. the 16-byte stride | ✅ no-op (the 16-byte stride is the engine's INTERNAL post-parse storage; the wire format is separate at 0x30 bytes/member — verified against `garlemald-server/map-server/src/packets/send/groups.rs:55 encode_group_member_at`) |
 | #9 | Find the runtime registration site for ZoneProtoDownCallbackInterface — gives us the real 0x0133 handler RVA | 🔲 pending — search for code that writes a vtable ptr into the dispatcher's `ecx` arg storage |
 
 ## Retail wire format — 0x017A SynchGroupWorkValues vs 0x0133 GenericDataPacket
