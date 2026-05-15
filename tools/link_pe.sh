@@ -59,8 +59,19 @@ case "$subsys" in
 esac
 
 # Build the objlist (POSIX paths; cl-wine.sh translates internally).
+# Includes both the per-fn passthrough .objs AND the multi-function
+# source-file .objs (build/obj/_swapsrc/<bin>/) emitted by
+# tools/swap_source_file.py — the latter contributes whole hand-
+# written .cpp's worth of matched functions, each section already
+# patched to `.text$X<rva>` for correct RVA placement.
 objlist="$out_dir/${bin}.objlist"
-ls "${obj_dir}"/*.obj > "$objlist"
+{
+    ls "${obj_dir}"/*.obj 2>/dev/null
+    swapsrc_dir="build/obj/_swapsrc/${bin}"
+    if [[ -d "$swapsrc_dir" ]]; then
+        ls "${swapsrc_dir}"/*.obj 2>/dev/null
+    fi
+} > "$objlist"
 n_obj=$(wc -l < "$objlist" | tr -d ' ')
 
 # Linker flag list — passed verbatim to cl-wine.sh --link.

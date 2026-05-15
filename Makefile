@@ -35,6 +35,9 @@ help:
 	@echo "  make diff-pe              Phase 2.7: byte-level diff vs orig PE (BINARY=)"
 	@echo "  make swap-rosetta         Phase 2.8: splice _rosetta/<sym>.cpp into relink (BINARY=, FUNC=)"
 	@echo "  make list-swaps           Phase 2.8: list active rosetta swaps (BINARY=)"
+	@echo "  make swap-source-file     Phase 2.9: splice multi-fn hand-written .cpp into relink (BINARY=, SRC=)"
+	@echo "  make swap-source-all      Phase 2.9: splice every crt/sqex/sqpack/install .cpp (BINARY=)"
+	@echo "  make list-source-swaps    Phase 2.9: list active source-file swaps (BINARY=)"
 	@echo "  make extract-net          Phase 3: net-class vtable → fn_rva map"
 	@echo "  make extract-gam          Phase 3: GAM property registry (id → type)"
 	@echo "  make emit-gam-header      Phase 3: include/net/gam_registry.h from GAM"
@@ -379,13 +382,29 @@ diff-pe:
 # function's RVA, replacing the byte-blob's coverage there.
 #   make swap-rosetta BINARY=ffxivlogin.exe FUNC=FUN_00401350
 #   make relink       BINARY=ffxivlogin.exe                  # rebuild
-.PHONY: swap-rosetta list-swaps
+.PHONY: swap-rosetta list-swaps swap-source-file swap-source-all list-source-swaps
 swap-rosetta:
 	@if [ -z "$(FUNC)" ]; then echo "usage: make swap-rosetta BINARY=<bin>.exe FUNC=FUN_<va>"; exit 1; fi
 	$(PY) $(TOOLS)/swap_rosetta.py $(PASSTHROUGH_BIN_STEM) $(FUNC)
 
 list-swaps:
 	$(PY) $(TOOLS)/swap_rosetta.py $(PASSTHROUGH_BIN_STEM) --list
+
+# Swap a hand-written multi-function source file (crt/, sqex/, etc.).
+# Auto-discovers each function's RVA via reloc-aware byte-pattern
+# search against orig `.text`. Strict-mode rejects files where any
+# function fails to match.
+#   make swap-source-file BINARY=ffxivgame.exe SRC=src/ffxivgame/sqex/Utf8String.cpp
+#   make swap-source-all  BINARY=ffxivgame.exe         # all crt/sqex/sqpack/install
+swap-source-file:
+	@if [ -z "$(SRC)" ]; then echo "usage: make swap-source-file BINARY=<bin>.exe SRC=<path>"; exit 1; fi
+	$(PY) $(TOOLS)/swap_source_file.py $(PASSTHROUGH_BIN_STEM) $(SRC)
+
+swap-source-all:
+	$(PY) $(TOOLS)/swap_source_file.py $(PASSTHROUGH_BIN_STEM) --all
+
+list-source-swaps:
+	$(PY) $(TOOLS)/swap_source_file.py $(PASSTHROUGH_BIN_STEM) --list
 
 # --- Phase 6 follow-ups: shipped Lua script extraction ----------------
 
