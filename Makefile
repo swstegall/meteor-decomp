@@ -354,6 +354,10 @@ recompile-coverage: emit-passthrough emit-text-gaps emit-data-sections compile-p
 emit-text-blob:
 	$(PY) $(TOOLS)/emit_text_blob.py $(PASSTHROUGH_BIN_STEM)
 
+.PHONY: emit-globals-stub
+emit-globals-stub:
+	$(PY) $(TOOLS)/emit_globals_stub.py $(PASSTHROUGH_BIN_STEM)
+
 link: patch-align
 	$(TOOLS)/link_pe.sh $(PASSTHROUGH_BIN_STEM)
 	$(PY) $(TOOLS)/postlink_patch.py $(PASSTHROUGH_BIN_STEM)
@@ -366,7 +370,7 @@ link: patch-align
 patch-align:
 	$(PY) $(TOOLS)/patch_obj_alignment.py $(PASSTHROUGH_BIN_STEM)
 
-relink: emit-text-blob emit-data-sections compile-passthrough link
+relink: emit-text-blob emit-data-sections emit-globals-stub compile-passthrough link
 
 diff-pe:
 	$(PY) $(TOOLS)/diff_pe.py $(PASSTHROUGH_BIN_STEM)
