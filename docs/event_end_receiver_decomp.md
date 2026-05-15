@@ -328,12 +328,97 @@ slot 3 doesn't affect the response.
      shapes; only shapes 2 & 3 need post-invoke cleanup)
    - Three-level dispatch: (event type → method ptr) → (method
      type → invoke thunk) → optional (method type → cleanup thunk)
-3. **Map out the 102 event-type cases** in `FUN_008a13a0`'s jump
-   table at `0x008a149c` (byte table) → `0x008a1464` (case
-   addresses). This would tell us what end-events the engine
-   recognizes (probably things like "noticeEvent end", "talkEvent
-   end", "pushEvent end", "emoteEvent end", etc.). Substantial
-   work but high-payoff for understanding the wire format.
+3. **~~Map out the 102 event-type cases~~ — ✅ DONE 2026-05-15.**
+   Decoded `FUN_008a13a0`'s byte table at VA `0x008a149c` (102
+   entries) and dword table at VA `0x008a1464` (14 entries).
+
+   The "102 cases" really only ACT on 12 event types — the other
+   90 fall through to the `RET 0x4` no-op at slot 13. Layout:
+
+   ```
+   byte_table[0x65+1] at VA 0x008a149c — event_type byte → slot index:
+     event 0..5     → slots 0..5 (6 distinct invoke trampolines, identical body)
+     event 6..49    → slot 13   (no-op default, 44 entries)
+     event 50..55   → slots 6..11 (6 distinct cleanup trampolines, identical body)
+     event 56..74   → slot 13   (no-op default, 19 entries)
+     event 75..80   → slot 12   (no-op via 0x008a145f)
+     event 81..99   → slot 13   (no-op default, 19 entries)
+     event 100..101 → slot 12   (no-op via 0x008a145f)
+
+   dword_table[14] at VA 0x008a1464 — slot index → case body VA:
+     slot 0..5  → `MOV ECX, [EAX+0x18]; JMP FUN_008a09e0`  (invoke chain)
+     slot 6..11 → `MOV ECX, [ESP+4]; CALL FUN_008a10c0; RET 0x4`  (cleanup chain)
+     slot 12, 13 → `RET 0x4`  (no-op)
+   ```
+
+   So the dispatcher really has TWO active event-type bands:
+
+   | Event types | Action | Path |
+   |---|---|---|
+   | 0..5 | invoke | tail-jump → FUN_008a09e0 → per-method-class thunk |
+   | 50..55 | cleanup | call → FUN_008a10c0 → tail-jump (only types 2 + 3 are stateful) |
+   | 6..49, 56..99 | no-op | RET |
+   | 75..80, 100..101 | no-op | RET (different `RET 0x4` instance) |
+
+   **Cross-reference with garlemald + Project Meteor scripts** —
+   the 6 "invoke" event types map directly to the FFXIV 1.x quest
+   event hooks. From
+   `project-meteor-server/Map Server/bin/Debug/scripts/base/chara/npc/populace/PopulaceStandard.lua`'s
+   `eventType ==` switch:
+
+   | event_type | quest hook | garlemald trigger |
+   |---|---|---|
+   | 0 | `OnCommand` (default fallthrough) | `"commandRequest"` (journal/menu opens) |
+   | 1 | `quest:OnTalk(...)` | `"talkDefault"` (NPC click → dialogue) |
+   | 2 | `quest:OnPush(...)` | `"pushDefault"` (proximity push trigger) |
+   | 3 | `quest:OnEmote(...)` | `"emoteDefault"` (player emote at NPC) |
+   | 4 | (no PopulaceStandard handler) | unmapped — likely a Director-only signal |
+   | 5 | `quest:OnNotice(...)` | `"noticeDefault"` (notice trigger) |
+
+   The garlemald "trigger" string sent in `KickEventPacket` (0x012F)
+   is what the client uses to FIND the script function to call,
+   while `event_type` (the byte at offset +0x08 of `EndEventPacket`
+   0x0131) tells the END-event receiver which lifecycle phase
+   (invoke vs cleanup) to run. They're orthogonal: the trigger
+   string says "what kind of event" and the type byte says "what
+   phase".
+
+   The 50..55 cleanup band is the post-invoke phase for events
+   that need it. Per `FUN_008a10c0`'s sub-dispatcher, only
+   method-classes 2 and 3 actually do cleanup work (the others
+   no-op at the cleanup phase). Plausibly: events that allocate
+   server-tracked resources during invoke (queued packets,
+   waitable predicates) need a cleanup hook to release them.
+   Stateless events (most) skip cleanup entirely.
+
+   For garlemald the headline finding: the `event_type` byte is
+   load-bearing for cleanup correctness on stateful events
+   (types 2 + 3 in the 50..55 cleanup band). Garlemald
+   currently always sends `event_type=0` (per
+   `event/dispatcher.rs`), which is the OnCommand invoke path.
+   For correct cleanup on push / emote / notice events, garlemald
+   needs to send `event_type=2 or 3` in the corresponding
+   `EndEventPacket` so the cleanup dispatcher fires. Surfaced
+   by this analysis as a likely gap.
+
+   Decoder script (re-runnable to refresh):
+
+   ```python
+   import json, struct
+   pe = json.loads(open('build/pe-layout/ffxivgame.json').read())
+   text = next(s for s in pe['sections'] if s['name'] == '.text')
+   orig = open('orig/ffxivgame.exe', 'rb').read()
+   image_base = int(pe['image_base'], 16)
+   def at_va(va, n):
+       file_off = text['raw_pointer'] + ((va - image_base) - text['virtual_address'])
+       return orig[file_off:file_off + n]
+   byte_table = at_va(0x008a149c, 102)
+   n_entries  = max(byte_table) + 1
+   dword_table = at_va(0x008a1464, n_entries * 4)
+   for slot in range(n_entries):
+       addr = struct.unpack_from('<I', dword_table, slot*4)[0]
+       print(f'slot[{slot:2d}] → VA 0x{addr:08x}')
+   ```
 
 ## Cross-references
 
