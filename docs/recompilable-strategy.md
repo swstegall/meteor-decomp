@@ -254,6 +254,25 @@ output that `cmp` confirms is byte-identical to orig.
   `?empty1@C@@QAEXH@Z` at offset 0x350 of the merged `.text`.
 - Idempotent: re-running `swap-rosetta` on the same fn no-ops; the
   manifest deduplicates.
+- `swap_rosetta.py --bulk` walks every `_rosetta/FUN_*.cpp` and
+  attempts the swap; per-fn outcome is JSON-logged to
+  `build/wire/<bin>.bulk_swap.json`. First ffxivlogin bulk run
+  (2026-05-15): 281 candidates → 266 prefilter_extern (cluster
+  placeholders with unresolvable `the_global` / `target` refs) +
+  11 byte_mismatch (import thunks with IAT relocs we can't resolve)
+  + **4 accepted** (1-3 byte trivial stubs). All 4 baked into a
+  byte-identical ffxivlogin.exe.
+- Why such a low yield on ffxivlogin: most `_rosetta/*.cpp` here
+  are CLUSTER-DERIVED stubs whose source references fictional
+  symbols (`int the_global`, `void target()`, `void operator_delete`)
+  to make cl.exe emit the right shape — they're validation-only,
+  not link-ready. The high-yield rosettas are in ffxivgame
+  (38,593 _rosetta files including hand-written matches like
+  `Utf8StringFree`, `PackRead` methods, CRT helpers).
+- Each swap is wrapped in a per-RVA C++ namespace (`namespace
+  swap_<rva> { ... }`) so cluster-derived sources reusing names
+  like `class C` / `void target()` don't collide at link time
+  (LNK2005).
 
 ## Why ffxivlogin first
 

@@ -354,9 +354,17 @@ recompile-coverage: emit-passthrough emit-text-gaps emit-data-sections compile-p
 emit-text-blob:
 	$(PY) $(TOOLS)/emit_text_blob.py $(PASSTHROUGH_BIN_STEM)
 
-link:
+link: patch-align
 	$(TOOLS)/link_pe.sh $(PASSTHROUGH_BIN_STEM)
 	$(PY) $(TOOLS)/postlink_patch.py $(PASSTHROUGH_BIN_STEM)
+
+# Patch every `_passthrough/<bin>/*.obj`'s `.text$X<rva>` subsection
+# alignment to 1 byte. Idempotent. Always run before linking — fresh
+# .objs default to align=16 (cl.exe / `code_seg`) which causes link.exe
+# to pad up at every obj-file boundary in the merged `.text`.
+.PHONY: patch-align
+patch-align:
+	$(PY) $(TOOLS)/patch_obj_alignment.py $(PASSTHROUGH_BIN_STEM)
 
 relink: emit-text-blob emit-data-sections compile-passthrough link
 
