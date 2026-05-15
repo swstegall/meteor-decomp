@@ -21,6 +21,11 @@ help:
 	@echo "  make find-rosetta         Phase 2: pick best Rosetta-Stone candidate"
 	@echo "  make rosetta              Phase 2: compile + diff staged Rosetta function"
 	@echo "  make rosetta-bulk         Phase 2: like rosetta, but never bails — for stamped clusters"
+	@echo "  make emit-passthrough     Phase 2.6: byte-passthrough .cpp for unmatched fns (BINARY=, FUNC=, MAX=)"
+	@echo "  make compile-passthrough  Phase 2.6: compile every src/<bin>/_passthrough/*.cpp (BINARY=)"
+	@echo "  make mark-passthrough     Phase 2.6: flip YAML status to passthrough for GREEN .objs (BINARY=)"
+	@echo "  make mark-passthrough-all Phase 2.6: mark-passthrough across all five binaries"
+	@echo "  make passthrough          Phase 2.6: emit + compile + mark (universal byte-fallback)"
 	@echo "  make extract-net          Phase 3: net-class vtable → fn_rva map"
 	@echo "  make extract-gam          Phase 3: GAM property registry (id → type)"
 	@echo "  make emit-gam-header      Phase 3: include/net/gam_registry.h from GAM"
@@ -207,10 +212,86 @@ rosetta-bulk: setup-msvc
 
 diff:
 	@if [ -z "$(FUNC)" ]; then echo "usage: make diff FUNC=Symbol::Name"; exit 1; fi
-	$(PY) $(TOOLS)/compare.py FUNC=$(FUNC)
+	$(PY) $(TOOLS)/compare.py FUNC=$(FUNC) $(if $(BINARY),BINARY=$(BINARY),)
 
 progress:
 	$(PY) $(TOOLS)/progress.py
+
+# --- Phase 2.6 — byte-passthrough fallback ----------------------------
+#
+# For functions still without a hand-written source under _rosetta/,
+# emit a __declspec(naked) `_emit`-only `.cpp` whose compiled .obj's
+# .text matches orig byte-for-byte. This is the universal fallback that
+# lets us produce a complete .obj inventory across the binary even
+# before every function has source-level decomp; future linker work
+# can then weave matched + passthrough .objs into a relinkable PE.
+#
+# Usage:
+#   make emit-passthrough BINARY=ffxivlogin.exe         # all unmatched
+#   make emit-passthrough BINARY=ffxivlogin.exe MAX=50  # cap output
+#   make emit-passthrough BINARY=ffxivlogin.exe FUNC=FUN_00489290
+#   make compile-passthrough BINARY=ffxivlogin.exe
+#   make passthrough BINARY=ffxivlogin.exe              # emit + compile
+#
+# Notes on the section pragma each passthrough .cpp emits:
+#   #pragma code_seg(".text$X<rva>")
+# The `.text$<key>` subsection naming is a long-standing MSVC linker
+# convention — link.exe sorts subsections alphabetically and packs them
+# into the merged `.text` output. By keying on the orig RVA we make
+# the linker land each function at the right offset within `.text`
+# (modulo gap padding, which a future tool will provide).
+
+.PHONY: emit-passthrough compile-passthrough passthrough
+
+PASSTHROUGH_BIN_STEM = $(basename $(or $(BINARY),ffxivgame.exe))
+PASSTHROUGH_SRC_DIR  = src/$(PASSTHROUGH_BIN_STEM)/_passthrough
+PASSTHROUGH_OBJ_DIR  = $(BUILD)/obj/_passthrough/$(PASSTHROUGH_BIN_STEM)
+# Naked-asm passthroughs don't trigger /GS — drop /GS to keep the .obj
+# free of __security_cookie references that would force us to also
+# bring in the cookie init runtime when linking.
+PASSTHROUGH_FLAGS    ?= /c /O2 /Oy /GR- /EHs- /Gy /MT /Zc:wchar_t /Zc:forScope /TP
+
+emit-passthrough:
+	@if [ -n "$(FUNC)" ]; then \
+	    $(PY) $(TOOLS)/emit_passthrough_cpp.py $(FUNC) --binary $(PASSTHROUGH_BIN_STEM) $(if $(FORCE),--force,); \
+	else \
+	    $(PY) $(TOOLS)/emit_passthrough_cpp.py --all --binary $(PASSTHROUGH_BIN_STEM) $(if $(MAX),--max $(MAX),) $(if $(FORCE),--force,); \
+	fi
+
+compile-passthrough:
+	@if ! ls $(PASSTHROUGH_SRC_DIR)/*.cpp >/dev/null 2>&1; then \
+	    echo "no passthrough source in $(PASSTHROUGH_SRC_DIR)/ — run 'make emit-passthrough BINARY=$(PASSTHROUGH_BIN_STEM).exe' first"; \
+	    exit 1; \
+	fi
+	mkdir -p $(PASSTHROUGH_OBJ_DIR) $(BUILD)/logs
+	@total=$$(ls $(PASSTHROUGH_SRC_DIR)/*.cpp | wc -l | tr -d ' '); \
+	echo ">>> compile-passthrough[$(PASSTHROUGH_BIN_STEM)] $$total .cpp files (P=$(PARALLEL_JOBS))"
+	@find $(PASSTHROUGH_SRC_DIR) -maxdepth 1 -name '*.cpp' -print0 \
+	    | xargs -0 -n 1 -P $(PARALLEL_JOBS) -I '{}' bash -c '\
+	        cpp="$$1"; \
+	        name=$$(basename "$$cpp" .cpp); \
+	        obj="$(PASSTHROUGH_OBJ_DIR)/$$name.obj"; \
+	        if [ -f "$$obj" ] && [ "$$obj" -nt "$$cpp" ] && [ -z "$(FORCE)" ]; then exit 0; fi; \
+	        if ! $(TOOLS)/cl-wine.sh $(PASSTHROUGH_FLAGS) /Fo"$$obj" "$$cpp" >/dev/null 2>&1; then \
+	            echo "  CL FAIL: $$name" >&2; \
+	        fi \
+	    ' _ '{}'
+	@expected=$$(ls $(PASSTHROUGH_SRC_DIR)/*.cpp | wc -l | tr -d ' '); \
+	got=$$(ls $(PASSTHROUGH_OBJ_DIR)/*.obj 2>/dev/null | wc -l | tr -d ' '); \
+	echo; echo "compile-passthrough[$(PASSTHROUGH_BIN_STEM)] expected=$$expected obj_count=$$got"; \
+	{ echo "EXPECTED=$$expected"; echo "OBJ_COUNT=$$got"; } > $(BUILD)/logs/passthrough_$(PASSTHROUGH_BIN_STEM).txt
+
+passthrough: emit-passthrough compile-passthrough mark-passthrough
+
+# Sync YAML `status: unmatched → passthrough` for every function whose
+# _passthrough/ .obj is byte-identical to orig (cheap COFF .text vs
+# orig slice diff). Idempotent. Never overwrites `matched`.
+.PHONY: mark-passthrough mark-passthrough-all
+mark-passthrough:
+	$(PY) $(TOOLS)/mark_passthrough_yaml.py $(PASSTHROUGH_BIN_STEM)
+
+mark-passthrough-all:
+	$(PY) $(TOOLS)/mark_passthrough_yaml.py
 
 # --- Phase 6 follow-ups: shipped Lua script extraction ----------------
 

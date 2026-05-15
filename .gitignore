@@ -28,6 +28,12 @@ build/
 asm/*/
 !asm/.gitkeep
 
+# Byte-passthrough .cpp files — bulk-emitted naked-asm wrappers around
+# orig bytes (Phase 2.6, see docs/recompilable-strategy.md). Fully
+# deterministic from `tools/emit_passthrough_cpp.py --all` + the orig
+# binary, so we don't track them. ffxivboot alone is ~280 MB of these.
+src/*/_passthrough/
+
 # Per-binary Ghidra dumps — large (10s of MB), deterministic from orig/.
 # Re-derived by `python3 tools/import_to_ghidra.py <binary>`.
 config/*.symbols.json

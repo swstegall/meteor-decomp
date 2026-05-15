@@ -24,7 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_DIR = REPO_ROOT / "config"
 SRC_DIR = REPO_ROOT / "src"
 
-STATUSES = ("matched", "functional", "wip", "unmatched")
+STATUSES = ("matched", "functional", "passthrough", "wip", "unmatched")
 MIDDLEWARE = ("middleware-crt", "middleware-miles", "middleware-dx9", "middleware-stl")
 
 RE_FUN_NAME = re.compile(r"^FUN_([0-9a-fA-F]+)\.cpp$")
@@ -124,9 +124,16 @@ def main() -> int:
 
     total_bytes = sum(v["bytes"] for v in grand.values())
     matched_bytes = grand["matched"]["bytes"] + grand["functional"]["bytes"]
+    passthrough_bytes = grand["passthrough"]["bytes"]
+    covered_bytes = matched_bytes + passthrough_bytes
     if total_bytes:
-        pct = 100.0 * matched_bytes / total_bytes
-        print(f"\noverall (YAML status):  matched/functional = {matched_bytes:,} / {total_bytes:,} bytes  ({pct:.2f}%)")
+        pct_m = 100.0 * matched_bytes / total_bytes
+        pct_p = 100.0 * passthrough_bytes / total_bytes
+        pct_total = 100.0 * covered_bytes / total_bytes
+        print(f"\noverall (YAML status):  matched/functional = {matched_bytes:,} / {total_bytes:,} bytes  ({pct_m:.2f}%)")
+        if passthrough_bytes:
+            print(f"                        passthrough        = {passthrough_bytes:,} bytes  ({pct_p:.2f}%)")
+            print(f"                        relinkable cover   = {covered_bytes:,} / {total_bytes:,} bytes  ({pct_total:.2f}%)")
 
     # Cross-binary _rosetta overlay totals — the durable artifact.
     overlay_total_count = 0

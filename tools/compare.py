@@ -71,6 +71,30 @@ def _binary_paths(binary_stem: str) -> tuple[Path, Path, Path]:
     return orig_pe, pe_layout, obj_root
 
 
+def _candidate_obj_paths(binary_stem: str, func_name: str) -> list[Path]:
+    """Return obj-path candidates in priority order.
+
+    Source-level (rosetta) builds win over byte passthrough — if both
+    an `_rosetta/<sym>.obj` and `_passthrough/<sym>.obj` exist, the
+    rosetta one is the canonical match (we want compare to track the
+    READABLE source, not the verbatim bytes). Passthroughs are the
+    fallback for functions that don't yet have a source-level decomp.
+    """
+    _, _, rosetta_root = _binary_paths(binary_stem)
+    if binary_stem == "ffxivgame":
+        passthrough_root = REPO_ROOT / "build" / "obj" / "_passthrough" / "ffxivgame"
+        # Legacy fallback in case someone hand-built into the flat dir.
+        flat = REPO_ROOT / "build" / "obj" / "_passthrough"
+    else:
+        passthrough_root = REPO_ROOT / "build" / "obj" / "_passthrough" / binary_stem
+        flat = passthrough_root
+    return [
+        rosetta_root / f"{func_name}.obj",
+        passthrough_root / f"{func_name}.obj",
+        flat / f"{func_name}.obj",
+    ]
+
+
 def _parse_kv_arg(arg: str, key: str) -> str | None:
     """Parse a `KEY=value` style argument; return value or None if not match."""
     if not arg:
@@ -127,27 +151,59 @@ def _read_orig_bytes(rva: int, size: int, orig_pe: Path, pe_layout_path: Path) -
         return f.read(size)
 
 
+def _coff_resolve_section_name(data: bytes, raw_name: bytes,
+                                str_table_off: int) -> str:
+    """Decode a COFF section name. Names ≤ 8 chars are stored inline
+    (NUL-padded); longer names are stored as `/N\0` where N is a decimal
+    offset into the string table that follows the symbol table."""
+    name = raw_name.rstrip(b"\0").decode("ascii", errors="replace")
+    if name.startswith("/"):
+        try:
+            offset = int(name[1:])
+        except ValueError:
+            return name
+        end = data.find(b"\0", str_table_off + offset)
+        if end < 0:
+            return name
+        return data[str_table_off + offset:end].decode("ascii", errors="replace")
+    return name
+
+
+def _coff_string_table_off(data: bytes) -> int:
+    sym_off = struct.unpack_from("<I", data, 8)[0]
+    n_syms = struct.unpack_from("<I", data, 12)[0]
+    return sym_off + n_syms * 18
+
+
 def _coff_text_bytes(obj_path: Path) -> bytes:
-    """Parse a COFF .obj and return the raw bytes of its `.text` section."""
+    """Return the raw bytes of the .text (or .text$* subsection) section
+    in a COFF .obj. Long names (`/N` index into the string table) are
+    resolved so passthrough .objs with `.text$XNNNNNNNN` subsections
+    work transparently. If multiple `.text*` sections exist they are
+    concatenated in section order — that's the order link.exe would
+    place them within a single .obj's .text contribution."""
     data = obj_path.read_bytes()
-    # COFF file header: machine(2) num_sections(2) timestamp(4) sym_off(4)
-    # num_syms(4) opt_size(2) characteristics(2) — total 20 bytes.
     n_sections = struct.unpack_from("<H", data, 2)[0]
     opt_size = struct.unpack_from("<H", data, 16)[0]
     sec_off = 20 + opt_size
+    str_table_off = _coff_string_table_off(data)
+    chunks: list[bytes] = []
     for i in range(n_sections):
         base = sec_off + i * 40
-        name = data[base : base + 8].rstrip(b"\0").decode("ascii", errors="replace")
-        if name != ".text":
+        name = _coff_resolve_section_name(data, data[base:base + 8], str_table_off)
+        # Match `.text` exactly OR `.text$<...>` subsection.
+        if not (name == ".text" or name.startswith(".text$")):
             continue
         raw_size = struct.unpack_from("<I", data, base + 16)[0]
         raw_ptr = struct.unpack_from("<I", data, base + 20)[0]
-        return data[raw_ptr : raw_ptr + raw_size]
-    raise RuntimeError(f"no .text section in {obj_path}")
+        chunks.append(data[raw_ptr:raw_ptr + raw_size])
+    if not chunks:
+        raise RuntimeError(f"no .text section in {obj_path}")
+    return b"".join(chunks)
 
 
 def _coff_text_relocs(obj_path: Path) -> list[tuple[int, int]]:
-    """Parse the COFF relocation table for `.text` and return a list of
+    """Parse the COFF relocation table for `.text*` and return a list of
     (offset, size) tuples giving the byte ranges occupied by linker
     fixups. Used to mask relocation bytes out of the byte-level diff —
     the .obj carries zeros at those positions while the orig binary
@@ -156,26 +212,31 @@ def _coff_text_relocs(obj_path: Path) -> list[tuple[int, int]]:
     All i386 COFF relocations cover 4 bytes (IMAGE_REL_I386_DIR32 = 6,
     IMAGE_REL_I386_REL32 = 0x14, IMAGE_REL_I386_DIR32NB = 7, plus
     section-relative variants that are 4 bytes wide too). Returning a
-    flat (offset, 4) tuple per entry covers them uniformly."""
+    flat (offset, 4) tuple per entry covers them uniformly. When the
+    .obj has multiple .text* subsections, reloc offsets are rewritten
+    relative to the concatenated .text body so they line up with the
+    bytes returned by `_coff_text_bytes`."""
     data = obj_path.read_bytes()
     n_sections = struct.unpack_from("<H", data, 2)[0]
     opt_size = struct.unpack_from("<H", data, 16)[0]
     sec_off = 20 + opt_size
+    str_table_off = _coff_string_table_off(data)
+    out: list[tuple[int, int]] = []
+    text_cursor = 0
     for i in range(n_sections):
         base = sec_off + i * 40
-        name = data[base : base + 8].rstrip(b"\0").decode("ascii", errors="replace")
-        if name != ".text":
+        name = _coff_resolve_section_name(data, data[base:base + 8], str_table_off)
+        if not (name == ".text" or name.startswith(".text$")):
             continue
+        raw_size = struct.unpack_from("<I", data, base + 16)[0]
         ptr_relocs = struct.unpack_from("<I", data, base + 24)[0]
         n_relocs = struct.unpack_from("<H", data, base + 32)[0]
-        out: list[tuple[int, int]] = []
         for j in range(n_relocs):
             entry = ptr_relocs + j * 10
             vaddr = struct.unpack_from("<I", data, entry)[0]
-            # Type at +8 — we treat all i386 reloc types as 4-byte fixups.
-            out.append((vaddr, 4))
-        return out
-    return []
+            out.append((text_cursor + vaddr, 4))
+        text_cursor += raw_size
+    return out
 
 
 def _build_reloc_mask(relocs: list[tuple[int, int]], size: int) -> bytearray:
@@ -377,9 +438,16 @@ def main() -> int:
             except (json.JSONDecodeError, ValueError):
                 pass
 
-    obj_path = obj_root / f"{func_name}.obj"
-    if not obj_path.exists():
-        print(f"error: {obj_path} missing — run `make rosetta BINARY={binary_stem}.exe` first", file=sys.stderr)
+    candidates = _candidate_obj_paths(binary_stem, func_name)
+    obj_path = next((p for p in candidates if p.exists()), None)
+    if obj_path is None:
+        searched = "\n  ".join(str(p.relative_to(REPO_ROOT)) for p in candidates)
+        print(
+            f"error: no .obj for {func_name} — searched:\n  {searched}\n"
+            f"  run `make rosetta BINARY={binary_stem}.exe` (source-level)\n"
+            f"  or `make passthrough BINARY={binary_stem}.exe` (byte-fallback)",
+            file=sys.stderr,
+        )
         return 3
 
     orig = _read_orig_bytes(rva, size, orig_pe, pe_layout_path)
