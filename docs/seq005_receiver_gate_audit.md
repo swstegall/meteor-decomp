@@ -1,8 +1,8 @@
 # Phase 9 #8 — SEQ_005 cinematic packets vs receiver gates
 
-> Last updated: 2026-05-15. Cross-reference of every packet
-> garlemald sends in the SEQ_005 cinematic body against the
-> Phase 7-decoded receiver gates. Identifies which gates are
+> Last updated: 2026-05-15 (revised after #8b decomp). Cross-reference of
+> every packet garlemald sends in the SEQ_005 cinematic body against the
+> Phase 7- and Phase 9-decoded receiver gates. Identifies which gates are
 > known, which are presumed satisfied, and which remain
 > unverified — the latter are the prime suspects for the
 > still-open SEQ_005 "Now Loading" hang.
@@ -14,24 +14,40 @@ RunEventFunction) are both **theoretically satisfied** by garlemald's
 existing spawn-packet sequence in
 `build_director_spawn_subpackets`. But the post-warp smoke test
 still hangs, with the client never echoing `IN 0x012D EventStart`
-for the content director. Three unresolved suspect mechanisms:
+for the content director.
 
-1. **Branch B1's `receiver[+0x80]` flag** — could cause the kick
-   to silently no-op even with the actor flags set. Phase 7
-   identified the existence of this flag but not what packet byte
-   maps to it.
-2. **Actor-lookup-before-spawn** — pmeteor sends the kick
-   PRE-warp (target actor doesn't exist client-side yet). The
-   client must somehow defer/queue the kick until the actor is
-   spawned. Whatever defers it on pmeteor's side might fail on
-   garlemald's.
-3. **Some receiver state initialization that's missing** —
-   pmeteor may set up receiver-instance state via a packet we
-   don't send (e.g. an early SetCommandEventCondition or similar
-   that primes `context_root[+0x128]`).
+After Phase 9 #8b (2026-05-15) closed SetEventStatusReceiver +
+SetNoticeEventConditionReceiver, the suspect list is **narrowed** to:
 
-Resolving these requires either runtime analysis OR Phase 9 #5
-(opcode → receiver wiring discovery).
+1. **Branch B1's `receiver[+0x80]` flag** (KickReceiver) — could cause
+   the kick to silently no-op even with the actor flags set. Phase 7
+   identified the existence of this flag, #8a mapped it to
+   `(LuaParamsContainer at +0x6c)[+0x14]`, but the packet-byte source
+   is still unidentified.
+2. **Actor-lookup-before-spawn** — pmeteor sends the kick PRE-warp
+   (target actor doesn't exist client-side yet). The client must
+   somehow defer/queue the kick until the actor is spawned. Whatever
+   defers it on pmeteor's side might fail on garlemald's.
+3. **NEW (post-#8b): orphaned-conditions hypothesis** —
+   SetNoticeEventConditionReceiver always runs but has a fallback
+   path: if the target actor isn't already `DirectorBase`, the notice
+   conditions get registered into `ActorBase[+0x118]` instead of
+   `DirectorBase[+0x60]`. Garlemald's spawn sequence has
+   `SetNoticeEventCondition` at step 2 — BEFORE `ScriptBind` at step
+   8. If `ScriptBind` is what allocates the Lua-side `DirectorBase`
+   instance, then for 6 ticks the conditions land in the wrong field,
+   and a post-`ScriptBind` `DirectorBase` would have empty `[+0x60]`.
+   The cinematic's notice-event evaluator would never trigger.
+
+**Eliminated** (post-#8b):
+- SetEventStatus has no actor-state gate.
+- SetNoticeEventCondition has no actor-state gate either; its only
+  silent-divergence mode is the fallback container-routing above.
+
+Resolving #1 and #3 requires either runtime analysis OR Phase 9 #5
+(opcode → receiver wiring discovery) AND a Phase 7 follow-up walking
+`StartServerOrderEventFunctionReceiver` (the `ScriptBind` handler) to
+see if it migrates the orphaned conditions.
 
 ## SEQ_005 cinematic packet inventory
 
@@ -46,8 +62,8 @@ body emits these opcodes (from pmeteor's reference capture
 | `0x0130` | OUT | StartServerOrderEventFunctionReceiver | `target_actor[+0x7d] != 0` | n/a (never reaches here) | n/a |
 | `0x0131` | OUT | EndClientOrderEventReceiver | (no actor-flag gate per Phase 7) | wire-fmt match | n/a |
 | `0x0133` | OUT | (no Receiver class — handled by Lua RPC) | n/a | wire-fmt match | n/a |
-| `0x0136` | OUT | SetEventStatusReceiver | (2-slot — TBD; likely no actor gate) | wire-fmt match | enables conditions |
-| `0x016B` | OUT | SetNoticeEventConditionReceiver | (2-slot — TBD) | wire-fmt match | registers conditions |
+| `0x0136` | OUT | SetEventStatusReceiver | ✅ #8b: NO actor gate; `dynamic_cast<NpcBase>(ctx)` (unguarded) → sub-vector lookup by event name | wire-fmt match | enables conditions |
+| `0x016B` | OUT | SetNoticeEventConditionReceiver | ✅ #8b: NO actor gate; `dynamic_cast<DirectorBase>(ctx)` with fallback to `ActorBase[+0x118]` if cast fails — see "orphaned-conditions hypothesis" | wire-fmt match | registers conditions |
 | `0x017A` | OUT | (no Receiver — Group::PacketProcessor consumes) | n/a (work-table mutate) | wire-fmt match | wire-correct |
 | `0x017C/D/E/F` | OUT | (Group::PacketProcessor) | n/a | wire-fmt match (commit `47041f4`) | wire-correct |
 | `0x0183` | OUT | (Group::PacketProcessor) | n/a | wire-fmt match (commit `dbcc19a`) | wire-correct |
@@ -147,19 +163,24 @@ kick dispatch is the gate that should drive it forward.
 
 | # | Task | Why |
 |---|---|---|
-| #8a | Map KickEvent packet byte offsets to receiver instance offsets (especially what byte maps to `receiver[+0x80]`) | Resolve the Branch B1 `receiver[+0x80]` mystery |
-| #8b | Decode SetEventStatusReceiver slot 1 + SetNoticeEventConditionReceiver slot 1 | Both are critical to the cinematic; if either has gates we don't satisfy, the conditions don't actually enable |
+| #8a | Map KickEvent packet byte offsets to receiver instance offsets (especially what byte maps to `receiver[+0x80]`) | Resolve the Branch B1 `receiver[+0x80]` mystery (🟡 partial — instance layout done; packet-byte source TBD) |
+| #8b | Decode SetEventStatusReceiver slot 1 + SetNoticeEventConditionReceiver slot 1 | Both are critical to the cinematic; if either has gates we don't satisfy, the conditions don't actually enable (✅ done — neither has an actor-state gate; orphaned-conditions hypothesis surfaced) |
+| **#8d (NEW)** | Walk `StartServerOrderEventFunctionReceiver` (the `ScriptBind` handler, Phase 7-decoded but slot 2's body wasn't fully unrolled) to see if it migrates pre-bind notice conditions from `ActorBase[+0x118]` → `DirectorBase[+0x60]` after instantiating the derived Lua class | Validates / refutes the orphaned-conditions hypothesis from #8b. If no migration happens, garlemald should re-emit the 3 SetNoticeEventCondition packets AFTER ScriptBind (step 8) rather than before (step 2) |
 | #8c | Look for pre-kick "receiver state init" packets — anything that sets `context_root[+0x128]` to a non-NO_ACTOR value would change the branch from B1 to B2 | Maybe pmeteor sends a packet that primes the receiver state |
 | #5 (broader) | Find the script-load-time wiring that connects opcodes to receivers | Without knowing how a receiver becomes the recipient of a given opcode's bytes, we can't fully reason about packet→receiver dispatch |
 
 ## Cross-references
 
 - `docs/receiver_classes_inventory.md` — Phase 9 #1 (full
-  receiver inventory)
+  receiver inventory) + recovered Lua actor class hierarchy
 - `docs/event_kick_receiver_decomp.md` — Phase 7 KickReceiver
   decomp (the source of the `+0x5c` finding + Branch B1 logic)
 - `docs/event_run_event_function_receiver_decomp.md` — Phase 7
   (the source of the `+0x7d` finding)
+- `docs/event_status_condition_receivers_decomp.md` — **Phase 9 #8b
+  (NEW 2026-05-15): SetEventStatus + SetNoticeEventCondition
+  Receive bodies decoded; sources the orphaned-conditions
+  hypothesis above**
 - `docs/group_system_decomp.md` — Phase 8 (Group system + the
   no-receiver opcodes)
 - `docs/network_dispatch_dual_paths.md` — Phase 8 #9 (the

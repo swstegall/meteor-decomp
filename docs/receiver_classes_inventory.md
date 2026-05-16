@@ -117,12 +117,92 @@ client-side. Wrong gate → stuck status icons or invisible buffs.
 | #3 | Decode the 6-slot `JobQuestCompleteTripleReceiver` | 🔲 pending |
 | #4 | Decode the 6-slot `UserDataReceiver` | 🔲 pending |
 | #5 | Cross-reference each receiver to its opcode (the engine wires opcode → receiver at script load; need to find that registration) | 🔲 pending |
-| #6 | Walk the 37 2-slot receivers' Receive bodies — most are simple `actor[+offset] = value` updaters | 🔲 pending |
-| #7 | Build a cheat-sheet of "what gate does each opcode's receiver check" so garlemald can reason about silent-drop symptoms | 🔲 pending |
+| #6 | Walk the 37 2-slot receivers' Receive bodies — most are simple `actor[+offset] = value` updaters | 🟡 partial — class-hierarchy sweep done (see §"Lua actor class hierarchy" below): for 25 of the 32 Network/System 2-slot variants, the receive body is just `dynamic_cast<TargetSubclass>(ctx); subclass->doIt(...)`. Remaining 7 use inline patterns (no `__RTDynamicCast` helper) — TBD if they cast via a different idiom. |
+| #7 | Build a cheat-sheet of "what gate does each opcode's receiver check" so garlemald can reason about silent-drop symptoms | 🟡 partial — for the 25 dynamic_cast receivers, the gate is "target actor must be of the right derived Lua-class". For KickReceiver / RunEventFunctionReceiver, the gate is the `+0x5c` / `+0x7d` actor flag respectively (Phase 7). Comprehensive cheat-sheet still pending. |
 | #8 | Cross-reference the SEQ_005 cinematic body packets (0x012F Kick, 0x0130 Run, 0x0136 SetEventStatus, 0x016B SetNoticeEventCondition) against their receivers' gates to identify the *exact* gate currently failing in garlemald | 🟡 partial — cross-ref doc at `docs/seq005_receiver_gate_audit.md`; identifies Branch B1's `receiver[+0x80]` flag as the prime suspect for the silent kick drop, but Phase 7 didn't decode which packet byte maps to it. Three follow-ups (#8a/#8b/#8c) below. |
 | #8a | Map KickEvent packet body → receiver instance offsets (especially what byte sets `receiver[+0x80]`) | 🟡 partial — `receiver[+0x80]` is mapped to `(LuaParamsContainer at +0x6c)[+0x14]` (see `docs/kick_receiver_offset_map.md`). The byte's PACKET source still requires tracing the IpcChannel parser (slot 1 is the heap copy ctor, not the original parser). The byte-by-byte KickEvent diff vs pmeteor showed body bytes are identical, suggesting the gate value comes from receiver STATE (not the kick packet itself) — possibly primed by an earlier opcode garlemald doesn't send. |
-| #8b | Decode SetEventStatusReceiver slot 1 + SetNoticeEventConditionReceiver slot 1 (both 2-slot receivers in the SEQ_005 path) | 🔲 pending — verifies whether condition-enablement has its own gates |
+| #8b | Decode SetEventStatusReceiver slot 1 + SetNoticeEventConditionReceiver slot 1 (both 2-slot receivers in the SEQ_005 path) | ✅ done 2026-05-15 — `docs/event_status_condition_receivers_decomp.md`. **Both are `__RTDynamicCast` + dispatch.** SetEventStatus casts to NpcBase, no null-check (unguarded). SetNoticeEventCondition casts to DirectorBase, with FALLBACK to ActorBase[+0x118] if cast fails. **Neither has a `+0x5c`-style actor flag gate** — eliminated as silent-drop suspect. New suspect surfaced: if `ScriptBind` (step 8 in spawn sequence) is what promotes the actor to DirectorBase, then SetNoticeEventCondition packets sent at step 2 (BEFORE ScriptBind) would silently land in `ActorBase[+0x118]` instead of `DirectorBase[+0x60]`. This is **the orphaned-conditions hypothesis** — needs verification via Phase 7's StartServerOrderEventFunctionReceiver path. |
 | #8c | Look for pre-kick "receiver state init" packets that prime `context_root[+0x128]` (would shift Branch B1 → Branch B2) | 🔲 pending — pmeteor may send a packet we don't |
+
+## Lua actor class hierarchy (recovered via Phase 9 #8b sweep)
+
+By parsing all 32+ Network and System namespace receivers'
+`Receive` bodies for the `PUSH SrcType / PUSH TargetType / CALL
+__RTDynamicCast` pattern (2026-05-15), the complete `dynamic_cast`
+target-type set was recovered. Every cast's SrcType is the same —
+`Application::Lua::Script::Client::Control::ActorBase` (RTTI Type
+Descriptor at `0x01270964`). The TargetTypes form the **Lua-side
+actor class hierarchy** that the engine wires receivers against:
+
+| Subclass | RTTI addr | # Receivers | Receivers |
+|---|---|---:|---|
+| `ActorBase` | `0x01270964` | — (source) | (every receiver casts FROM this) |
+| `MyPlayer` | (TBD) | 12 | AchievementPoint/Id/AchievedCount, AddictLoginTimeKind, AttributeTypeEventEnter/Leave, ChocoboReceiver, ChocoboGrade, GoobbueReceiver, VehicleGrade, EntrustItem, SetCommandEventCondition |
+| `NpcBase` | `0x012709e4` | 5 | ExecutePushOnEnter/LeaveTriggerBox, HateStatus, SetEventStatus, SetTalkEventCondition |
+| `CharaBase` | (TBD) | 4 | ChangeActorExtraStat, ChangeActorSubStatModeBorder, ChangeSystemStat, SetDisplayName |
+| `PlayerBase` | (TBD) | 3 | AchievementTitle, GrandCompany, JobChange |
+| `DirectorBase` | `0x012bf9c8` | 1 | SetNoticeEventCondition |
+| `AreaBase` | (TBD) | 1 | HamletSupplyRanking |
+| `WorldMaster` | (TBD) | 1 | SendLog |
+
+Inferred class diagram (refined as more receivers are walked):
+
+```
+Application::Lua::Script::Client::Control::
+  ActorBase                       (universal base; ALL receivers cast FROM)
+    ├── CharaBase                 (anything with character stats — players + NPCs)
+    │     ├── NpcBase             (5 receivers — non-player NPCs / mobs)
+    │     └── PlayerBase          (3 receivers — local + remote players)
+    │           └── MyPlayer      (12 receivers — local player ONLY)
+    ├── DirectorBase              (1 receiver — directors, content groups, etc.)
+    ├── AreaBase                  (1 receiver — zones/private-areas/hamlets)
+    └── WorldMaster               (1 receiver — engine-global broadcasts)
+```
+
+(`CharaBase` ⊃ `NpcBase`/`PlayerBase` ⊃ `MyPlayer` is inferred from
+the semantic split: stat/display fields apply to both NPCs and
+players; NPC-specific receivers cast directly to `NpcBase`;
+player-only receivers cast to `MyPlayer`. Confirming the inheritance
+edges requires a Ghidra GUI pass on the type descriptors' associated
+ClassHierarchyDescriptors — pending.)
+
+### 7 receivers that don't use `__RTDynamicCast`
+
+These 2-slot receivers' Receive bodies pack their fields and forward
+to a downstream method without going through `FUN_009da6cc`:
+
+- `ChangeShadowActorFlagReceiver` (`FUN_0089cc70`)
+- `HamletDefenseScoreReceiver` (`FUN_0089e420`)
+- `EndClientOrderEventReceiver` (`FUN_0089d180` — 5-slot, already
+  Phase 7-decoded)
+- `JobQuestCompleteTripleReceiver` (`FUN_0089d350` — 6-slot)
+- `SetEmoteEventConditionReceiver` (`FUN_0089d750`)
+- `SetPushEventConditionWithCircleReceiver` (`FUN_0089db00`)
+- `SetPushEventConditionWithFanReceiver` (`FUN_0089dc90`)
+- `SetPushEventConditionWithTriggerBoxReceiver` (`FUN_0089de20`)
+- `SetTargetTimeReceiver` (`FUN_008a04b0`)
+- `SyncMemoryReceiver` (`FUN_0089e550`)
+- `UserDataReceiver` (`FUN_008a2a20` — 6-slot)
+- `KickClientOrderEventReceiver` (`FUN_0089f530` — 5-slot, but slot 1
+  here is the New() factory; the actual Receive is slot 2 at
+  `FUN_0089e450` and DOES gate on `+0x5c` — Phase 7)
+- `StartServerOrderEventFunctionReceiver` (`FUN_0089f430` — 5-slot,
+  factory-vs-Receive same caveat; Receive at slot 2 — Phase 7)
+- `ChangeActorSubStatStatusReceiver` (`FUN_008a34d0` — 5-slot)
+- `ExecuteDebugCommandReceiver` (`FUN_008a4880`)
+
+(Note: `SendLogReceiver` (`FUN_0089fbf0`) DID register as casting to
+`WorldMaster` in the sweep — the sweep found 3 separate
+`__RTDynamicCast` call sites in its body, suggesting it has multiple
+target-type branches rather than a single one. Worth its own walk
+later.)
+
+The non-casting pattern (e.g. `SetPushEventConditionWithCircleReceiver`,
+`FUN_0089db00`, 67 bytes) packs ALL receiver fields (the inline
+`+0x58/+0x59/+0x5c/+0x60/+0x64/+0x65/+0x66/+0x67/+0x68` block of
+mixed bytes + floats) and forwards them to a downstream function
+with `dispatch_ctx` directly as `this`. The engine's script-load
+wiring is presumed to enforce the type contract by construction.
 
 ## Cross-references
 
