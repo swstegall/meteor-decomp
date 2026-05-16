@@ -119,7 +119,10 @@ client-side. Wrong gate → stuck status icons or invisible buffs.
 | #5 | Cross-reference each receiver to its opcode (the engine wires opcode → receiver at script load; need to find that registration) | 🔲 pending |
 | #6 | Walk the 37 2-slot receivers' Receive bodies — most are simple `actor[+offset] = value` updaters | 🔲 pending |
 | #7 | Build a cheat-sheet of "what gate does each opcode's receiver check" so garlemald can reason about silent-drop symptoms | 🔲 pending |
-| #8 | Cross-reference the SEQ_005 cinematic body packets (0x012F Kick, 0x0130 Run, 0x0136 SetEventStatus, 0x016B SetNoticeEventCondition) against their receivers' gates to identify the *exact* gate currently failing in garlemald | 🔲 pending |
+| #8 | Cross-reference the SEQ_005 cinematic body packets (0x012F Kick, 0x0130 Run, 0x0136 SetEventStatus, 0x016B SetNoticeEventCondition) against their receivers' gates to identify the *exact* gate currently failing in garlemald | 🟡 partial — cross-ref doc at `docs/seq005_receiver_gate_audit.md`; identifies Branch B1's `receiver[+0x80]` flag as the prime suspect for the silent kick drop, but Phase 7 didn't decode which packet byte maps to it. Three follow-ups (#8a/#8b/#8c) below. |
+| #8a | Map KickEvent packet body → receiver instance offsets (especially what byte sets `receiver[+0x80]`) | 🔲 pending — would resolve the Branch B1 mystery |
+| #8b | Decode SetEventStatusReceiver slot 1 + SetNoticeEventConditionReceiver slot 1 (both 2-slot receivers in the SEQ_005 path) | 🔲 pending — verifies whether condition-enablement has its own gates |
+| #8c | Look for pre-kick "receiver state init" packets that prime `context_root[+0x128]` (would shift Branch B1 → Branch B2) | 🔲 pending — pmeteor may send a packet we don't |
 
 ## Cross-references
 
