@@ -134,18 +134,21 @@ target-type set was recovered. Every cast's SrcType is the same —
 Descriptor at `0x01270964`). The TargetTypes form the **Lua-side
 actor class hierarchy** that the engine wires receivers against:
 
+All RTTI addresses **concretely recovered via Phase 9 ext (`__RTDynamicCast`
+callsite sweep)** — see `docs/dynamic_cast_callsite_sweep.md`:
+
 | Subclass | RTTI addr | # Receivers | Receivers |
 |---|---|---:|---|
-| `Component::Lua::GameEngine::LuaControl` | `0x01270b4c` | — (System-ns source) | System namespace receivers cast FROM this (deeper than ActorBase) |
+| `Component::Lua::GameEngine::LuaControl` | `0x01270b4c` | — (System-ns source) | System namespace receivers cast FROM this; 24 LuaControl-derived classes total |
 | `ActorBase` | `0x01270964` | — (Network-ns source) | Network namespace receivers cast FROM this |
-| `MyPlayer` | (TBD) | 12 | AchievementPoint/Id/AchievedCount, AddictLoginTimeKind, AttributeTypeEventEnter/Leave, ChocoboReceiver, ChocoboGrade, GoobbueReceiver, VehicleGrade, EntrustItem, SetCommandEventCondition |
+| `MyPlayer` | `0x012c19a4` | 12 | AchievementPoint/Id/AchievedCount, AddictLoginTimeKind, AttributeTypeEventEnter/Leave, ChocoboReceiver, ChocoboGrade, GoobbueReceiver, VehicleGrade, EntrustItem, SetCommandEventCondition |
 | `NpcBase` | `0x012709e4` | 5 | ExecutePushOnEnter/LeaveTriggerBox, HateStatus, SetEventStatus, SetTalkEventCondition |
 | `CharaBase` | `0x012709a4` | 4+1 | ChangeActorExtraStat, ChangeActorSubStatModeBorder, ChangeSystemStat, SetDisplayName, *+ ChangeActorSubStatStatus secondary cast (Phase 9 #2)* |
-| `PlayerBase` | (TBD) | 3 | AchievementTitle, GrandCompany, JobChange |
+| `PlayerBase` | `0x012bfa48` | 3 | AchievementTitle, GrandCompany, JobChange |
 | `DirectorBase` | `0x012bf9c8` | 1 | SetNoticeEventCondition |
-| `AreaBase` | (TBD) | 1 | HamletSupplyRanking |
+| `AreaBase` | `0x012c2a6c` | 1 | HamletSupplyRanking |
 | `StatusBase` | `0x012c31f8` | 0+1 | *ChangeActorSubStatStatus primary cast (Phase 9 #2; sibling of ActorBase under LuaControl)* |
-| `WorldMaster` | (TBD) | 1 | SendLog |
+| `WorldMaster` | `0x012c1328` | 1 | SendLog |
 
 Inferred class diagram (**refined via Phase 9 #2** — adds the deeper
 `LuaControl` base and the `StatusBase` sibling under it; see
@@ -213,6 +216,11 @@ wiring is presumed to enforce the type contract by construction.
 
 ## Cross-references
 
+- `docs/dynamic_cast_callsite_sweep.md` — **Phase 9 ext (2026-05-16):
+  engine-wide __RTDynamicCast sweep recovering 129 RTTI addresses,
+  closing all open Lua-actor-class RTTI gaps and mapping 6 major
+  class hierarchies (LuaControl, Sqwt UI framework, engine-side
+  Actor, Work-table info, Debug binders, Network channels)**
 - `docs/network_dispatch_dual_paths.md` — Phase 8 #9 finding that
   receivers are the real dispatch (vs the no-op
   ZoneProtoChannel/DummyCallback path)
