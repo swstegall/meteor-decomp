@@ -145,7 +145,8 @@ actor class hierarchy** that the engine wires receivers against:
 | `AreaBase` | (TBD) | 1 | HamletSupplyRanking |
 | `WorldMaster` | (TBD) | 1 | SendLog |
 
-Inferred class diagram (refined as more receivers are walked):
+Inferred class diagram (**confirmed via vtable-comparison + ctor-chain
+analysis in Phase 9 #8d** — see `docs/lua_actor_class_construction.md`):
 
 ```
 Application::Lua::Script::Client::Control::
@@ -156,15 +157,16 @@ Application::Lua::Script::Client::Control::
     │           └── MyPlayer      (12 receivers — local player ONLY)
     ├── DirectorBase              (1 receiver — directors, content groups, etc.)
     ├── AreaBase                  (1 receiver — zones/private-areas/hamlets)
+    │     └── PrivateAreaBase     (no receiver — slot 0 differs from AreaBase)
+    ├── QuestBase                 (no receiver — vtable diverges significantly)
     └── WorldMaster               (1 receiver — engine-global broadcasts)
 ```
 
-(`CharaBase` ⊃ `NpcBase`/`PlayerBase` ⊃ `MyPlayer` is inferred from
-the semantic split: stat/display fields apply to both NPCs and
-players; NPC-specific receivers cast directly to `NpcBase`;
-player-only receivers cast to `MyPlayer`. Confirming the inheritance
-edges requires a Ghidra GUI pass on the type descriptors' associated
-ClassHierarchyDescriptors — pending.)
+**Inheritance edges confirmed by Phase 9 #8d:**
+- `DirectorBase` ctor calls `ActorBase` ctor → `DirectorBase` IS-A `ActorBase` (direct, not via `CharaBase`)
+- `CharaBase` overrides slot 4 to `0x6f3000`; `NpcBase` and `PlayerBase` both inherit this override → both extend `CharaBase`
+- `ActorBase` ctor explicitly zeros `[+0x5c]` (the kick gate flag from Phase 7)
+- `DirectorBase` ctor initializes `[+0x60]` as an empty `std::vector` (First/Last/End all NULL)
 
 ### 7 receivers that don't use `__RTDynamicCast`
 

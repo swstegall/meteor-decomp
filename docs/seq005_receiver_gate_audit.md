@@ -165,7 +165,9 @@ kick dispatch is the gate that should drive it forward.
 |---|---|---|
 | #8a | Map KickEvent packet byte offsets to receiver instance offsets (especially what byte maps to `receiver[+0x80]`) | Resolve the Branch B1 `receiver[+0x80]` mystery (🟡 partial — instance layout done; packet-byte source TBD) |
 | #8b | Decode SetEventStatusReceiver slot 1 + SetNoticeEventConditionReceiver slot 1 | Both are critical to the cinematic; if either has gates we don't satisfy, the conditions don't actually enable (✅ done — neither has an actor-state gate; orphaned-conditions hypothesis surfaced) |
-| **#8d (NEW)** | Walk `StartServerOrderEventFunctionReceiver` (the `ScriptBind` handler, Phase 7-decoded but slot 2's body wasn't fully unrolled) to see if it migrates pre-bind notice conditions from `ActorBase[+0x118]` → `DirectorBase[+0x60]` after instantiating the derived Lua class | Validates / refutes the orphaned-conditions hypothesis from #8b. If no migration happens, garlemald should re-emit the 3 SetNoticeEventCondition packets AFTER ScriptBind (step 8) rather than before (step 2) |
+| #8d | Walk `StartServerOrderEventFunctionReceiver` (the `ScriptBind` handler, Phase 7-decoded but slot 2's body wasn't fully unrolled) to see if it migrates pre-bind notice conditions from `ActorBase[+0x118]` → `DirectorBase[+0x60]` after instantiating the derived Lua class | 🟡 partial — Phase 7 already decoded slot 2 as a pending-queue drainer, NOT a ScriptBind handler. Pivoted to Lua-actor-class ctor inspection (`docs/lua_actor_class_construction.md`): confirmed DirectorBase IS-A ActorBase, confirmed inheritance edges, confirmed ActorBase ctor zeros `+0x5c` (the kick gate). Orphaned-conditions hypothesis still unresolved — depends on Phase 9 #5 (dispatch_ctx wiring). |
+| **#8e (NEW)** | Find the `+0x5c` setter — scoped to ActorBase-derived class members | Definitively identifies which opcode in the spawn sequence enables the kick gate. Stronger than Phase 7 Task C because we now have the ActorBase inheritance tree |
+| **#8f (NEW)** | Walk the `AddActor` opcode (0xCA) handler to confirm which Lua-class wrapper gets constructed for different actor kinds | Direct answer to "is AddActor what constructs a `DirectorBase`, or does something later promote a plain `ActorBase`?" — answers the orphaned-conditions hypothesis indirectly |
 | #8c | Look for pre-kick "receiver state init" packets — anything that sets `context_root[+0x128]` to a non-NO_ACTOR value would change the branch from B1 to B2 | Maybe pmeteor sends a packet that primes the receiver state |
 | #5 (broader) | Find the script-load-time wiring that connects opcodes to receivers | Without knowing how a receiver becomes the recipient of a given opcode's bytes, we can't fully reason about packet→receiver dispatch |
 
@@ -177,10 +179,12 @@ kick dispatch is the gate that should drive it forward.
   decomp (the source of the `+0x5c` finding + Branch B1 logic)
 - `docs/event_run_event_function_receiver_decomp.md` — Phase 7
   (the source of the `+0x7d` finding)
-- `docs/event_status_condition_receivers_decomp.md` — **Phase 9 #8b
-  (NEW 2026-05-15): SetEventStatus + SetNoticeEventCondition
-  Receive bodies decoded; sources the orphaned-conditions
-  hypothesis above**
+- `docs/event_status_condition_receivers_decomp.md` — Phase 9 #8b
+  (2026-05-15): SetEventStatus + SetNoticeEventCondition
+  Receive bodies decoded; sources the orphaned-conditions hypothesis
+- `docs/lua_actor_class_construction.md` — **Phase 9 #8d (NEW
+  2026-05-16): ctor/dtor walk of every Lua actor base class;
+  confirms inheritance edges + that ActorBase ctor zeros `+0x5c`**
 - `docs/group_system_decomp.md` — Phase 8 (Group system + the
   no-receiver opcodes)
 - `docs/network_dispatch_dual_paths.md` — Phase 8 #9 (the
