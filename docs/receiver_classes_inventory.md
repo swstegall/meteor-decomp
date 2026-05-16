@@ -113,7 +113,7 @@ client-side. Wrong gate → stuck status icons or invisible buffs.
 | Item | Description | Status |
 |---|---|---|
 | #1 | Inventory the 43 Receiver classes | ✅ done (this doc) |
-| #2 | Decode `ChangeActorSubStatStatusReceiver` (last 5-slot) | 🔲 pending |
+| #2 | Decode `ChangeActorSubStatStatusReceiver` (last 5-slot) | ✅ done 2026-05-16 — `docs/event_change_actor_substat_status_decomp.md`. Most-gated receiver in the inventory: checks BOTH `+0x7d` on primary StatusBase AND `+0x5c` on secondary CharaBase, with per-instance done-flag at `[+0x15]`. Surfaced 3 new RTTI types and the architectural finding that System-ns receivers use SrcType `Component::Lua::GameEngine::LuaControl` (a deeper engine base) — distinct from Network-ns receivers' `ActorBase`. StatusBase is a SIBLING of ActorBase under LuaControl, not a subclass. |
 | #3 | Decode the 6-slot `JobQuestCompleteTripleReceiver` | 🔲 pending |
 | #4 | Decode the 6-slot `UserDataReceiver` | 🔲 pending |
 | #5 | Cross-reference each receiver to its opcode (the engine wires opcode → receiver at script load; need to find that registration) | 🔲 pending |
@@ -136,30 +136,35 @@ actor class hierarchy** that the engine wires receivers against:
 
 | Subclass | RTTI addr | # Receivers | Receivers |
 |---|---|---:|---|
-| `ActorBase` | `0x01270964` | — (source) | (every receiver casts FROM this) |
+| `Component::Lua::GameEngine::LuaControl` | `0x01270b4c` | — (System-ns source) | System namespace receivers cast FROM this (deeper than ActorBase) |
+| `ActorBase` | `0x01270964` | — (Network-ns source) | Network namespace receivers cast FROM this |
 | `MyPlayer` | (TBD) | 12 | AchievementPoint/Id/AchievedCount, AddictLoginTimeKind, AttributeTypeEventEnter/Leave, ChocoboReceiver, ChocoboGrade, GoobbueReceiver, VehicleGrade, EntrustItem, SetCommandEventCondition |
 | `NpcBase` | `0x012709e4` | 5 | ExecutePushOnEnter/LeaveTriggerBox, HateStatus, SetEventStatus, SetTalkEventCondition |
-| `CharaBase` | (TBD) | 4 | ChangeActorExtraStat, ChangeActorSubStatModeBorder, ChangeSystemStat, SetDisplayName |
+| `CharaBase` | `0x012709a4` | 4+1 | ChangeActorExtraStat, ChangeActorSubStatModeBorder, ChangeSystemStat, SetDisplayName, *+ ChangeActorSubStatStatus secondary cast (Phase 9 #2)* |
 | `PlayerBase` | (TBD) | 3 | AchievementTitle, GrandCompany, JobChange |
 | `DirectorBase` | `0x012bf9c8` | 1 | SetNoticeEventCondition |
 | `AreaBase` | (TBD) | 1 | HamletSupplyRanking |
+| `StatusBase` | `0x012c31f8` | 0+1 | *ChangeActorSubStatStatus primary cast (Phase 9 #2; sibling of ActorBase under LuaControl)* |
 | `WorldMaster` | (TBD) | 1 | SendLog |
 
-Inferred class diagram (**confirmed via vtable-comparison + ctor-chain
-analysis in Phase 9 #8d** — see `docs/lua_actor_class_construction.md`):
+Inferred class diagram (**refined via Phase 9 #2** — adds the deeper
+`LuaControl` base and the `StatusBase` sibling under it; see
+`docs/event_change_actor_substat_status_decomp.md`):
 
 ```
-Application::Lua::Script::Client::Control::
-  ActorBase                       (universal base; ALL receivers cast FROM)
-    ├── CharaBase                 (anything with character stats — players + NPCs)
-    │     ├── NpcBase             (5 receivers — non-player NPCs / mobs)
-    │     └── PlayerBase          (3 receivers — local + remote players)
-    │           └── MyPlayer      (12 receivers — local player ONLY)
-    ├── DirectorBase              (1 receiver — directors, content groups, etc.)
-    ├── AreaBase                  (1 receiver — zones/private-areas/hamlets)
-    │     └── PrivateAreaBase     (no receiver — slot 0 differs from AreaBase)
-    ├── QuestBase                 (no receiver — vtable diverges significantly)
-    └── WorldMaster               (1 receiver — engine-global broadcasts)
+Component::Lua::GameEngine::LuaControl        (deepest engine-Lua base; System-ns SrcType)
+├── Application::Lua::Script::Client::Control::ActorBase  (Network-ns SrcType)
+│     ├── CharaBase               (anything with character stats — players + NPCs)
+│     │     ├── NpcBase           (5 receivers — non-player NPCs / mobs)
+│     │     └── PlayerBase        (3 receivers — local + remote players)
+│     │           └── MyPlayer    (12 receivers — local player ONLY)
+│     ├── DirectorBase            (1 receiver — directors, content groups, etc.)
+│     ├── AreaBase                (1 receiver — zones/private-areas/hamlets)
+│     │     └── PrivateAreaBase   (no receiver — slot 0 differs from AreaBase)
+│     ├── QuestBase               (no receiver — vtable diverges significantly)
+│     └── WorldMaster             (1 receiver — engine-global broadcasts)
+│
+└── Application::Lua::Script::Client::Control::StatusBase  (status-effect wrapper; sibling of ActorBase)
 ```
 
 **Inheritance edges confirmed by Phase 9 #8d:**
