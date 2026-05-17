@@ -130,6 +130,56 @@ Concrete next-session leads:
   (per `docs/decomp-status.md` Phase 1); finding callers of RUDP2's
   ctor would surface the channel-construction code.
 
+### Additional structural recovery — 2026-05-17 (this session, continued)
+
+Decoded `FUN_00db1960` (the packet dequeue called by `FUN_00dae520`):
+98 bytes. Reads `[ECX+0x40]` (queue size), `[ECX+0x3c]` (head ptr),
+`[ECX+0x38]` (queue base). Key line — copies the Channel pointer from
+the queue entry to the output struct:
+
+```c
+ECX = entry[+0x8];                ; entry's stored channel ptr
+[out_struct + 0x8] = ECX;         ; copy to caller's local struct
+```
+
+So **`packet[+8]` (used by `FUN_004e5ff0` as the Channel pointer) is
+populated at dequeue time from `queue_entry[+0x8]`**. The queue entry
+must have been set up at ENQUEUE time — i.e., when the RUDP2 layer
+receives a packet and routes it to a channel. To find that enqueue
+site is the next concrete sub-step.
+
+Decoded the 4 sub-object tick calls in `Rapture::Application::Tick`:
+
+| Field | Tick fn | RVA range | Role (inferred) |
+|---|---|---|---|
+| `[+0x50]` | `FUN_00c99830` | 0x899830 | Lua engine subsystem (script tick?) |
+| `[+0x54]` | `FUN_00c97030` | 0x897030 | Lua engine subsystem |
+| `[+0x58]` | `FUN_00c98160` | 0x898160 | Lua engine subsystem |
+| `[+0x60]` | `FUN_004e30a0` | 0x0e30a0 | ChannelMgr (network) |
+| `[+0x64]` | `FUN_004daa10` | 0x0daa10 | Large container (LEA EBP, [EDI+0x17928] — uses fields out to +0x17928, suggesting actor-manager / world-state) |
+
+So `[Rapture+0x50/0x54/0x58]` are NOT the 3 channels — they're 3 Lua
+engine subsystems (script tick, callback dispatch, etc.). The 3
+channels live deeper (inside the ChannelMgr at `[+0x60]` or set up by
+the RUDP2 layer).
+
+The ChannelMgr fields used by `FUN_004e30a0`:
+- `[+0x234]` — sub-pointer (the actual ChannelManager state — has its
+  own vtable, since FUN_004e30a0 calls `[CALL [EAX+0x70]]` virtually
+  on it)
+- `[+0x308]..[+0x3b0]` — timing fields (per-frame stats)
+- `[+0x70]` — virtual ptr (probably the per-channel manager)
+
+So the **ChannelMgr structure**: `Rapture+0x60` is a wrapper that holds
+the real network-manager pointer at `[+0x234]`, plus timing stats. The
+real manager's vtable[N] for various N is what's called to do work.
+This explains why `FUN_004e30a0` itself isn't virtual — it's a wrapper
+that does timing + delegation.
+
+This adds another rung to the trace: ChannelMgr's `[+0x234]` is the
+class to identify (it has at least vtable[?=0x1c]=slot 7 used in
+FUN_004e30a0).
+
 ## Independent value
 
 Even without closing Half A, this session recovered:
