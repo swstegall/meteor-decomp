@@ -591,6 +591,10 @@ hook). Confirm via Ghidra's call-graph view.
 
 ## Cross-references
 
+- **`docs/kick_dispatcher_clearer.md` — 2026-05-16: identifies
+  `FUN_006e32f0` (76 B, MyPlayer::vtable[66]) as the SOLE writer of
+  NO_ACTOR to both `[+0x128]` and `[+0x12c]`. Sharp tool for the
+  SEQ_005 stale-target unblock.**
 - `docs/director_base_hooks.md` — Phase 6 #8 doc for DirectorBase's
   34-slot vtable. Slot 3 of the receiver here probably trampolines
   into one of those director slots.
