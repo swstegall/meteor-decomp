@@ -249,22 +249,22 @@ through a Lua-VM closure or a computed-index call (`CALL [EAX +
 ECX*4]`) where the slot index is loaded at runtime from a packet
 header field or a per-opcode constant.
 
-The next investigation: find the dispatcher that walks the actor
-pointer plus the opcode, picks the slot index, and invokes it. The
-two candidate paths:
+**Update 2026-05-16 — `docs/packet_dispatch_router.md`:**
+`FUN_004e20a0` is now decoded. It's a 4-case channel-control router
+(opcodes 1/2/0xe/0x11 inline; everything else forwards to
+`FUN_004e5ff0`). `FUN_004e5ff0` does channel-bound dispatch via
+`channel->vtable[2]` after a tree-walk lookup (`FUN_004e5ca0`) keyed
+on a packet header field. The dispatch genuinely is NOT a static
+C++ vtable call — the tree-lookup result is most likely a Lua-VM
+closure, and the per-opcode binding lives in script-load
+registration code (sibling to `FUN_0078e3a0` per
+`docs/lua_class_registry.md`).
 
-- The packet dispatcher chain off `FUN_00dae520`
-  (Phase 8 #9 `network_dispatch_dual_paths.md`) — already known to
-  read the opcode but discard most dispatch via DummyCallback. The
-  caller `FUN_004e20a0` (1442 B) is the real router — needs decomp.
-- The Lua VM call-helper. The 90 LuaActorImpl slots are also
-  Lua-callable methods; Lua scripts compiled into the `.le.lpb`
-  bytecode (decoded in `lpb_format.md`) invoke them via the standard
-  Lua-C binding mechanism. Some opcodes might dispatch via a per-
-  opcode Lua function that calls `actor:doSomething()`.
-
-Once the opcode → slot map is recovered, Phase 9 #7 ("cheat-sheet of
-what gate does each opcode's receiver check") falls out for free.
+The remaining work to close #5: walk the script-load Lua-closure
+registration (~medium cost) or decode `.le.lpb` scripts looking for
+`bindOpcode(0x012F, …)`-shaped binders (~higher cost). Once recovered,
+Phase 9 #7 ("cheat-sheet of what gate does each opcode's receiver
+check") falls out for free.
 
 ## Regenerating
 
