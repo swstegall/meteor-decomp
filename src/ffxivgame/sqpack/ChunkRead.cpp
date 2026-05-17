@@ -114,6 +114,20 @@ protected:
 //      independent of source operand order or pointer-vs-int
 //      phrasing.
 //
+//      Iteration #6 [PARTIAL — 80/81, identical bytes]
+//      `size = (unsigned)m_cursor + 8 + size;`  Tried 2026-05-17.
+//      Moving m_cursor to the explicit LHS of the addition does
+//      NOT flip the SIB byte — MSVC's instruction-emit normalisation
+//      picks (base=EAX, index=ESI) regardless of source operand
+//      order in the C++ expression.
+//
+//      Iteration #7 [PARTIAL — 7/82, REGRESSED]
+//      `m_cursor += 8; m_cursor += size; size = (unsigned)m_cursor;`
+//      Tried 2026-05-17. Splitting the addition forces MSVC to NOT
+//      use the LEA trick at all — it loads/stores m_cursor twice
+//      and the output is 82 bytes (1 byte over orig). Strongly
+//      regressed. Don't repeat this pattern.
+//
 //   The 80/81 PARTIAL is the closest with straightforward C++.
 //   The remaining 1-byte gap is a SIB encoding choice
 //   (mine: 0x30 = base=EAX index=ESI; orig: 0x06 = base=ESI
