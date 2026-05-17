@@ -185,6 +185,12 @@ different paths.
 
 ## Cross-references
 
+- `docs/receiver_dispatch_via_actorimpl.md` — **Phase 9 #5 (2026-05-16):
+  closes the "Lua engine wires them up" hypothesis above with a
+  concrete mapping — 35 of 42 Receivers dispatch via specific vtable
+  slots on `Component::Lua::GameEngine::{LuaActorImpl, NullActorImpl}`,
+  including slot 56 = Kick, slot 57 = RunEventFunction, slot 58 =
+  EndEvent (the SEQ_005 event lifecycle).**
 - `docs/group_system_decomp.md` — Group system + PacketProcessor +
   SharedWork + SyncWriter + per-opcode wire formats for the
   no-Receiver opcodes

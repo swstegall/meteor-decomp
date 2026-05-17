@@ -1127,6 +1127,14 @@ In rough priority order:
 9. Decompile `*ProtoChannel::Recv`/`Send` paths into C++ headers
    under `include/net/` for the remaining fields not yet captured
    in `lobby_proto_channel.h`.
+10. **Close Phase 9 #5 — opcode → receiver registration**. 35 of 42
+    Receivers are now mapped to specific `LuaActorImpl`/`NullActorImpl`
+    vtable slots (`docs/receiver_dispatch_via_actorimpl.md`, 2026-05-16).
+    Still pending: the per-opcode dispatcher that picks the slot index.
+    Candidates: `FUN_004e20a0` (1442 B router downstream of the dummy
+    callback chain — Phase 8 #9), or the Lua VM call-helper. Closing
+    this would auto-complete Phase 9 #7 ("cheat-sheet of what gate does
+    each opcode's receiver check").
 
 ## Toolbox
 
