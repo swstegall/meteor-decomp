@@ -149,25 +149,65 @@ plausibly one of the `<X>ProtoChannel` instances or its nested
 `ServiceConsumerConnectionManager`. Each instance has its own
 `std::map` of opcode → handler at `[+8]`.
 
-## Where the tree gets populated — still open
+## Where the tree gets populated — narrows further
 
-`FUN_004e4dd0` is the INSERT helper, but the SCRIPT-LOAD or
-SESSION-INIT site that calls it with the per-opcode handler pairs is
-still unrecovered. To find it, search for callers of `FUN_004e4dd0`
-that pass:
-- arg1 = `&channel_instance[+8]` (the map root)
-- key = an opcode value
-- value = a function pointer or Lua-closure ref
+`FUN_004e4dd0` is the INSERT helper. Looking at its callers:
 
-Or, search for callers of the `FUN_004e5ca0`-style operator[]
-elsewhere — code that does `map[opcode] = handler` would walk the
-tree once and assign.
+| Caller | Insert call count | Role |
+|---|---:|---|
+| `FUN_004e5ca0` | 1 | `std::map::operator[]` (the lookup-or-insert) |
+| `FUN_0067f1d0` | 1 | TBD — single-insert wrapper |
+| `FUN_007facd0` | 1 | TBD |
+| `FUN_00871050` | 1 | **ANOTHER `std::map::operator[]` — structurally identical to FUN_004e5ca0** (different K/V types) |
+| `FUN_0081eeb0` | 7 | `std::map::_Insert_with_hint` (multi-branch STL machinery) |
+| `FUN_00871950` | 7 | Same — different K/V types |
+
+Critical realization: **there is no single "the binder"**. MSVC
+template-instantiated the STL map operations once PER concrete K/V
+type. So `FUN_004e5ca0` is operator[] for ONE map type (the one used
+by Channel's per-opcode tree); `FUN_00871050` is operator[] for a
+DIFFERENT map type (different concrete K/V). They have byte-identical
+structure but different addresses because they belong to different
+type instantiations.
+
+This means the search for the binder narrows to: **callers of
+`FUN_004e5ca0`-the-specific-instantiation that pass a Channel
+instance + write a non-default value to the result**. The 20+ callers
+of `FUN_004e5ca0` recovered are:
+
+- `FUN_004e5ff0` — the known dispatch (lookup, not insert)
+- `FUN_004e5d60`, `5df0`, `5f80`, `6080` — sibling network dispatchers
+- `FUN_007a02d0` (×2), `7d2b10`, `7fa030` — Lua engine area helpers
+- `FUN_0080d030`, `0080d170` — script-related
+- `FUN_008a7b00`, `8a7b30` — receiver area
+- `FUN_008e3600` — sync primitive area
+- `FUN_00daf110`, `daf210`, `db33a0`, `db3430` — network primitives
+- `FUN_00537620`, `FUN_00871050` (self), `FUN_0081eeb0` (self)
+
+The most likely SCRIPT-LOAD-time binders are among the Lua-engine /
+script-area callers (`FUN_007a02d0`, `0080d030`, `0080d170`). Walking
+those would identify the per-opcode binder for the receiver path.
 
 The other promising lead: each `<X>ProtoChannel::ServiceConsumerConnectionManager`
 ctor (Phase 9 ext2 metadata sweep should have ctor RVAs) likely
 initializes the std::map. Looking up the ctor in `class_metadata.json`
 for `Application::Network::ZoneProtoChannel::ServiceConsumerConnectionManager`
 would give a starting point.
+
+### Architectural takeaway
+
+The per-opcode receiver dispatch is implemented as a
+**`std::map<opcode_u32, handler_value>` keyed on opcode**, instantiated
+ONCE per Channel class. The handler_value (4 bytes) is most plausibly:
+
+- A direct C function pointer to a wrapper that builds a Receiver
+  (Pattern A/B/C from `receiver_gate_cheatsheet.md`)
+- OR a Lua-VM closure handle / table index
+
+To determine which, the next-step work is to find ONE binder call site
+and look at what value gets stored. If it's a `.text` address (in
+`0x1000..0xb3d000`), it's a C fn ptr. If it's a small index or a
+`.rdata`/heap address, it's a Lua closure handle.
 
 ## Practical impact
 
