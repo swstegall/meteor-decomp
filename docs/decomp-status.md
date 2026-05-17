@@ -1047,7 +1047,7 @@ Source under [`src/ffxivgame/install/`](../src/ffxivgame/install/).
 | `InstallUnpacker::WaitForReady` | (tiny) | 71 B | ✅ GREEN | Spin loop using `InterlockedExchangeAdd` |
 | `ResourceQueue::TryEnqueue` | — | 122 B | ✅ GREEN | |
 | `ChunkSource::ReleaseChunk` | — | 124 B | ✅ GREEN | |
-| `ChunkSource::AcquireChunk` | — | 144 B | 🟡 144/144 PARTIAL | 21 byte mismatches, structurally aligned — a few iterations away from GREEN |
+| `ChunkSource::AcquireChunk` | — | 144 B | 🟡 130/132 PARTIAL (98.5 %) | Reaffirmed 2026-05-17: exactly **2 byte diffs** at fn offsets +0x6a and +0x77 — both are the **SIB byte** of `MOV reg, [SIB+disp8]`. Orig SIB=0x16 (base=ESI byte_off, index=EDX m_entries); ours SIB=0x32 (swapped). Same effective address, different register-as-base choice. Tried multiple ptr-arith / array-syntax / hoist variations — none flip MSVC's SIB normalisation. Real GREEN requires inline asm. Accepted as PARTIAL. |
 | `InstallUnpacker::Unpack` (slot 2) | `0x008c6700` | 490 B | 🟡 428/490 (Iteration #1) | 249 mismatches; deferred pending parent-class layout recovery + helper signatures (see "Next blocker" below) |
 
 All six kernel32 IAT entries the unpacker uses have been resolved
@@ -1099,9 +1099,14 @@ In rough priority order:
 
 1. **Push `InstallUnpacker::Unpack` GREEN** — biggest remaining
    Phase-4 win. Needs the four Ghidra-GUI deliverables above.
-2. **Push `ChunkSource::AcquireChunk` GREEN** — 144/144 with 21 byte
-   mismatches; structurally aligned, just needs cookie-frame /
-   register-allocation iteration.
+2. ~~**Push `ChunkSource::AcquireChunk` GREEN**~~ — Re-checked 2026-
+   05-17 and confirmed PARTIAL at **130/132 (98.5 %)** with exactly
+   2 byte diffs at fn offsets +0x6a / +0x77. Both diffs are the SIB
+   byte (`0x32` ours vs `0x16` orig) — same effective address,
+   different MSVC register-as-base choice. Multiple iterations did
+   not flip the encoding. **Real GREEN requires inline asm**;
+   pragmatically accepted as PARTIAL since the bytes are
+   semantically identical to orig.
 3. **Push `Utf8String::Reserve` + `Utf8StringAlloc/Free` GREEN** —
    pending Ghidra GUI on the slab-allocator globals
    (see [`ghidra-tasks.md`](ghidra-tasks.md)).

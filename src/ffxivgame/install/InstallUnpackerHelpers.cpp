@@ -238,19 +238,38 @@ void ChunkSource::ReleaseChunk(int handle) {
 // AcquireChunk is the atomic state-3-to-state-4 transition with
 // round-robin cursor advance via CAS.
 //
-// Match status: 142/144 (98.6 %). 2-byte gap is at the two
-// `*(int *)((char *)m_entries + byte_off + N)` accesses near the
-// end. Both compile to the same SIB byte choice
-// (0x32: index=ESI byte_off, base=EDX m_entries) regardless of
-// whether the C source uses pointer arithmetic, array-element
-// access, intermediate base pointers, or operand swaps. Orig
-// emits SIB 0x16 (index=EDX, base=ESI). Both encode the same
-// effective address; difference is purely MSVC's internal
-// SIB-emit normalisation that can't be coaxed from C source
-// alone. Iterations attempted 2026-05-02 (commit b5de6bd9e and
-// before): operand swap, intptr_t cast, explicit base local,
-// array-element access — all produce the same bytes. Real GREEN
-// would need inline asm or a different addressing pattern.
+// Match status (post-reloc-mask): 130/132 = 98.5 % match, with
+// exactly **2 byte diffs** at function offsets +0x6a and +0x77.
+// Both diff sites are the **SIB byte** of `MOV reg, [SIB+disp8]`:
+//
+//   Orig:  SIB byte 0x16 = scale 1 × index=EDX m_entries + base=ESI byte_off
+//   Ours:  SIB byte 0x32 = scale 1 × index=ESI byte_off  + base=EDX m_entries
+//
+// Both encode the same effective address (m_entries + byte_off + 4
+// or +8); MSVC's choice of which register gets "base" vs "index"
+// differs from the original compile. The encoding depends on
+// MSVC's internal register-allocation heuristics (which register
+// was loaded last, register pressure, instruction scheduling),
+// not on the C source's surface syntax.
+//
+// Iterations attempted (without changing match):
+//   2026-05-02 (commit b5de6bd9e + earlier): operand swap,
+//   intptr_t cast, explicit base local, array-element access
+//   2026-05-17: removed entry_slot hoist (regressed to 19 diffs;
+//   reverted), tried ptr-arith form `*(int *)((char *)m_entries +
+//   byte_off + N)` (same 2 SIB-byte diff)
+//
+// Real GREEN would require either:
+//   (a) inline asm for the two final reads (would also need to
+//       match the surrounding register-allocation context, which is
+//       compiler-driven)
+//   (b) a different addressing pattern that's never been tried —
+//       but the existing iteration space is large enough to suggest
+//       this is genuinely a compiler artifact, not a source issue
+//
+// Pragmatic verdict: accept PARTIAL at 98.5 % match. The 2-byte
+// SIB encoding diff is semantically identical to the orig; only
+// the byte representation differs.
 
 int ChunkSource::AcquireChunk(int *out_data) {
     long state = InterlockedExchangeAdd(&m_state, 0);
@@ -272,10 +291,11 @@ int ChunkSource::AcquireChunk(int *out_data) {
         long swapped = InterlockedCompareExchange(&m_cursor, next, cursor);
         if (swapped == cursor) {
             InterlockedExchange((long *)((char *)m_entries + byte_off), 4);
-            // Use array-element access on m_entries — m_entries[cursor]
-            // is a chunk_entry, then .data and .handle access the +4
-            // and +8 fields. Hoping MSVC's array-indexing path picks
-            // the alternate SIB encoding (orig's 0x16 over mine's 0x32).
+            // 2-byte SIB encoding diff at this site (see fn header
+            // for full analysis). Both array-syntax and ptr-arith
+            // forms produce the same `MOV reg, [EDX + ESI*1 + N]`
+            // bytes; orig uses `[ESI + EDX*1 + N]` instead. Same
+            // effective address, different register assignment.
             *out_data = m_entries[cursor].data;
             return m_entries[cursor].handle;
         }
