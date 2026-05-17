@@ -433,6 +433,107 @@ Concrete next-session leads:
    "channel" parameter isn't actually something else (PacketHeader,
    DispatchContext, etc.).
 
+## 2026-05-17 — ConsumerConnection slot 2 + FUN_00d36020 walked
+
+Both walked; both **NOT** the per-opcode dispatcher.
+
+### ConsumerConnection slot 2 (FUN_00db7440, 392 B) — outgoing buffer commit
+
+Behavior: enters critical section via IAT call → manages a 4096-byte
+outgoing buffer at `[this+0x88..+0x1088]` (write position `[+0x28]`,
+size `[+0x1088..+0x1098]`) → memcpy via `FUN_009d4600` → if buffer
+overflows (>= 0x1000) allocate spill via `FUN_009d5110` → exits
+critical section via IAT JMP.
+
+This is the **outgoing packet serialization commit** — assembling
+bytes for transmission. Not per-opcode dispatch.
+
+### FUN_00d36020 (52 B) — first-non-null callback dispatcher
+
+```c
+int dispatch(this) {
+    if (this[+0xc])  JMP this[+0xc]->vtable[8](this[+0xc]);   // callback A
+    if (this[+0x14]) JMP this[+0x14]->vtable[10](this[+0x14]); // callback B
+    if (this[+0x1c]) {                                          // callback C
+        ECX = this[+0x1c];
+        JMP this[+0x1c]->vtable[9]();
+    }
+    return -1;
+}
+```
+
+The registry at `ConsumerConnection+0x58` has 3 polymorphic callback
+slots; this fn invokes the first non-null one. NOT per-opcode dispatch.
+
+### Re-tracing packet[+8]'s true type
+
+Re-examining `FUN_00db1960` (the dequeue), each queue entry has:
+- `[+0]`: next pointer (list-style)
+- `[+8]`: the "packet header" value (copied to out_struct[+8])
+
+This is an **MSVC `std::list<T>`** node (the `_Next/_Prev/_Myval`
+layout). So packets are enqueued as `std::list<PacketHeader*>` entries,
+not a custom queue.
+
+The "channel" parameter in `FUN_004e5ff0` (ECX = packet[+8]) is a
+**`PacketHeader`** class — has its OWN vtable, std::map at +0x8, and
+inspector context at +0x14. **Distinct from ConsumerConnection**.
+
+PacketHeader's class identity is the remaining mystery. To find it:
+- Need to identify what writes the vtable at `[fresh_packet_header+0]`
+- Most likely in the RUDP2 receive layer (decompression / packet
+  reassembly), upstream of the queue
+- Could also be a template instantiation (per-channel PacketHeader
+  type, since each ProtoChannel has its own `PacketBufferTmpl`
+  per Phase 9 ext2 metadata)
+
+### Cumulative class chain — what's known now
+
+```
+Main  (?AVMain@@)
+  ↓ +0x30
+Rapture::Application  (vt 0xb8cc1c)
+  ↓ +0x60
+ChannelMgr  (RTTI TBD; non-virtual tick = FUN_004e30a0)
+  ↓ +0x234
+NetworkManager  (RTTI TBD; vtable[7] = the actual work fn called by FUN_004e30a0)
+  ↓ owns 3 instances of
+ServiceConsumerConnectionManager (SCCM)  per ProtoChannel
+  - ZoneProtoChannel::SCCM: vt @ 0x01129768, ctor FUN_00db7c50 (183 B)
+  - ChatProtoChannel::SCCM: ctor FUN_00db2820
+  - LobbyProtoChannel::SCCM: TBD (not in Phase 9 ext2 sweep)
+  ↓ extends
+ConnectionManagerTmpl (CMT)
+  - ZoneProtoChannel::TZoneProtoUp::CMT: vt @ 0x01129754, ctor FUN_00db8330
+  - CMT's ctor initializes a std::map at this+0xc (sentinel + size=0)
+  ↓ allocates at SCCM[+0xf4]
+ConsumerConnection (vt @ 0x0112973c, 4320 bytes)
+  - ctor body: FUN_00db76f0
+  - slot 1 (drain): FUN_00db7d10 — uses [+0x8..+0x18] as circular buffer
+  - slot 2 (commit): FUN_00db7440 — uses [+0x88..+0x1088] as 4 KB outgoing buffer
+  - lifecycle callbacks at +0x58 (registered via FUN_00d36280/2c0/3e0/440/4a0/61c0)
+  ↓ produces/dequeues
+PacketHeader  (RTTI TBD — the remaining mystery)
+  - has vtable at [+0]
+  - has std::map<u32 opcode, T> at [+0x8] — the per-opcode tree
+  - has inspector context at [+0x14]
+  - inspector inner struct at [+0x24] holds opcode at [+2]
+  - referenced from queue entries' [+8]
+```
+
+**Per-opcode binder = STILL OPEN.** The PacketHeader class is the
+remaining identification target. Once recovered, its ctor will reveal
+where the per-opcode std::map gets populated.
+
+### Recommendation for next pass
+
+Rather than continuing the binder hunt (which has shown 5 successive
+"close but not it" results), best ROI is probably to **pivot to a
+different Phase 9 thread** (e.g. #8e final push, Phase 4 matching, or
+SetPushEventCondition template). The architectural map is now
+extensive enough that a future session with fresh focus can finish
+Half A in one targeted attempt.
+
 ## Practical impact
 
 - **The `channel[+8]` tree IS an `std::map<u32, T>`**, not a custom
