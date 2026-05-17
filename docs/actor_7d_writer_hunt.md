@@ -115,6 +115,80 @@ To find the actual `+0x7d` writer, the most productive path is:
    equivalent) during a known-good pmeteor cinematic. Observe the
    instruction that fires the write.
 
+## 2026-05-17 (later) — actor[+4] is NULL by default + structural confirmation
+
+Read ActorBase ctor (`FUN_006dbb70`, 107 B) — initializes:
+- `[this+0]` = `0xfd4fe4` (ActorBase vtable)
+- `[this+8]` = sub-object init via `FUN_00445cf0`
+- `[this+0x5c]` = 0, `[this+0x5d]` = 0 (zeros)
+- **`[this+4]` is NOT touched** by ActorBase ctor
+
+Then walked parent ctor `FUN_00cccb70` (16 B):
+```c
+LuaControl::LuaControl(this) {
+    [this] = 0x0110e30c;       // LuaControl vtable
+    [this+4] = 0;               // ⭐ initialize +4 to NULL
+}
+```
+
+**Definitively confirmed**: `actor[+4]` is **initialized to NULL** by
+the parent `LuaControl::LuaControl` ctor. It's a lazy-init pointer
+field, set non-NULL later by some "BindActor" / "ScriptBind" handler.
+
+### FUN_00cd7a30 callers — 26 registry helpers, NONE write +0x7d
+
+Walked all 26 distinct callers of `FUN_00cd7a30` (the per-actor
+context lookup). None of them contain a `[reg+0x7d]` write
+(neither `MOV byte [reg+0x7d], imm` nor `MOV [reg+0x7d], reg8`).
+The 26 are all `FUN_00cc7xxx` / `FUN_00cd0xxx` / `FUN_00cdNNNN` style
+"registry/sync helpers" — they READ the +0x7d gate (via
+`FUN_00cc72a0`) but never WRITE it.
+
+So the +0x7d writer is in code that **bypasses the registry lookup**
+— it already has a direct pointer to the per-actor sub-object,
+probably because it CREATED that sub-object.
+
+### FUN_0043b530 — the only "dedicated +0x7d=1 setter"
+
+5-byte function: `MOV [ECX+0x7d], 1; RET`. Single caller:
+`FUN_00436130` at RVA 0x36130 (Core/Sqex area). Pattern at call site:
+
+```asm
+MOV ECX, [EDI]                ; ECX = *iterator
+CALL FUN_0043b530              ; SetReady on the dereferenced object
+```
+
+So `FUN_00436130` is iterating over a container and calling
+`SetReady(*it)` for each. NOT actor-specific — it's a generic
+"for each item in container, mark ready" loop.
+
+The container's items could be Directors, Event handlers, Lua
+bindings, etc. — but identifying THAT container's class requires
+more digging.
+
+### Where this leaves us
+
+- `+0x7d` gate is genuinely NOT on ActorBase directly
+- The per-actor `actor[+4]`-pointed sub-object is the gate owner
+- That sub-object is created lazily after actor construction
+- The +0x7d=1 setter exists (`FUN_0043b530`) but is generic
+- The bind-time code (that creates the sub-object + sets the gate)
+  hasn't been located via static analysis this session
+- **Runtime tracing remains the most productive path** for finding
+  the actual gate-set point
+
+### What's known + still open
+
+| Aspect | Status |
+|---|---|
+| +0x7d gate IS on actor sub-object (not ActorBase directly) | ✅ confirmed |
+| The sub-object lives at `actor[+4]` (lazy-init) | ✅ confirmed |
+| LuaControl ctor zeros `actor[+4]` | ✅ confirmed |
+| The +0x7d=1 setter exists (FUN_0043b530) | ✅ confirmed |
+| The sub-object's class identity | 🔲 unknown |
+| Where the sub-object gets created + bound to actor | 🔲 unknown |
+| Phase 7's "actor[+0x7d]" description needs precision update | ✅ logged |
+
 ## Cross-references
 
 - `docs/actor_5c_writer_decomp.md` — Phase 9 #8e resolution
