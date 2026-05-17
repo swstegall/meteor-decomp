@@ -274,12 +274,46 @@ Start/End), suggesting a protocol-version alias map rather than a
 dispatcher. Also ruled out: `FUN_0078fad0` (Lua-module alias init for
 `global/math/string/table`).
 
-The remaining work to close #5: walk channel-construction code (find
-who writes to `channel[+8]`, the tree root walked by `FUN_004e5ca0`)
-or decode `.le.lpb` scripts looking for `bindOpcode(0x012F, …)`-shaped
-binders (~higher cost; other-session territory). Once recovered,
-Phase 9 #7 ("cheat-sheet of what gate does each opcode's receiver
-check") falls out for free.
+**Update 2026-05-16 (still later) — definitive negative on
+static-analysis dispatch.** Every LuaActorImpl/NullActorImpl slot fn
+(checked: slots 48, 56, 57, 58, 59, 60, 78, 88 — the 5/6-slot
+dispatchers AND the SetEventStatus stack-temp dispatcher) has
+**EXACTLY ONE reference in the binary — its own vtable slot at
+RVA `0xbdfb2c+slot*4`** (or `0xbe02ac+slot*4` for NullActorImpl).
+**Zero external references in `.text`, `.rdata`, or `.data`.** This
+definitively rules out:
+
+- A static `(opcode, fn_ptr)` table — none exists.
+- A vtable copy / shim — none exists.
+- A function-pointer table indexed by opcode — none exists.
+- Direct CALL-rel32 invocation of any slot fn from anywhere — none exists.
+
+The dispatch **must** go through the Lua VM. The 90 LuaActorImpl
+slots are exposed as Lua-callable methods on the actor object via
+the standard `Component::Lua::GameEngine` closure-registration
+mechanism. When a packet arrives:
+
+1. C++ dispatcher (`FUN_004e5ca0` tree walk per
+   `docs/packet_dispatch_router.md`) looks up opcode in
+   `channel[+8]`'s tree — returns a **Lua function** (closure registered
+   at script load).
+2. C++ invokes the Lua closure via the standard `Component::Lua::
+   GameEngine` machinery.
+3. Lua bytecode in the closure does `actor:methodName(args)` —
+   resolved via Lua metatable lookup to one of the 90
+   LuaActorImpl slots.
+4. C++ slot runs, builds/dispatches the Receiver (Pattern A/B/C
+   per the table above).
+
+The remaining work to close #5 fully splits in two:
+
+| Half | Where | Cost | Yield |
+|---|---|---|---|
+| A (C++ side: opcode → Lua closure) | Find writer to `channel[+8]` tree — likely in channel-class ctor or a script-load registration sibling | Medium | Recovers the opcode → Lua-fn map |
+| B (Lua side: Lua fn → actor:method) | Walk decoded `.le.lpb` scripts for `bindOpcode(…)` and `actor:method` patterns | Higher (other-session territory) | Recovers the Lua-fn → slot map |
+
+Once both halves are recovered, Phase 9 #7 ("cheat-sheet of what
+gate does each opcode's receiver check") falls out for free.
 
 ## Regenerating
 
