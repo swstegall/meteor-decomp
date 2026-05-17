@@ -299,6 +299,140 @@ queue. Worth a separate Ghidra walk.
 The std::map at `this+0xc` (from CMT) remains EMPTY after the ctor
 chain. Population happens later — exactly the binder we're hunting.
 
+## 2026-05-17 — `ConsumerConnection` identified + lifecycle callbacks recovered
+
+Walked `FUN_00db76f0` (the 4320-byte buffer initializer called by SCCM
+ctor). Two important recoveries:
+
+### 1. The buffer IS a `ConsumerConnection` instance
+
+`FUN_00db76f0` writes its own vtable to `[buffer+0]` at offset +0x46:
+```asm
+MOV [ESI], 0x0112973c
+```
+
+Identified that vtable via COL→TD walk:
+
+```
+RTTI: .?AVConsumerConnection@ServiceConsumerConnectionManager@ZoneProtoChannel@Network@Application@@
+vtable @ RVA 0xd2973c, COL @ RVA 0xda2f10, TD @ RVA 0xf1cc68
+
+slot 0: FUN_00db8270  (scalar deleting dtor)
+slot 1: FUN_00db7d10  (drain-incoming-buffer hook — 306 B)
+slot 2: FUN_00db7440  (TBD, 268 B)
+slot 3: FUN_00db7420  (small)
+slot 4: FUN_00db73c0  (small)
+slot 5: FUN_00da2f5c  (.rdata — not a fn; bleed into next vtable)
+slot 6: FUN_00db83f0
+```
+
+So **`ConsumerConnection@ServiceConsumerConnectionManager@ZoneProtoChannel`
+is the channel class** — a 4320-byte heap-allocated object owned by the
+SCCM at SCCM[+0xf4]. Each `*ProtoChannel`'s SCCM owns its own
+ConsumerConnection.
+
+### 2. `FUN_00db76f0` registers 5 LIFECYCLE callbacks (not per-opcode)
+
+The pattern at lines `+0xe5..+0x12e` of FUN_00db76f0:
+
+```asm
+PUSH 0xdb7660; MOV ECX, EDI; CALL FUN_00d362c0     ; register callback A
+PUSH 0xdb7680; MOV ECX, EDI; CALL FUN_00d36280     ; register callback B
+PUSH 0xdb76c0; MOV ECX, EDI; CALL FUN_00d364a0     ; register callback C
+PUSH 0x78;    PUSH 0xdb76a0; MOV ECX, EDI; CALL FUN_00d363e0  ; register callback D with size 0x78
+PUSH 0x708;   PUSH 0xdb76a0; MOV ECX, EDI; CALL FUN_00d36440  ; register callback D (again) with size 0x708
+PUSH [ESI+0x4c]; MOV ECX, EDI; CALL FUN_00d361c0   ; bind something else
+```
+
+Where `EDI = buffer+0x58` (the registry sub-object inside
+ConsumerConnection).
+
+The 4 callbacks at `0xdb7660`, `0xdb7680`, `0xdb76a0`, `0xdb76c0` are
+small (16-32 byte) handlers — first-bytes inspection shows they read
+arg[+0x4], dereference further, and modify or null-check fields at
+`+0x80`. **These are LIFECYCLE handlers** (on-connect/on-disconnect/
+on-error/on-ready type events), NOT per-opcode dispatch.
+
+### 3. Per-opcode std::map is NOT inside ConsumerConnection
+
+Slot 1 of ConsumerConnection (`FUN_00db7d10`, 306 B) treats `[this+0x8..+0x18]`
+as a **circular packet buffer** (read-position word at +0x16, write-
+position word at +0x14, ring data at +0x10), NOT as an `std::map`.
+
+So the `channel+0x8` I traced earlier as a std::map in `FUN_004e5ff0`'s
+context belongs to a DIFFERENT class than ConsumerConnection. The
+"channel" parameter in `FUN_004e5ff0` is some other type — most
+likely an inner sub-object of ConsumerConnection or a different
+hierarchy entirely.
+
+The chain reconstruction needs revisiting:
+- `FUN_004e30a0` (ChannelMgr tick) calls `FUN_00dae520` (dummy
+  callback dispatch)
+- `FUN_00dae520` populates a local 0x14-byte buffer via
+  `FUN_00db1960` (the dequeue) — local buffer's [+0x8] = the
+  dispatched packet
+- Dispatch reads `packet[+0x8] = something at packet+0x24` (per
+  Phase 8 #9's analysis of the dispatcher `FUN_00dbfd10`)
+- `FUN_004e20a0` reads `[ESP+0x2c]` (= local buffer's [+0x8] = packet ptr)
+- Calls `FUN_004e5ff0` with `MOV ECX, [EDI+8]` where EDI = local buf
+
+So `FUN_004e5ff0`'s "channel" parameter is **`packet[+8]`**, which is
+some struct INSIDE the packet (not the ConsumerConnection itself).
+That struct has the std::map at its +0x8. It could be:
+- A `PacketHeader` sub-struct with a dispatch sub-table
+- A `Channel*` back-pointer that resolves to a different object than
+  ConsumerConnection
+- A `ContextSegment` (per the RUDP2 segment classes recovered)
+
+### Recovered class names (from this round)
+
+| Class | RTTI | Vtable RVA | Notes |
+|---|---|---|---|
+| `ConsumerConnection@SCCM@ZoneProtoChannel@Network@Application` | `0xf1cc68` | `0xd2973c` | 7+ slots; the per-channel object (4320 B) |
+| (other 2 ProtoChannels' ConsumerConnection) | TBD | TBD | Same template instantiation expected |
+
+### 5 register methods on the inner registry sub-object (buffer+0x58)
+
+| Method | Used with | Notes |
+|---|---|---|
+| `FUN_00d362c0` | callback ptr `0xdb7660` | Register a "no-arg" callback |
+| `FUN_00d36280` | callback ptr `0xdb7680` | Register a different "no-arg" callback |
+| `FUN_00d364a0` | callback ptr `0xdb76c0` | Register another callback |
+| `FUN_00d363e0` | callback ptr `0xdb76a0` + size `0x78` | Register with a size hint |
+| `FUN_00d36440` | callback ptr `0xdb76a0` (same) + size `0x708` | Register the SAME callback with a different size |
+| `FUN_00d361c0` | `&this+0x4c` ptr | Bind to an inner sub-object |
+
+The "register same callback with 2 different sizes" pattern
+(`0xdb76a0` with `0x78` then `0x708`) is interesting — could be 2
+size-classes of the same packet kind, OR 2 different "buckets"
+served by the same handler.
+
+### What this leaves open for Half A
+
+The original Half A goal — finding the per-opcode handler tree
+binder — remains open. This session's progress:
+
+- ✅ Confirmed `ConsumerConnection` is the per-channel class
+- ✅ Identified its vtable (0xd2973c)
+- ✅ Recovered 5 lifecycle callback registrations
+- ❌ Per-opcode std::map is NOT at ConsumerConnection+0x8 (that's a
+  circular buffer)
+- 🔲 Need to identify what type `packet[+8]` actually is (the "channel"
+  in FUN_004e5ff0's POV)
+- 🔲 Find where the per-opcode tree lives
+
+Concrete next-session leads:
+1. **Walk slot 2 of ConsumerConnection** (`FUN_00db7440`, 268 B) — the
+   "commit" hook called by `FUN_004e5ff0` after the operator[] lookup.
+   May reveal where the per-opcode dispatch actually happens.
+2. **Walk `FUN_00d36020`** — the dispatcher inside slot 1's drain loop;
+   takes the registry sub-object at `buf+0x58` and processes a buffer
+   chunk. Might contain the per-opcode lookup.
+3. **Identify the actual `packet[+8]` type** — re-trace from
+   `FUN_004e5ff0`'s caller through `FUN_004e20a0`. Re-validate that the
+   "channel" parameter isn't actually something else (PacketHeader,
+   DispatchContext, etc.).
+
 ## Practical impact
 
 - **The `channel[+8]` tree IS an `std::map<u32, T>`**, not a custom
