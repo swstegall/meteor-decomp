@@ -201,3 +201,107 @@ the best statically-narrowed candidate. The writer is more likely:
 - `memory/reference_meteor_decomp_actor_rtti.md` — the engine-side
   actor RTTI walk (RaptureActor / CDevActor / CharaActor /
   SceneObject::Actor — all of whose ctors we ruled out here)
+
+## 2026-05-17 — Final walk + new candidates surfaced
+
+Re-ran the `c6 4? 5c 01` (`MOV byte [reg+0x5c], 1`) scan with stricter
+filters (Variant family + sync primitive). The original Phase 9 #8e
+list of 5 candidates was incomplete; the fuller list is **10
+candidates** (after applying the same filters):
+
+| Function | Size | Callers | Status |
+|---|---:|---:|---|
+| `FUN_005469e0` | TBD | 0 direct, 1 .rdata ref | **NEW** — in a vtable, not yet investigated |
+| `FUN_00549330` | TBD | TBD | **NEW** — 5 write sites (probably Variant family, missed by filter) |
+| `FUN_00559f90` | TBD | TBD | **NEW** — likely Variant family (0x559xxx range) |
+| `FUN_00559fb0` | TBD | TBD | **NEW** — likely Variant family |
+| `FUN_00766f00` | 507 | 1 | Per Phase 9 #8e, plausible but per-tick context makes it unlikely |
+| `FUN_007b43e0` | 87 | 1 (FUN_00662d30) | **RULED OUT 2026-05-17**: caller passes ECX = EDI+0x1110 (a sub-object), NOT an actor. Init function for a different class with coincidentally-similar layout. |
+| `FUN_009018f0` | 81 | 1 (FUN_008f4ed0) | **TOP CANDIDATE 2026-05-17** — see below |
+| `FUN_00acc050` | 236 | 1 (FUN_00acc160) | **RULED OUT 2026-05-17**: jump-table dispatcher on first arg; writes DIFFERENT byte fields (+0xc, +0x1c, +0x5c, …) per case. Generic field-setter, not specifically the actor kick-gate. |
+| `FUN_00b8b560` | TBD | 4 (all FUN_00b8bf00) | **NEW** — "init array of 4" pattern; worth checking |
+| `FUN_00c54710` | 520 | 1 (FUN_00c28240) | Lazy-init pattern (TEST + OR on `[0x01327b14]`, MOV [global+0x1c]); needs deeper walk |
+
+### Top candidate: `FUN_009018f0` (81 B) — "queue drain → set ready" pattern
+
+```c
+void FUN_009018f0(this, arg) {   // ECX = this (= EDI), [ESP+0xc] = arg
+    EAX = [EDI+0x8];                  // load some container ptr
+    if ([EAX] == 0) goto end;         // empty? skip
+    ESI = EDI + 0x8;
+    
+    PUSH ESI; CALL FUN_004531c0;       // check container state
+    if (!AL) goto end;
+    
+    MOV ECX, EDI;
+    CALL FUN_00d3abe0;                  // check this state
+    if (AL != 0) {
+        MOV ECX, EDI;
+        CALL FUN_00d3abc0;              // post-check action
+    }
+    
+    PUSH 0; PUSH arg; PUSH ESI;
+    CALL FUN_00454020;                  // pop/process queue entry
+    
+    PUSH ESI; CALL FUN_004531c0;        // re-check container
+    if (AL != 0) goto end;              // still has stuff → don't set flag
+    
+    [EDI+0x5c] = 1;                     // ⭐ SET KICK GATE only when queue empty
+end:
+    return;
+}
+```
+
+**Why this is the top candidate**:
+- Semantically perfect for "kick gate": only sets +0x5c=1 when the
+  container at this+0x8 is FULLY DRAINED. Matches the Phase 7 finding
+  that +0x5c is a "ready for events" gate that the kick checks.
+- The function processes ONE event from the queue (`FUN_00454020`),
+  then re-checks if the queue is empty. If yes, marks the actor ready.
+- The this object has helpers `FUN_00d3abe0` / `FUN_00d3abc0` (in the
+  `0x0d3a...` range — looks like Lua-engine sync helpers).
+- The function shape (read queue → process one → check empty → set
+  ready flag) is exactly the "completion notification" pattern that
+  unblocks downstream gating.
+
+**Caller `FUN_008f4ed0`** (527 B) is a large loop function — likely
+the per-frame actor-tick driver that calls FUN_009018f0 on each actor
+that has pending queued events.
+
+### What's needed to confirm
+
+This is the strongest static-analysis candidate, but to fully confirm,
+we'd need:
+1. Identify what class `EDI` (= `this` in FUN_009018f0) is. The
+   container at +0x8 and helpers at FUN_00d3abc0/e0 should be specific
+   to one class. Cross-reference the helper RVAs against known
+   classes (Phase 9 ext2 metadata).
+2. Verify the +0x8 container's type — if it's an "event queue" /
+   "pending events" structure, that's the load-bearing confirmation.
+3. Runtime trace: set hardware breakpoint on the `MOV byte [EDI+0x5c],
+   0x1` instruction at RVA `0x501938` in the Wine'd `ffxivgame.exe`.
+   Observe what EDI points to + when the breakpoint fires during a
+   cinematic. Definitive answer.
+
+### Remaining candidates not yet walked
+
+`FUN_005469e0`, `FUN_00549330`, `FUN_00559f90`, `FUN_00559fb0`,
+`FUN_00b8b560`, `FUN_00c54710` — could be additional candidates or
+more Variant-family false positives. Best ROI for a follow-up:
+
+- `FUN_005469e0` (in a vtable): check the vtable's class via COL→TD walk
+- `FUN_00549330` (5 write sites at +0x96d/+0xa0d/+0xa60): inconsistent
+  with single-purpose actor-flag setter; probably Variant family
+- `FUN_00b8b560` (4 callers from FUN_00b8bf00): "init array of 4"
+  pattern — could be a per-actor init for 4 fixed actors. Worth a peek.
+
+### Practical impact
+
+For SEQ_005 unblock specifically, knowing the +0x5c writer doesn't
+directly fix the hang (the issue is upstream — `context_root[+0x12c]`
+stale state, per the kick clearer doc). But the writer's identity:
+- Helps verify that garlemald's spawn-packet sequence is firing the
+  same gate-set as pmeteor's
+- Lets a future debug session set a runtime breakpoint and observe
+  spawn-time ordering precisely
+- Closes a long-standing Phase 7 / Phase 9 #8e open question
