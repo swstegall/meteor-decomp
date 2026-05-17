@@ -209,6 +209,96 @@ and look at what value gets stored. If it's a `.text` address (in
 `0x1000..0xb3d000`), it's a C fn ptr. If it's a small index or a
 `.rdata`/heap address, it's a Lua closure handle.
 
+## 2026-05-17 — Found the std::map default ctor
+
+Phase 9 ext2 metadata sweep already recovered the
+`ZoneProtoChannel::ServiceConsumerConnectionManager` (SCCM) ctor at
+**`FUN_00db7c50`** (183 B). Its parent ctor is **`FUN_00db8330`**
+(`ZoneProtoChannel::TZoneProtoUp::ConnectionManagerTmpl`, 179 B), and
+**that's the function that default-initialises the std::map**.
+
+Confirmed std::map default-ctor pattern in `FUN_00db8330` (lines
+`+0x36c..+0x38b`):
+
+```asm
+LEA EDI, [ESI+0xc]                  ; EDI = &map (this+0xc)
+MOV [ESI], 0x01129754               ; write CMT vtable
+MOV [ESI+8], EAX                    ; this+0x8 = ctor arg (parent ref)
+CALL FUN_0095e590                   ; ⭐ _Buynode0() — allocate sentinel
+MOV [EDI+0x4], EAX                  ; map._Myhead = sentinel (this+0x10)
+MOV [EAX+0x15], 1                   ; sentinel->_Isnil = 1
+MOV [EAX+0x4], EAX                  ; sentinel->_Parent = sentinel  (self-ref)
+MOV [EAX+0x0], EAX                  ; sentinel->_Left = sentinel
+MOV [EAX+0x8], EAX                  ; sentinel->_Right = sentinel
+MOV [EDI+0x8], 0                    ; map._Mysize = 0
+```
+
+This is the **textbook MSVC STL `std::map::_Tree::_Tree()`** default
+constructor. Confirms the data structure 100%.
+
+The other recovered ctors:
+- `ChatProtoChannel::SCCM` ctor: `FUN_00db2820` (write at +0x49)
+- `ChatProtoChannel::TChatProtoUp::ConnectionManagerTmpl` ctor: `FUN_00db3bb0` (write at +0x35)
+- `ZoneProtoChannel::SCCM` ctor: `FUN_00db7c50` (write at +0x49)
+- `ZoneProtoChannel::TZoneProtoUp::ConnectionManagerTmpl` ctor: `FUN_00db8330` (write at +0x35) ⭐ this one
+
+`LobbyProtoChannel::SCCM` was not recovered in the Phase 9 ext2 sweep
+(only 2 of the 3 channels appeared). It's there in the binary but
+without a `dynamic_cast` callsite the sweep didn't pick it up.
+
+### Offset reconciliation note
+
+The consumer (`FUN_004e5ff0`) passes `channel+0x8` to operator[], and
+operator[] reads `[arg+0x4]` (= `channel+0xc`) as the sentinel ptr.
+The CMT ctor writes the sentinel ptr to `this+0x10` (= `[EDI+0x4]`
+where `EDI = this+0xc`). There's an apparent **4-byte offset
+discrepancy** — most likely due to one of:
+
+- MI: the consumer sees a SECONDARY base subobject offset by 4 bytes
+- The "channel" parameter in `FUN_004e5ff0` is actually `&channel[-4]`
+  effectively, perhaps because it was loaded from `packet[+8]` after a
+  thunk-adjusted dispatch
+- The ctor I identified is for ConnectionManagerTmpl, but the
+  consumer's actual channel class is a DIFFERENT template instantiation
+  with a different `this` layout
+
+Resolution needs Ghidra GUI or careful walking of the SCCM/CMT
+hierarchy with secondary-base thunks. Doesn't affect the high-level
+architectural finding (std::map, sentinel-with-self-refs, default-
+init at parent ctor).
+
+### What the SCCM ctor adds on top of CMT
+
+`FUN_00db7c50` (SCCM ctor) does AFTER calling the parent CMT ctor:
+
+```c
+SCCM::SCCM(this, arg) {
+    CMT::CMT(this, arg);                ; parent ctor (FUN_00db8330)
+    EDI = this+0x84;                    ; sub-object at +0x84
+    [this] = 0x01129768;                ; OVERRIDE vtable to SCCM
+    CALL FUN_00db7b40;                  ; init sub-object at +0x84 (?)
+    PUSH 0x10e0;                        ; alloc 0x10e0 (4320) bytes
+    CALL operator new;
+    if (success) {
+        FUN_00db76f0(buf, this);        ; init the 4320-byte buffer
+        [this+0xf4] = buf;
+    }
+}
+```
+
+So SCCM adds:
+- An override vtable at `[this+0]` (SCCM-specific)
+- A sub-object at `[this+0x84]` (initialised by `FUN_00db7b40`)
+- A 4320-byte heap-allocated buffer pointed to by `[this+0xf4]`
+  (initialised by `FUN_00db76f0`)
+
+The 4320-byte buffer is interesting — that's a substantial amount of
+storage. Plausibly the per-opcode handler table itself, or the packet
+queue. Worth a separate Ghidra walk.
+
+The std::map at `this+0xc` (from CMT) remains EMPTY after the ctor
+chain. Population happens later — exactly the binder we're hunting.
+
 ## Practical impact
 
 - **The `channel[+8]` tree IS an `std::map<u32, T>`**, not a custom
