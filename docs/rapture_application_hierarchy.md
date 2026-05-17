@@ -130,6 +130,115 @@ Concrete next-session leads:
   (per `docs/decomp-status.md` Phase 1); finding callers of RUDP2's
   ctor would surface the channel-construction code.
 
+## 2026-05-17 (Phase 9 #5 Half A continued) — `ChannelMgr` = `NetworkModule`
+
+**Definitively identified**: the "ChannelMgr" at `Rapture::Application[+0x60]`
+is `Application::Network::NetworkModule`. RTTI confirmed via vtable
+walk at VA `0x00f91b5c`. Discovery chain:
+
+1. Read Rapture's vtable slot 2 (`FUN_004b3830` — Rapture's shutdown method)
+   which tears down sub-objects at `[ESI+0x40]`, `[+0x44]`, `[+0x48]`,
+   and `[+0x60]`. For `[+0x60]`:
+   ```asm
+   MOV ECX, [ESI+0x60]
+   CMP ECX, EBP                       ; null check
+   JZ skip
+   CALL FUN_004e14b0                   ; non-virtual member fn on the sub-object
+   MOV EAX, [ECX]; MOV EDX, [EAX]
+   CALL EDX                            ; virtual dtor (vtable[0]) on the sub-object
+   MOV [ESI+0x60], EBP                 ; clear
+   ```
+   So `[Rapture+0x60]` IS a polymorphic class (has a vtable).
+
+2. Scanned `.text` in the 0xe0000..0xe5000 range (the "network module"
+   neighborhood per FUN_004e30a0 + FUN_004e14b0) for vtable-write
+   patterns (`c7 4? <imm32>` where imm32 is a `.rdata` vtable address).
+   Found 12 distinct vtables; the standout was
+   **`?AVNetworkModule@Network@Application@@` at VA `0xf91b5c`** —
+   written at RVAs `0xe0df8` (in `FUN_004e0dc0`, offset +0x38 = ctor)
+   and `0xe1f98` (in `FUN_004e1f70`, offset +0x28 = dtor).
+
+3. `FUN_004e0dc0` (NetworkModule ctor) has exactly 1 direct caller:
+   `FUN_004b2df0` (Rapture's vtable slot 0 = `Rapture::Init()`, 2545 B).
+
+4. Inside `Rapture::Init`, found at function offset +0x8f7 (RVA `0xb36e7`):
+   ```asm
+   MOV [EDI+0x60], EAX                 ; ⭐ Rapture[+0x60] = NetworkModule_ptr
+   ```
+   immediately following the `CALL FUN_004e0dc0` chain. **Confirmed**.
+
+### NetworkModule class summary
+
+| Aspect | Value |
+|---|---|
+| RTTI | `.?AVNetworkModule@Network@Application@@` |
+| Vtable | VA `0x00f91b5c` (RVA `0xb91b5c`) |
+| Vtable slot count | Effectively 1 (slot 0 = `FUN_004e8090` = scalar deleting dtor); only ONE virtual method. All other methods are non-virtual. |
+| Ctor | `FUN_004e0dc0` (1072 B) |
+| Dtor (non-scalar) | `FUN_004e1f70` |
+| Scalar deleting dtor | `FUN_004e8090` (slot 0) |
+| Per-frame tick (non-virtual) | `FUN_004e30a0` (called from `Rapture::Tick` slot 1 = `FUN_004b3c50`) |
+| Shutdown helper | `FUN_004e14b0` (called from `Rapture::Shutdown` slot 2 = `FUN_004b3830`) |
+| Outer packet router | `FUN_004e20a0` (called from `FUN_004e30a0`) |
+
+### NetworkModule[+0x234] — back-pointer to Rapture sibling
+
+Walked NetworkModule's ctor (FUN_004e0dc0). At ctor offset `+0x263`:
+```asm
+MOV [ESI+0x230], EAX                  ; +0x230 = something from ctor arg
+MOV [ESI+0x234], EBX                  ; +0x234 = ctor arg (EBX)
+```
+
+The two fields are set side-by-side from ctor args. At the call site
+(`FUN_004b2df0` offset `+0x8df`):
+```asm
+MOV EDX, [EDI+0x64]                   ; arg = Rapture[+0x64] — the "Large container"
+PUSH ESI                              ; arg = some local
+PUSH EDX                              ; arg = Rapture[+0x64]
+MOV ECX, EAX                          ; this = new NetworkModule
+CALL FUN_004e0dc0                     ; ctor
+```
+
+So `NetworkModule[+0x234]` is **a back-pointer to `Rapture[+0x64]`** —
+NOT a separately-allocated "NetworkManager" class. The earlier
+hypothesis ("deeper NetworkManager at [ChannelMgr+0x234]") was wrong;
+the +0x234 field is just a stored reference to a sibling Rapture
+sub-object.
+
+`Rapture[+0x64]` itself: allocated via `operator new(0x3b8 = 952 bytes)`
+in Rapture::Init at offset `+0x8bd` (RVA `0xb36ad`). Its per-frame tick
+is `FUN_004daa10` (which accesses `[this+0x17928]` — suggests further
+sub-pointer traversal, since 952 bytes can't directly hold that
+offset). Class identity TBD; most plausible candidates from RVA-proximate
+vtables include `MainModule@Main@Application` (vt `0xf9142c`) or
+`RaptureElementContainer@Main@Application` (vt `0xf912e4`) — both
+written in the 0xdbxxx range adjacent to FUN_004daa10.
+
+### Architectural map (refined)
+
+```
+Main (?AVMain@@)
+  ↓ +0x30
+Rapture::Application  (vt 0xb8cc1c, 7 slots)
+  ├─ vt[0]: Rapture::Init        = FUN_004b2df0 (2545 B)
+  ├─ vt[1]: Rapture::Tick        = FUN_004b3c50
+  ├─ vt[2]: Rapture::Shutdown    = FUN_004b3830
+  ├─ vt[3..6]: other lifecycle
+  ↓ +0x40/+0x44/+0x48: ...
+  ↓ +0x50/+0x54/+0x58: 3 Lua engine subsystems
+  ↓ +0x60
+  NetworkModule  (?AVNetworkModule@Network@Application@@, vt 0xf91b5c)
+    - 1 virtual slot (dtor); all else non-virtual
+    - ctor FUN_004e0dc0
+    - tick FUN_004e30a0
+    - +0x234 → back-ptr to Rapture[+0x64]
+  ↓ +0x64
+  ??? container (952 B, accesses [+0x17928] via inner sub-pointer)
+    - tick FUN_004daa10
+    - probable identities: MainModule@Main@Application OR
+      RaptureElementContainer@Main@Application (TBD)
+```
+
 ### Additional structural recovery — 2026-05-17 (this session, continued)
 
 Decoded `FUN_00db1960` (the packet dequeue called by `FUN_00dae520`):
