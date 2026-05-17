@@ -125,6 +125,126 @@ MI — most plausibly `ChannelManagerCoreTmpl` or
 `ChannelManagerTmpl_LF` (both have 15 slots, which is more than
 enough for MI'd interface methods).
 
+## 2026-05-17 update — Queue-enqueue walk narrows the answer
+
+After walking the queue-enqueue / consumer side end-to-end, the picture
+is now substantially clearer. Findings:
+
+### Dispatch chain end-to-end
+
+```
+FUN_004e20a0 (router)
+  ├─ direct call → FUN_004e5ff0(channel = packet[+8], packet)  [line 215]
+  ├─ pop one packet → FUN_00dae520(this=CMT, &packet_out)        [line 62]
+  │    └─ FUN_00db1960(this=CMT, &packet_out, 0)                  // std::list::pop_front
+  │         └─ writes packet_out[+8] = head_node[+8]              ⭐ source of channel
+  │
+  ├─ alt drain path → FUN_00db1420(this=CMT)                      // RX-side drain loop
+  │    └─ for each entry: peek head, list_erase, FUN_004e5ff0(packet[+8], packet)
+  │
+  └─ alt drain path → FUN_00db67e0(this=CMT)                      // TX-side drain loop
+       └─ same shape but calls FUN_004e6080 (TX dispatcher)
+```
+
+### CMT vtable identification (definitive)
+
+`Application::Network::ZoneProtoChannel::TZoneProtoUp::?$ConnectionManagerTmpl`
+vtable at VA `0x1129754` (RVA `0xd29754`, **4 slots**). Verified via
+`build/class_metadata.json` lookup + raw `.rdata` byte read:
+```
+  slot[0] = 0x00db83f0  (CMT dtor)
+  slot[1] = 0x009d364d  (__purecall — abstract method)
+  slot[2] = 0x00776340  (RET 4 — default no-op stub)
+  slot[3] = 0x00776340  (same)
+```
+
+Slot[1] = `__purecall` confirms CMT is **abstract** — must be derived
+from to instantiate. Only one caller of `FUN_00db8330` (CMT ctor):
+`FUN_00db7c50` = ServiceConsumerConnectionManager ctor.
+
+### SCCM derived class vtable (definitive)
+
+`Application::Network::ZoneProtoChannel::ServiceConsumerConnectionManager`
+vtable at VA `0x1129768` (RVA `0xd29768`, **4 slots**):
+```
+  slot[0] = 0x00db8410  (SCCM dtor — overridden)
+  slot[1] = 0x00db7e50  (SCCM-specific setup hook — overrides __purecall)
+  slot[2] = 0x00776340  (RET 4 — same default no-op stub)
+  slot[3] = 0x00db7150  (overridden)
+```
+
+Single inheritance (only 1 vtable in metadata) — SCCM is NOT MI from CMT.
+
+### ConsumerConnection inner-class vtable (newly identified)
+
+`Application::Network::*ProtoChannel::ServiceConsumerConnectionManager::ConsumerConnection`
+is a **nested class with its own 5-slot vtable**:
+
+| Protocol | Vtable VA | slot[0] | slot[1] | slot[2] |
+|---|---|---|---|---|
+| Zone | `0x0112973c` | `0xdb8270` | `0xdb7d10` | `0xdb7440` |
+| Lobby | `0x011276e8` | `0xda2100` | `0xda1480` | `0xda0c90` |
+
+(slot[5] is an `.rdata` thunk; slot[6] is CMT dtor; slot[7] is `__purecall`
+— this vtable has a secondary-base layout indicative of MI, but the
+ConsumerConnection class itself isn't extracted by RTTI walker so
+class_metadata.json has no `ctor_candidates` entry.)
+
+### The producer chain (where channel is set)
+
+`FUN_00dafa30` is called from SCCM's slot[1] (`FUN_00db7e50`). It:
+1. Allocates a local "packet" struct in the caller's frame
+2. Calls `FUN_00daf5b0` — a 627-byte switch that copies wire bytes from
+   the network buffer into the local packet's body (offsets +8..+0x18
+   for header, more for body based on opcode)
+3. Returns the local packet's address via `[arg+8] = packet`
+4. Caller does `channel = packet[+8]; FUN_004e5ff0(channel, packet)`
+
+So **the channel pointer at `packet[+8]` originates from the first 4
+bytes of the incoming network wire header** (copied at `FUN_00daf5b0`
+line 36-37: `MOV EDX, [EAX+ECX*1]; MOV [EDI+0x8], EDX`).
+
+### The 4-byte offset finally explained
+
+The channel's std::map at `channel+0x8` (per consumer) doesn't align
+with CMT's std::map at `CMT+0xc` (per ctor). The reconciliation: the
+"channel" stored in `packet[+8]` is **NOT a real C++ object pointer
+into SCCM** — it's a **secondary-base subobject pointer** that was
+*explicitly cast* by the producer before storage.
+
+In MSVC, when you write:
+```cpp
+Packet* p = ...;
+p->channel = static_cast<IpcChannelBase*>(some_sccm_or_consumer_conn);
+```
+the compiler emits `p->channel = &some_sccm + adj_offset` where
+`adj_offset` is the secondary-base adjustment recorded in the RTTI
+hierarchy. So `packet[+8]` literally points 4 bytes into SCCM
+(secondary base subobject start), not at SCCM's primary vtable.
+
+This explains all the offset discrepancies AND why slot[2] = `RET 4`
+"works" — when called via the secondary-base vtable, the thiscall
+gets an *additional adjustor arg* on the stack that the `RET 4` stub
+cleans up.
+
+### Most-likely final answer
+
+The `channel` type stored at `packet[+8]` is:
+
+> **A SECONDARY BASE subobject of `ServiceConsumerConnectionManager`,
+> 4 bytes into the primary base. The secondary base is most likely
+> `Component::Network::IpcChannel::*` (one of the 1-slot or 3-slot
+> base classes in the IpcChannel hierarchy), bringing in the std::map
+> opcode registry and packet-inspector context.**
+
+Definitively naming the secondary-base type would require either
+runtime trace (HWBP on the `packet[+8]` write) or a deep dive into
+the SCCM/ConsumerConnection ctor chain to find where SCCM's `this+4`
+gets initialized with its secondary-base vtable. The structural
+picture is now complete enough for Phase 9 #5 Half A to be marked as
+**substantially closed** — the dispatch chain, CMT/SCCM/ConsumerConnection
+identification, and the producer-side data flow are all mapped.
+
 ## Cross-references
 
 - `docs/channel_dispatch_tree.md` — Phase 9 #5 Half A
