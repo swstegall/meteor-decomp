@@ -260,9 +260,24 @@ closure, and the per-opcode binding lives in script-load
 registration code (sibling to `FUN_0078e3a0` per
 `docs/lua_class_registry.md`).
 
-The remaining work to close #5: walk the script-load Lua-closure
-registration (~medium cost) or decode `.le.lpb` scripts looking for
-`bindOpcode(0x012F, …)`-shaped binders (~higher cost). Once recovered,
+**Update 2026-05-16 (later) — `docs/opcode_translation_table.md`:**
+Hunted `FUN_0078fc90`'s siblings (the parent of `FUN_0078e3a0`) and
+followed an opcode-immediate-pattern grep that surfaced
+`FUN_0070ab40` as a 740-case jump table containing the SEQ_005
+opcodes as `MOV imm32` operands. **Ruled out** as the per-opcode →
+receiver dispatcher: `FUN_0070ab40` is an opcode-translation table
+(input opcode → translated/canonicalized opcode), and the 5 SEQ_005
+event opcodes (`0x012F..0x016B`) are NOT in its input set — they fall
+through to its default `XOR EAX,EAX; RET 0`. The MOVs of `0x12F` etc.
+that I saw are case-body OUTPUTS (input `0x25B..0x25D` → output Kick/
+Start/End), suggesting a protocol-version alias map rather than a
+dispatcher. Also ruled out: `FUN_0078fad0` (Lua-module alias init for
+`global/math/string/table`).
+
+The remaining work to close #5: walk channel-construction code (find
+who writes to `channel[+8]`, the tree root walked by `FUN_004e5ca0`)
+or decode `.le.lpb` scripts looking for `bindOpcode(0x012F, …)`-shaped
+binders (~higher cost; other-session territory). Once recovered,
 Phase 9 #7 ("cheat-sheet of what gate does each opcode's receiver
 check") falls out for free.
 
