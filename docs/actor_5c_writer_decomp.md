@@ -1,13 +1,16 @@
-# Phase 9 #8e — `+0x5c` kick-gate writer hunt (partial)
+# Phase 9 #8e — `+0x5c` kick-gate writer ✅ RESOLVED
 
-> Last updated: 2026-05-16. Re-attempts Phase 7 Task C with two
-> advantages: (1) Phase 9 #8d's confirmation that the `+0x5c` byte is
-> on the **Lua-side wrapper class** (ActorBase ctor zeros it), not on
-> the engine-side `CDev::SceneObject::Actor`/`RaptureActor`/`CDevActor`/`CharaActor`
-> hierarchy; and (2) a scoped grep that excludes the
-> already-identified Variant/Box wrapper false positives.
+> Last updated: 2026-05-17. RESOLVED: the writer is `FUN_00766f00`
+> (RVA `0x366f00`), which calls `ActorRegistry::lookup_actor`
+> (`FUN_00cc7a50` — the same helper KickReceiver uses), checks the
+> actor's `+0x7d` gate via `FUN_00cc72a0`, then sets `[actor+0x5c]=1`.
+> See "2026-05-17 (later) — ✅ CONFIRMED" section at the bottom.
 
-## Status: PARTIAL — search narrowed to 6 candidates, none definitively identified
+> Earlier sections preserved for historical context — Phase 9 #8e's
+> original best-candidate identification was correct; the dismissal as
+> "per-tick, probably not" was premature.
+
+## Status: ✅ RESOLVED 2026-05-17 — FUN_00766f00 confirmed via call-chain analysis
 
 The +0x5c kick-gate writer remains unidentified, but the candidate set
 is now 6 functions (down from Phase 7's ~35 false-positive matches).
@@ -339,6 +342,123 @@ the actor writer) suggests:
 The next-cost-effective angle is probably **runtime tracing** (HWBP
 on writes to the actor's +0x5c field during a known-good actor spawn
 in pmeteor). Static analysis has hit diminishing returns.
+
+## 2026-05-17 (later) — ✅ CONFIRMED: `FUN_00766f00` IS the +0x5c writer
+
+**Phase 9 #8e's ORIGINAL "best candidate" was correct after all.** The
+prior dismissal as "per-tick, probably not the writer" was premature.
+
+### Definitive identification
+
+Walked the remaining 7 candidates by extracting the bytes around each
++0x5c=1 write. Only **`FUN_00766f00`** (RVA 0x366f00) sits in the
+actor-area RVA range (0x2dx..0x37x where Phase 9 #8d's Lua-actor base
+ctors live). The others (RVAs 0x14xxxx, 0x15xxxx, 0x78xxxx, 0x85xxxx)
+are in unrelated namespaces.
+
+Inspected FUN_00766f00's write site at +0x128 (RVA `0x367028`):
+
+```c
+// At RVA 0x367000..0x367033:
+EBP = FUN_00cc7a50(...);                  ; ActorRegistry::lookup_actor
+                                          ; (Phase 7 KNOWN — used by KickReceiver!)
+if (EBP == NULL) goto skip;               ; null-check
+... (additional setup)
+PUSH EBP;
+LEA ECX, [EBX+4];
+CALL FUN_00cc72a0;                        ; check actor[+0x7d]
+TEST AL, AL;
+JZ skip;
+MOV byte [EBP+0x5c], 1;                   ; ⭐ SET KICK GATE
+... (more processing with EBP)
+```
+
+**The call at offset 0x108 (RVA 0x367008) decodes as `CALL 0x008c7a50`**
+— verified byte-for-byte (`e8 43 0a 56 00`; `rel32=0x00560a43`;
+`next_pc = 0x36700d`; `target = 0x36700d + 0x00560a43 = 0x008c7a50`).
+That's **the exact same `ActorRegistry::lookup_actor` helper** the
+KickReceiver uses in Phase 7's decomp.
+
+### FUN_00cc72a0 — the +0x7d gate check (18 B)
+
+The second key helper:
+
+```asm
+FUN_00cc72a0:
+    MOV EAX, [ESP+4]                      ; arg = actor id
+    MOV ECX, [ECX]                        ; this->vtable / registry root
+    PUSH EAX;
+    CALL FUN_00cd7a30;                     ; lookup actor by id → EAX = actor*
+    MOV AL, byte [EAX + 0x7d]              ; ⭐ READ actor's +0x7d gate
+    RET 4
+```
+
+So `FUN_00cc72a0` is **`Actor::IsRunEventReady()`** equivalent — it
+returns `actor[+0x7d]` (the RunEventFunction gate per Phase 7).
+
+### Confirmed semantic of FUN_00766f00
+
+The +0x5c kick-gate writer's behavior:
+
+```c
+void FUN_00766f00(this) {                  // ECX = this (= EBX/Spawn coordinator)
+    // (~25 lines of state checks at start)
+    
+    // Per-actor-state-update loop:
+    for_each_pending_actor() {
+        actor = ActorRegistry::lookup_actor(...);  // EBP = actor*
+        if (actor == NULL) continue;
+        
+        if (Actor::IsRunEventReady(arg)) {         // returns actor[+0x7d]
+            actor[+0x5c] = 1;                       // ⭐ SET KICK GATE
+            // ... additional post-set processing ...
+        }
+    }
+}
+```
+
+So the kick gate flow is now FULLY understood:
+
+1. Actor spawns → `ActorBase` ctor zeros `+0x5c` and `+0x7d` (Phase 9 #8d)
+2. Some upstream code sets `actor[+0x7d] = 1` (the RunEventFunction gate)
+   — *that writer is the next investigation target, but probably has
+   a similar pattern in a sibling function*
+3. **Per-frame, `FUN_00766f00` runs over pending actors**. For each:
+   - If `actor[+0x7d] == 1` (run-event ready), THEN
+   - `actor[+0x5c] = 1` (kick-gate set)
+4. KickReceiver can now succeed on this actor
+5. Eventually `MyPlayer::vtable[66]` (the clearer per
+   `docs/kick_dispatcher_clearer.md`) resets dispatcher state for the
+   next cinematic
+
+### Why Phase 9 #8e dismissed it (and why that was wrong)
+
+Phase 9 #8e's reasoning: "FUN_00578970 (caller) iterates over sub-objects, fires
+each tick — so FUN_00766f00 would run every tick on every actor, making it
+unlikely to be a one-time gate setter".
+
+The reasoning was wrong because:
+- Per-tick `MOV byte [reg+0x5c], 1` is **idempotent** — already-1 stays 1
+- The gate is conditional on `actor[+0x7d]==1`, so it only fires for
+  actors that have already passed the +0x7d phase
+- Setting an already-set flag every tick is harmless and is actually the
+  STANDARD pattern for "ensure this flag is set if condition holds"
+- The dismissal assumed "kick gate set ONCE" semantic, but the real
+  behavior is "kick gate set whenever the precondition holds"
+
+### Cross-references
+
+- `docs/event_kick_receiver_decomp.md` — Phase 7 #1 (the KickReceiver
+  that READS `[actor+0x5c]`; uses the same `ActorRegistry::lookup_actor`
+  at `0x8c7a50` that this writer uses)
+- `docs/event_run_event_function_receiver_decomp.md` — Phase 7 #2
+  (the RunEventFunctionReceiver that READS `[actor+0x7d]`; the gate
+  whose set state triggers FUN_00766f00's +0x5c write)
+- `docs/kick_dispatcher_clearer.md` — the dispatcher state clearer
+  (`FUN_006e32f0` = `MyPlayer::vtable[66]`), separate from the +0x5c
+  writer recovered here
+- `memory/reference_ffxiv_1x_actor_event_flags.md` — the canonical
+  +0x5c / +0x7d gate semantics
 
 ### Practical impact
 
