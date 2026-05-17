@@ -205,14 +205,55 @@ hypothesis ("deeper NetworkManager at [ChannelMgr+0x234]") was wrong;
 the +0x234 field is just a stored reference to a sibling Rapture
 sub-object.
 
-`Rapture[+0x64]` itself: allocated via `operator new(0x3b8 = 952 bytes)`
-in Rapture::Init at offset `+0x8bd` (RVA `0xb36ad`). Its per-frame tick
-is `FUN_004daa10` (which accesses `[this+0x17928]` — suggests further
-sub-pointer traversal, since 952 bytes can't directly hold that
-offset). Class identity TBD; most plausible candidates from RVA-proximate
-vtables include `MainModule@Main@Application` (vt `0xf9142c`) or
-`RaptureElementContainer@Main@Application` (vt `0xf912e4`) — both
-written in the 0xdbxxx range adjacent to FUN_004daa10.
+`Rapture[+0x64]` itself is **`MainModule@Main@Application`** — ✅
+**CONFIRMED 2026-05-17 (continued)**. The earlier "952 bytes" reading
+was an instruction-order misread (the PUSH 0x3b8 is for a SUBSEQUENT
+operator new, not for the +0x64 object).
+
+Correct decoded sequence at Rapture::Init +0x8a7 (RVA `0xb3697`):
+
+```asm
+CALL FUN_004dc3a0                     ; MainModule::Init/ctor, returns this via EAX
+JMP +2                                  ; (alt error path: XOR EAX, EAX)
+MOV byte [ESP+0x138], 0x13              ; SEH state
+PUSH 0x3b8                              ; push 952 for the NEXT operator new
+MOV [EDI+0x64], EAX                     ; ⭐ Rapture[+0x64] = MainModule_ptr
+CALL operator new                       ; allocates 952 for ANOTHER field (not +0x64)
+```
+
+`FUN_004dc3a0` (MainModule's ctor, 559 B) confirmed via vtable write:
+```asm
+MOV [ESI], 0xf9142c                     ; write MainModule vtable
+MOV [ESI+0x8], 0                        ; zero some field
+CALL FUN_004dbf40                       ; parent ctor
+... (many ctor-arg field writes) ...
+MOV [ESI+0x17918], EDX
+MOV [ESI+0x1791c], EAX
+MOV [ESI+0x17920], EBP
+MOV [ESI+0x17924], ECX                  ; ⭐ fields go up to at least +0x17924 (96 KB)
+```
+
+The +0x17918..+0x17924 field writes match the `[EDI+0x17928]` access
+pattern in `FUN_004daa10` (MainModule's per-frame tick) — confirms
+MainModule IS that huge class. MainModule's actual size is at least
+0x17928 + sizeof(sub-object), almost certainly 100+ KB.
+
+### MainModule class summary
+
+| Aspect | Value |
+|---|---|
+| RTTI | `.?AVMainModule@Main@Application@@` |
+| Vtable | VA `0x00f9142c` |
+| Ctor | `FUN_004dc3a0` (559 B) |
+| Per-frame tick | `FUN_004daa10` (accesses [this+0x17928] sub-pointer) |
+| Allocated by | Rapture::Init at offset +0x8a7 (RVA `0xb3697`) |
+| Size | ≥ 0x17928 bytes (96+ KB) |
+| Stored at | Rapture[+0x64] |
+
+So **Rapture has at least 2 major sub-modules**: NetworkModule (at
++0x60) and MainModule (at +0x64). NetworkModule[+0x234] holds a
+back-pointer to MainModule, enabling NetworkModule's per-frame tick
+(`FUN_004e30a0`) to coordinate with MainModule's per-frame work.
 
 ### Architectural map (refined)
 
@@ -233,10 +274,10 @@ Rapture::Application  (vt 0xb8cc1c, 7 slots)
     - tick FUN_004e30a0
     - +0x234 → back-ptr to Rapture[+0x64]
   ↓ +0x64
-  ??? container (952 B, accesses [+0x17928] via inner sub-pointer)
-    - tick FUN_004daa10
-    - probable identities: MainModule@Main@Application OR
-      RaptureElementContainer@Main@Application (TBD)
+  MainModule  (?AVMainModule@Main@Application@@, vt 0xf9142c)
+    - ctor FUN_004dc3a0
+    - tick FUN_004daa10 (accesses [this+0x17928] sub-pointer)
+    - HUGE struct, ≥ 0x17928 bytes (100+ KB)
 ```
 
 ### Additional structural recovery — 2026-05-17 (this session, continued)
