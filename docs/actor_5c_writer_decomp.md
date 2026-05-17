@@ -222,7 +222,34 @@ candidates** (after applying the same filters):
 | `FUN_00b8b560` | TBD | 4 (all FUN_00b8bf00) | **NEW** — "init array of 4" pattern; worth checking |
 | `FUN_00c54710` | 520 | 1 (FUN_00c28240) | Lazy-init pattern (TEST + OR on `[0x01327b14]`, MOV [global+0x1c]); needs deeper walk |
 
-### Top candidate: `FUN_009018f0` (81 B) — "queue drain → set ready" pattern
+### ⚠ TOP CANDIDATE RULED OUT 2026-05-17 (later)
+
+`FUN_009018f0` initially looked perfect — but cross-referencing its
+helpers definitively rules it out:
+
+| Helper | Body | Reveals |
+|---|---|---|
+| `FUN_00d3abe0` (10 B) | `XOR EAX,EAX; CMP [ECX+4],-1; SETNZ AL; RET` | "is handle set?" predicate |
+| `FUN_00d3abc0` (27 B) | If `[ECX+4] != -1`: `CALL [0xf3e1ec]([ECX+4]); [ECX+4] = -1` | "close handle if open" — `[0xf3e1ec] = CloseHandle` (confirmed via PE IAT walk) |
+
+Plus `[0xf3e148] = InterlockedExchange`, `[0xf3e16c] = EnterCriticalSection`,
+`[0xf3e1a0] = InterlockedCompareExchange` — all confirming this class
+is a **Win32 sync-primitive wrapper** (Mutex / Event / Semaphore /
+WaitablePredicate) with:
+
+- `[+0]`: vtable
+- `[+4]`: HANDLE (-1 if not open)
+- `[+8]`: queue of waiters
+- `[+0x5c]`: a sync state flag ("signaled" / "drained" / "completion")
+
+So `FUN_009018f0`'s `+0x5c=1` write is **setting the sync primitive's
+"completion" flag** after the waiter queue drains, NOT the actor's
+kick gate. False positive.
+
+### Original ⚠ candidate (kept for reference)
+
+The `FUN_009018f0` body initially looked like a "queue drain → set
+ready" semantic on an actor:
 
 ```c
 void FUN_009018f0(this, arg) {   // ECX = this (= EDI), [ESP+0xc] = arg
@@ -268,32 +295,50 @@ end:
 the per-frame actor-tick driver that calls FUN_009018f0 on each actor
 that has pending queued events.
 
-### What's needed to confirm
+### What was needed to confirm (and ruled it out)
 
-This is the strongest static-analysis candidate, but to fully confirm,
-we'd need:
-1. Identify what class `EDI` (= `this` in FUN_009018f0) is. The
-   container at +0x8 and helpers at FUN_00d3abc0/e0 should be specific
-   to one class. Cross-reference the helper RVAs against known
-   classes (Phase 9 ext2 metadata).
-2. Verify the +0x8 container's type — if it's an "event queue" /
-   "pending events" structure, that's the load-bearing confirmation.
-3. Runtime trace: set hardware breakpoint on the `MOV byte [EDI+0x5c],
-   0x1` instruction at RVA `0x501938` in the Wine'd `ffxivgame.exe`.
-   Observe what EDI points to + when the breakpoint fires during a
-   cinematic. Definitive answer.
+The class-identification step ruled it out: cross-referencing the
+helpers FUN_00d3abc0 + FUN_00d3abe0 + the IAT slot they call revealed
+they're Win32 HANDLE wrappers, NOT actor methods. So FUN_009018f0
+operates on a sync-primitive class, not an actor. See "⚠ TOP CANDIDATE
+RULED OUT" section above.
 
 ### Remaining candidates not yet walked
 
-`FUN_005469e0`, `FUN_00549330`, `FUN_00559f90`, `FUN_00559fb0`,
-`FUN_00b8b560`, `FUN_00c54710` — could be additional candidates or
-more Variant-family false positives. Best ROI for a follow-up:
+After ruling out FUN_007b43e0, FUN_00acc050, and FUN_009018f0, the
+search continues among:
 
 - `FUN_005469e0` (in a vtable): check the vtable's class via COL→TD walk
 - `FUN_00549330` (5 write sites at +0x96d/+0xa0d/+0xa60): inconsistent
   with single-purpose actor-flag setter; probably Variant family
+- `FUN_00559f90` / `FUN_00559fb0`: likely Variant family
 - `FUN_00b8b560` (4 callers from FUN_00b8bf00): "init array of 4"
   pattern — could be a per-actor init for 4 fixed actors. Worth a peek.
+- `FUN_00766f00` (Phase 9 #8e original "best candidate"): per-tick
+  context made it look unlikely BUT given the 3 newer "top candidate"
+  rulings, worth re-examining with a fresh eye.
+- `FUN_00c54710` (520 B, lazy-init pattern via global flag at
+  `[0x01327b14]`): substantial size; might contain the actual
+  per-spawn actor setup including +0x5c=1.
+
+### Strategic takeaway
+
+After this round, 6 of 10 candidates are still in play but 3 have
+been definitively ruled out. The fact that simple static-analysis
+heuristics keep producing false positives (matching the right
+opcode AND the right semantics independently, but not actually being
+the actor writer) suggests:
+
+- The actor +0x5c=1 write may be inside a **larger function** that's
+  ALSO doing many other things — i.e., the write is an incidental
+  side effect of some "post-spawn finalize all subsystems" function.
+- OR the write may use a non-immediate pattern (`MOV [reg+0x5c], CL`
+  where CL was loaded from a global). Such writes wouldn't match the
+  `c6 4? 5c 01` byte pattern.
+
+The next-cost-effective angle is probably **runtime tracing** (HWBP
+on writes to the actor's +0x5c field during a known-good actor spawn
+in pmeteor). Static analysis has hit diminishing returns.
 
 ### Practical impact
 
