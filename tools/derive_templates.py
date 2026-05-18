@@ -378,6 +378,55 @@ def try_ifnotnull_thiscall_then_free_25b(
     return (src, "if-not-null dispatch + free 25b")
 
 
+def try_thiscall_2arg_shuffle_to_4arg_helper_27b(
+        body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 27B "thiscall takes 2 stack args, shuffles to 4-arg cdecl helper":
+    #   8b 44 24 08            MOV EAX, [ESP+8]   ; arg2
+    #   8b 54 24 04            MOV EDX, [ESP+4]   ; arg1
+    #   50                     PUSH EAX            ; push arg2
+    #   51                     PUSH ECX            ; push outer this
+    #   8b 4c 24 10            MOV ECX, [ESP+0x10]; reload arg2 (after 2 pushes shifted +8)
+    #   51                     PUSH ECX            ; push arg2 again
+    #   52                     PUSH EDX            ; push arg1
+    #   e8 RR RR RR RR         CALL <shuffle helper>
+    #   83 c4 10               ADD ESP, 0x10
+    #   c2 08 00               RET 8
+    #
+    # Pattern: thiscall taking 2 stack args, then fan-outs to a 4-arg
+    # cdecl helper(arg1, arg2_dup, this, arg2). Common for facade /
+    # adapter functions that re-route a thiscall through a cdecl
+    # implementation. Single CALL rel32 reloc; linear flow ending in
+    # RET imm16 (no Ghidra under-count risk).
+    if len(body) != 27:
+        return None
+    expected = bytes.fromhex("8b4424088b54240450518b4c24105152e8")  # 17 B
+    if body[0:17] != expected:
+        return None
+    if body[21:27] != b"\x83\xc4\x10\xc2\x08\x00":
+        return None
+    src = (
+        _header(va, "thiscall 2-arg shuffle to 4-arg cdecl helper (27B)",
+                "8b 44 24 08 8b 54 24 04 50 51 8b 4c 24 10 51 52 e8 RR RR RR RR 83 c4 10 c2 08 00", n)
+        + "\nextern \"C\" void __cdecl shuffle_helper();\n\n"
+          "extern \"C\" __declspec(naked) void __cdecl "
+          "thiscall_2arg_shuffle_to_4arg_helper() {\n"
+          "    __asm {\n"
+          "        mov eax, dword ptr [esp + 8]\n"
+          "        mov edx, dword ptr [esp + 4]\n"
+          "        push eax\n"
+          "        push ecx\n"
+          "        mov ecx, dword ptr [esp + 0x10]\n"
+          "        push ecx\n"
+          "        push edx\n"
+          "        call shuffle_helper\n"
+          "        add esp, 0x10\n"
+          "        ret 8\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "thiscall 2arg-shuffle 4arg-helper 27b")
+
+
 def try_store_ptr_to_global_then_tail_jmp_20b(
         body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 20B "store const-ptr to global, set ECX to global addr, tail-JMP":
@@ -1707,6 +1756,7 @@ DERIVERS = [
     try_delegate_float_to_member8_19b,
     try_member10_vcall6_tail_jmp_eax30_18b,
     try_store_ptr_to_global_then_tail_jmp_20b,
+    try_thiscall_2arg_shuffle_to_4arg_helper_27b,
     # try_ifnotnull_thiscall_then_free_25b — disabled, same Ghidra
     # under-count bug as try_release_then_free_22b. Cluster fingerprint
     # is 22 bytes (asm dump truncates the `83 c4 04 5e c3` epilogue),
