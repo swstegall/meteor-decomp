@@ -378,6 +378,45 @@ def try_ifnotnull_thiscall_then_free_25b(
     return (src, "if-not-null dispatch + free 25b")
 
 
+def try_delegate_float_to_member8_19b(
+        body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 19B "delegate float arg to member-at-+0x8" thiscall forwarder:
+    #   d9 44 24 04          FLD float [ESP+4]    ; load 1 float caller arg
+    #   51                   PUSH ECX              ; reserve 4 bytes
+    #   8b 49 08             MOV ECX, [ECX+8]     ; switch to member ptr
+    #   d9 1c 24             FSTP float [ESP]     ; store float into reserved
+    #   e8 RR RR RR RR       CALL <member helper> ; thiscall, 1 float arg
+    #   c2 04 00             RET 4                ; clean 1 float arg from caller
+    #
+    # Common MSVC-emitted thiscall delegate to a member sub-object at
+    # offset +0x8, forwarding a single float arg. The PUSH ECX/MOV/FSTP
+    # idiom swaps the outer this for the inner this in-place while
+    # transferring the float across the abi-style local slot.
+    if len(body) != 19:
+        return None
+    expected = bytes.fromhex("d9442404518b4908d91c24e8")  # 12 B
+    if body[0:12] != expected:
+        return None
+    if body[16:19] != b"\xc2\x04\x00":
+        return None
+    src = (
+        _header(va, "thiscall delegate float arg to member-at-+0x8 (19B)",
+                "d9 44 24 04 51 8b 49 08 d9 1c 24 e8 RR RR RR RR c2 04 00", n)
+        + "\nextern \"C\" void __cdecl some_member_helper();\n\n"
+          "extern \"C\" __declspec(naked) void __cdecl delegate_float_to_member_at_8() {\n"
+          "    __asm {\n"
+          "        fld dword ptr [esp + 4]\n"
+          "        push ecx\n"
+          "        mov ecx, dword ptr [ecx + 8]\n"
+          "        fstp dword ptr [esp]\n"
+          "        call some_member_helper\n"
+          "        ret 4\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "delegate float to member-at-+0x8 19b")
+
+
 def try_null_check_global_vtable_slot0_call_1_19b(
         body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 19-byte null-check singleton vtable[0] call with arg=1:
@@ -1588,6 +1627,7 @@ DERIVERS = [
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_null_check_global_vtable_slot0_call_1_19b,
+    try_delegate_float_to_member8_19b,
     # try_ifnotnull_thiscall_then_free_25b — disabled, same Ghidra
     # under-count bug as try_release_then_free_22b. Cluster fingerprint
     # is 22 bytes (asm dump truncates the `83 c4 04 5e c3` epilogue),
