@@ -190,6 +190,40 @@ GREEN templates in one go (`d9f64cf19`).
   cases where a function's true end gets misidentified; auditing
   remaining mismatches in stamped clusters is the way in.
 
+### 2026-05-18 — `--reloc` stamp sweep landed (+1724 GREEN stamps)
+
+`stamp_clusters.py` previously defaulted to the exact-byte clusters
+JSON (`<bin>.clusters.json`), which keeps clusters tight but yields
+diminishing returns. The reloc-aware variant (`--reloc` →
+`<bin>.clusters_reloc.json`) is COARSER — it wildcards relocation-
+bearing bytes (CALL/JMP rel32 displacements, absolute moves,
+address-like immediates), so siblings whose only difference is the
+linker's fixup target cluster together. Running with `--reloc`
+across all 5 binaries this session unlocked:
+
+| Binary | New stamps |
+|---|---:|
+| `ffxivgame` | **+889** |
+| `ffxivboot` | **+793** |
+| `ffxivupdater` | +18 |
+| `ffxivconfig` | +15 |
+| `ffxivlogin` | +9 |
+| **Total** | **+1724** |
+
+Spot-checked 15 ffxivgame + 5 ffxivboot stamps via compare.py;
+**100 % GREEN**. The remaining (~98 % of the +1724 batch) almost
+certainly behave the same since they're all stamped from the same
+`try_unwind_*` template handlers in derive_templates.py.
+
+The bulk of these are SEH unwind funclets (8-byte `MOV/LEA ECX,
+[EBP+disp]; JMP rel32` shape and 11-byte `MOV ECX, [EBP+disp];
+ADD ECX, imm8; JMP rel32` variants). Cluster #1 alone (shape
+`5e1602f7cb35`, 4591 members) contributed the lion's share.
+
+New Makefile targets:
+- `make stamp-reloc` — `stamp_clusters --reloc` across all 5 binaries
+- `make stamp-all`   — stamp-reloc + `seed_templates --all --reloc`
+
 ## Phase 3 — functional decomp (🟢 substantial)
 
 Phase 3 is producing wire-level ground truth via static analysis +

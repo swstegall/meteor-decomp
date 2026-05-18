@@ -58,6 +58,8 @@ help:
 	@echo "  make lpb-corpus           Phase 6: decode-lpb + decompile-lpb + extract-cpp-bindings"
 	@echo "  make damage-sim           Phase 5: build damage_simulator + run all 3 calibration fixtures"
 	@echo "  make damage-sim-test      Phase 5: build + run damage_formula unit tests (21 cases)"
+	@echo "  make stamp-reloc          Phase 2.5: stamp_clusters --reloc for all 5 binaries (coarser shape)"
+	@echo "  make stamp-all            Phase 2.5: stamp-reloc + seed-templates --all --reloc"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
 	@echo "  make clean                wipe build/"
@@ -118,6 +120,21 @@ build/bin/damage_formula_test: tests/battle/damage_formula_test.cpp \
 
 damage-sim-test: build/bin/damage_simulator build/bin/damage_formula_test
 	@./build/bin/damage_formula_test
+
+# --- Phase 2.5 — reloc-aware cluster stamp (mass GREEN harvest) --------
+
+.PHONY: stamp-reloc stamp-all
+
+stamp-reloc:
+	@for bin in ffxivgame ffxivlogin ffxivboot ffxivconfig ffxivupdater; do \
+		echo "=== $$bin ==="; \
+		$(PY) $(TOOLS)/stamp_clusters.py $$bin --reloc 2>&1 | tail -3; \
+	done
+
+stamp-all: stamp-reloc
+	@echo ""
+	@echo "=== cross-binary seed (ffxivgame → others) ==="
+	@$(PY) $(TOOLS)/seed_templates.py --all --reloc 2>&1 | tail -3
 
 # --- Phase 1 (TODO once Ghidra is wired) -------------------------------
 
