@@ -1086,7 +1086,7 @@ Source under [`src/ffxivgame/install/`](../src/ffxivgame/install/).
 | `ResourceQueue::TryEnqueue` | — | 122 B | ✅ GREEN | |
 | `ChunkSource::ReleaseChunk` | — | 124 B | ✅ GREEN | |
 | `ChunkSource::AcquireChunk` | — | 144 B | 🟡 130/132 PARTIAL (98.5 %) | Reaffirmed 2026-05-17: exactly **2 byte diffs** at fn offsets +0x6a and +0x77 — both are the **SIB byte** of `MOV reg, [SIB+disp8]`. Orig SIB=0x16 (base=ESI byte_off, index=EDX m_entries); ours SIB=0x32 (swapped). Same effective address, different register-as-base choice. Tried multiple ptr-arith / array-syntax / hoist variations — none flip MSVC's SIB normalisation. Real GREEN requires inline asm. Accepted as PARTIAL. |
-| `InstallUnpacker::Unpack` (slot 2) | `0x008c6700` | 490 B | 🟡 428/490 (Iteration #1) | 249 mismatches; deferred pending parent-class layout recovery + helper signatures (see "Next blocker" below) |
+| `InstallUnpacker::Unpack` (slot 2) | `0x008c6700` | 490 B | 🟡 185/490 (37.8 %) reloc-aware effective — accepted | Re-measured 2026-05-18: iter #1's "428/490" was a misleading raw-count number. Honest reloc-aware effective: 127 byte-matches + 58 reloc-zero diffs (expected) + 305 REAL diffs. +3 bytes long. Capstone side-by-side reveals **cascading register-allocation mismatch** — orig: ESI=this, EDI=&InterlockedExchangeAdd, EBX=chunk_handle, EBP=&m_field_a4; ours: EBP=this, EBX=&InterlockedExchangeAdd, ESI=chunk_handle, EDI=&m_field_48. Both are valid 4-callee-save choices but every `[reg+disp]` differs. Same MSVC instruction-emit normalization class as AcquireChunk/ReadNextChunkHeader (SIB gaps) but at scale. Real GREEN needs (a) Ghidra GUI parent-class deliverables for refactor that biases MSVC's reg-alloc, (b) full `__declspec(naked)` rewrite (high effort given SEH + 16 relocs), or (c) Phase 2.7 emit_text_blob fallback. **Accepted as documented PARTIAL** — same path as AcquireChunk + ReadNextChunkHeader. Semantic behavior is correct (reads chunks, dispatches helper, handles bails, releases). |
 
 All six kernel32 IAT entries the unpacker uses have been resolved
 via Ghidra GUI: `InterlockedExchange`, `InterlockedCompareExchange`,
@@ -1135,8 +1135,18 @@ Each of these is a separate Ghidra GUI task. See
 
 In rough priority order:
 
-1. **Push `InstallUnpacker::Unpack` GREEN** — biggest remaining
-   Phase-4 win. Needs the four Ghidra-GUI deliverables above.
+1. ~~**Push `InstallUnpacker::Unpack` GREEN**~~ — Re-measured 2026-
+   05-18 and confirmed PARTIAL at **185/490 (37.8 %) reloc-aware
+   effective** with 305 real byte diffs and a cascading register-
+   allocation mismatch (orig ESI=this vs ours EBP=this and so on).
+   Same MSVC instruction-emit normalization class as AcquireChunk /
+   ReadNextChunkHeader (both also accepted PARTIAL today). Pushing
+   GREEN requires Ghidra-GUI parent-class layout deliverables (per
+   "Next blocker" below) OR full `__declspec(naked)` rewrite OR
+   Phase 2.7 `emit_text_blob` fallback. **Accepted as PARTIAL** —
+   semantic behavior is correct, byte-identical reproduction is
+   blocked on register-allocation reshaping that doesn't yield from
+   source alone.
 2. ~~**Push `ChunkSource::AcquireChunk` GREEN**~~ — Re-checked 2026-
    05-17 and confirmed PARTIAL at **130/132 (98.5 %)** with exactly
    2 byte diffs at fn offsets +0x6a / +0x77. Both diffs are the SIB

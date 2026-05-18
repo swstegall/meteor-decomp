@@ -14,14 +14,16 @@
 //
 // Iteration history:
 //
-//   #1 [PARTIAL — 41 % match modulo relocations, 218/428 of our 428 B
-//                 vs orig's 490 B]
+//   #1 [PARTIAL — 218/428 ≈ 51 % (raw count, no reloc mask), our 428 B
+//                 vs orig 490 B (62 short)]
 //      First-pass translation. Treated the loop body as if it filled a
 //      separate stack-allocated subobj (`char subobj_buf[0x58];
 //      char *str_begin, *str_end;`) and called a stub Process() on it.
 //      Frame allocated at SUB ESP, 0x138 (0x58 over orig's 0xe0).
 //
-//   #2 [now] — STRUCTURAL FIX based on cross-referencing PackRead.cpp
+//   #2 [PARTIAL — 185/490 (37.8 %) reloc-aware effective; 305 real
+//                 byte diffs; +3 length diff (493 vs 490)]
+//      STRUCTURAL FIX based on cross-referencing PackRead.cpp
 //      and FUN_00447450's body:
 //
 //      KEY INSIGHT: the "stack subobj at [ESP+0x38]" is NOT a separate
@@ -44,7 +46,53 @@
 //      locals.
 //
 //      Removing the bogus subobj_buf/str_begin/str_end locals shrinks
-//      the frame by 0x58 bytes (target: SUB ESP, 0xe0).
+//      the frame by 0x58 bytes (target: SUB ESP, 0xe0). Achieved ✓
+//      (frame matches orig at 0xe0).
+//
+//   #3 [DOCUMENTED LIMITATION — 2026-05-18 re-measurement reveals
+//                                the iter #2 source plateaus at 37.8 %
+//                                reloc-aware effective match]
+//      Re-measured with reloc-aware diff (compare.py-style masking of
+//      the 58 reloc-zero bytes that linker fills with actual values):
+//        - Match bytes: 127 (true byte-equal)
+//        - Reloc-zero diffs (expected, linker-filled): 58
+//        - REAL diffs: 305
+//        - Effective: 185/490 = 37.8 %
+//        - Length: 493 vs 490 (3 bytes long)
+//
+//      Cross-checking via side-by-side capstone disasm reveals a
+//      cascading REGISTER ALLOCATION mismatch — orig uses ESI=this,
+//      EDI=&InterlockedExchangeAdd_ptr, EBX=chunk_handle, EBP=&m_field_a4;
+//      our compile uses EBP=this, EBX=&InterlockedExchangeAdd_ptr,
+//      ESI=chunk_handle, EDI=&m_field_48. Both choices are valid (4
+//      callee-save registers either way), but every `[reg+disp]`
+//      addressing encoding differs by the base register, AND the
+//      structural assignment-order of those addresses cascades through
+//      the entire function body.
+//
+//      This is the same class of MSVC-specific instruction-emit
+//      normalization that blocked AcquireChunk (2-byte SIB gap) and
+//      ReadNextChunkHeader (1-byte SIB gap), but at scale: instead of
+//      a few bytes, it's hundreds. The register allocator picks the
+//      first-seen long-lived value for ESI by liveness-rank, and our
+//      source's variable order pushes `this` to EBP instead.
+//
+//      Real GREEN would require ONE of:
+//        (a) Ghidra-GUI parent-class layout deliverables (per the
+//            `docs/decomp-status.md` Phase-4 § "Next blocker") so the
+//            field-access pattern can be refactored to bias MSVC
+//            toward orig's register choices.
+//        (b) An `__declspec(naked)` rewrite of the entire 490-byte
+//            body — high effort given the SEH frame + 16 relocations.
+//        (c) Phase 2.7's whole-binary text-blob fallback — accepts
+//            the orig bytes verbatim via emit_text_blob, sidestepping
+//            source-level matching entirely.
+//
+//      Pragmatically: ACCEPT current state as documented PARTIAL,
+//      same as AcquireChunk + ReadNextChunkHeader (2026-05-17). The
+//      semantic behavior is correct (reads chunks, dispatches helper,
+//      handles bail probes, releases chunk); the byte-identical
+//      reproduction is the blocker.
 //
 // Field-level layout of `this` used by Unpack (cross-validated against
 // InstallUnpackerHelpers.cpp's WaitForReady which uses the same class):
