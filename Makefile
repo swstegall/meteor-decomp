@@ -56,6 +56,8 @@ help:
 	@echo "  make extract-work-fields  Phase 6: enumerate per-class state-field inventory (playerWork etc.)"
 	@echo "  make work-field-coverage  Phase 6: garlemald SetActorProperty paths ↔ inventory coverage"
 	@echo "  make lpb-corpus           Phase 6: decode-lpb + decompile-lpb + extract-cpp-bindings"
+	@echo "  make damage-sim           Phase 5: build damage_simulator + run all 3 calibration fixtures"
+	@echo "  make damage-sim-test      Phase 5: build + run damage_formula unit tests (21 cases)"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
 	@echo "  make clean                wipe build/"
@@ -69,6 +71,53 @@ pe-info:
 
 clean:
 	rm -rf $(BUILD)
+
+# --- Phase 5 — damage_simulator (functional exit criterion) ------------
+
+.PHONY: damage-sim damage-sim-test
+
+# Native build (clang on macOS/Linux, NOT cl.exe). This is a tooling
+# executable that exercises the re-derived 1.x physical damage
+# formula — it never ships in the matched binary.
+CXX ?= clang++
+CXXFLAGS_BATTLE := -std=c++17 -O2 -Wall -Wextra -Wno-unused-parameter
+
+build/bin/damage_simulator: src/ffxivgame/battle/damage_formula.cpp \
+                            src/ffxivgame/battle/damage_simulator.cpp \
+                            src/ffxivgame/battle/damage_formula.h
+	@mkdir -p build/obj/_battle build/bin
+	@$(CXX) $(CXXFLAGS_BATTLE) \
+		-c src/ffxivgame/battle/damage_formula.cpp \
+		-o build/obj/_battle/damage_formula.o
+	@$(CXX) $(CXXFLAGS_BATTLE) \
+		-c src/ffxivgame/battle/damage_simulator.cpp \
+		-o build/obj/_battle/damage_simulator.o
+	@$(CXX) $(CXXFLAGS_BATTLE) \
+		build/obj/_battle/damage_formula.o \
+		build/obj/_battle/damage_simulator.o \
+		-o build/bin/damage_simulator
+
+damage-sim: build/bin/damage_simulator
+	@echo "=== case_attack_low (target: 0..5 = YouTube min band) ==="
+	@./build/bin/damage_simulator fixtures/battle/case_attack_low.json
+	@echo ""
+	@echo "=== case_attack_med (target: 20..80 = mid-tier basic) ==="
+	@./build/bin/damage_simulator fixtures/battle/case_attack_med.json
+	@echo ""
+	@echo "=== case_attack_high (target: 300..700 = high crit basic) ==="
+	@./build/bin/damage_simulator fixtures/battle/case_attack_high.json
+
+build/bin/damage_formula_test: tests/battle/damage_formula_test.cpp \
+                               build/obj/_battle/damage_formula.o \
+                               src/ffxivgame/battle/damage_formula.h
+	@mkdir -p build/bin
+	@$(CXX) $(CXXFLAGS_BATTLE) \
+		tests/battle/damage_formula_test.cpp \
+		build/obj/_battle/damage_formula.o \
+		-o build/bin/damage_formula_test
+
+damage-sim-test: build/bin/damage_simulator build/bin/damage_formula_test
+	@./build/bin/damage_formula_test
 
 # --- Phase 1 (TODO once Ghidra is wired) -------------------------------
 

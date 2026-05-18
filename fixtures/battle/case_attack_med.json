@@ -1,0 +1,34 @@
+# Phase 5 calibration fixture — "attack" basic auto-attack, MEDIAN case.
+#
+# YouTube atlas ground truth (count=1401 samples):
+#   min=2, median≈59, max=4024
+#
+# Roll setup: a level-mid player (Lancer with iron spear-class) auto-attacking
+# a similar-level mob. STR slightly above target VIT; weapon DMG in the
+# mid-tier (matches an early-game spear).
+#
+# Expected damage_simulator output: damage in the 50-70 range for a 0.5
+# median roll. Hitting the YouTube median (~59) within ±15 validates the
+# fSTR + pDIF + base-damage curve qualitatively (within ±1 of a SPECIFIC
+# recorded roll requires pinning the actual roll, which the atlas doesn't
+# expose per-row — the median match is the calibration target).
+
+# Attacker (player, mid-tier, Lancer-class, wielding iron spear)
+str=68
+vit=55
+atk=180
+def=120
+att_level=18
+
+# Target (a mid-tier overworld mob — e.g. wild boar at ~lvl 14)
+# (these are the target.* values; the simulator uses `vit` and `def`
+# as target stats from the same kv map)
+
+# Weapon: Polearm (Lancer's class weapon)
+wpn_dmg=22
+wpn_skill=Polearm
+
+# Roll: median (0.5)
+roll=0.5
+crit=0
+cmd=BasicAttack

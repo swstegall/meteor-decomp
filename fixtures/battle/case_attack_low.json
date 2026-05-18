@@ -1,0 +1,25 @@
+# Phase 5 calibration fixture — "attack" basic auto-attack, LOW case.
+#
+# YouTube atlas ground truth (count=1401 samples):
+#   min=2 (overlevel/under-defended target taking minimum hit)
+#
+# A low-level mob hitting a heavily-armored player — STR-VIT gap is
+# wide-negative (target tankier than attacker), atk/def ratio near
+# 0.5 lower cap. Should produce damage in the 1-5 range.
+
+# Attacker (low-level mob, e.g. lvl 3 ladybug)
+str=14
+atk=60
+
+# Target (mid-level player in armor)
+vit=55
+def=180
+
+# Mob H2H weapon (no real weapon — natural damage 3-5)
+wpn_dmg=3
+wpn_skill=HandToHand
+wpn_rank=0
+
+roll=0.5
+crit=0
+cmd=BasicAttack

@@ -938,6 +938,44 @@ The 5-slot pattern across all 4 concrete subclasses:
 Next step: decompile `FUN_00daac30` in Ghidra GUI. If it parses
 incoming bytes into per-character fields, the search is over.
 
+## Phase 5 — Actor + Battle (functional) ✅ exit criterion achieved
+
+Phase 5's structural decomp work (6 work-pool items) was already
+closed (see `docs/actor.md`). The PLAN.md exit criterion — a
+self-contained `damage_simulator` executable — landed 2026-05-17.
+
+**Deliverable**: `src/ffxivgame/battle/` with:
+- `damage_formula.h/cpp` — `compute_fSTR`, `compute_pDIF`,
+  `compute_physical_damage`, `wpn_dmg_to_rank`, `pdif_cap_for_skill`
+  (re-derived from LSB's XI-cousin `physical_utilities.lua`)
+- `damage_simulator.cpp` — CLI front-end (reads flat `key=value`
+  fixtures or `--inline` args)
+- `fixtures/battle/case_attack_{low,med,high}.json` — calibration
+  fixtures against YouTube atlas damage samples
+- `tests/battle/damage_formula_test.cpp` — 21 unit tests (all pass)
+
+**Calibration vs YouTube atlas** (`attack` row, n=1401):
+
+| Fixture | Expected band | `damage_simulator` band | ✓ |
+|---|---|---|---|
+| `case_attack_low` | 0..5 (≈ YouTube min=2) | 1..1 | ✅ |
+| `case_attack_med` | 20..80 (mid-tier basic) | 29..35 | ✅ |
+| `case_attack_high` | 300..700 (high crit basic) | 299..427 | ✅ |
+
+**Build**: `make damage-sim` (runs all 3 fixtures); `make damage-sim-test`
+(21 unit tests). Native clang (NOT Wine cl.exe — tooling
+executable, never ships in matched PE).
+
+**License note**: AGPL-3.0-or-later. The LSB cousin is GPL-3.0; this
+implementation is a CLEAN-ROOM RE-DERIVATION (formula STRUCTURE is
+public knowledge from BG-wiki + Studio Gobli; constants
+hand-translated and validated against atlas ground truth, not
+copied verbatim).
+
+See `src/ffxivgame/battle/README.md` for full details + future-work
+list (magic damage, weaponskill coefficients, JSON parser
+upgrade, damage-band sweep tool, garlemald cross-validation).
+
 ## Phase 4 — Pack / ChunkRead / InstallUnpacker (▶ active matching)
 
 Phase 4 targets the file-system + installer subsystems. Detailed

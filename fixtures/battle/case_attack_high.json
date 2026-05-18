@@ -1,0 +1,26 @@
+# Phase 5 calibration fixture — "attack" basic auto-attack, HIGH case.
+#
+# YouTube atlas ground truth (count=1401 samples):
+#   max=4024 (high-level player overpowering low-level mob — likely
+#             with a 2H weapon, crit, and overlevel atk/def gap)
+#
+# A high-level player with greatsword (rank ~9, dmg ~98) attacking a
+# low-level mob — STR-VIT gap wide-positive, atk/def ratio near 2.0
+# upper cap, crit roll.
+
+# Attacker (high-level player, Gladiator with greatsword)
+str=140
+atk=420
+att_level=45
+
+# Target (low-level mob)
+vit=40
+def=110
+
+# Weapon: GreatSword, mid-high tier
+wpn_dmg=98
+wpn_skill=GreatSword
+
+roll=1.0
+crit=1
+cmd=BasicAttack
