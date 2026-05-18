@@ -152,24 +152,51 @@ state. Decoded slot layout:
 | 8 | `FUN_006da5a0` | (per-type accessor) |
 | 9 | `FUN_006ce2e0` | shared LuaControl helper (used across all `*Updater` classes) |
 | 10..12 | `FUN_006bffc0`..`FUN_006bffe0` | tiny no-op stubs (`ret 0x8`) — placeholder slots |
-| 13..15 | `FUN_006cbda0`..`FUN_006cbdc0` | (member iterator helpers) |
-| 16..18 | `FUN_006c5500`..`FUN_006c55c0` | (member lookup helpers) |
-| 19 | `FUN_006c2d80` (73 B) | **`GetMemberAt(u16 idx)`** — bounds-checked 16-byte-stride lookup against `[+0x14..+0x18]` array |
-| 20 | `FUN_006c2dd0` | (sibling of 19) |
-| 21 | `FUN_006c2e20` | (sibling of 19) |
+| **13** | `FUN_006cbda0` (8 B) | **MI adjustor thunk** — `ADD ECX, 0x10; JMP 0x006dab80` (this+=0x10 then tail-call shared handler — pipeline 2 secondary base) |
+| **14** | `FUN_006cbdb0` (8 B) | **MI adjustor thunk** — `ADD ECX, 0x20; JMP 0x006dab80` (this+=0x20 — pipeline 3 secondary base) |
+| **15** | `FUN_006cbdc0` (8 B) | **MI adjustor thunk** — `ADD ECX, 0x30; JMP 0x006dab80` (this+=0x30 — pipeline 4 secondary base) |
+| **16** | `FUN_006c5500` (92 B) | **`AppendToMember(idx, src, len)` — pipeline 1** — bounds-checks array A at `[+0x14..+0x18]`, advances member[idx][+0xc] write cursor by len after writing |
+| **17** | `FUN_006c5560` (92 B) | **`AppendToMember(idx, src, len)` — pipeline 2** — same shape, array B at `[+0x24..+0x28]` |
+| **18** | `FUN_006c55c0` (92 B) | **`AppendToMember(idx, src, len)` — pipeline 3** — same shape, array C at `[+0x34..+0x38]` |
+| **19** | `FUN_006c2d80` (73 B) | **`GetMemberAt(u16 idx)` — pipeline 1** — bounds-checked 16-byte-stride lookup against array A at `[+0x14..+0x18]` |
+| **20** | `FUN_006c2dd0` | **`GetMemberAt(u16 idx)` — pipeline 2** (array B at `[+0x24..+0x28]`) |
+| **21** | `FUN_006c2e20` | **`GetMemberAt(u16 idx)` — pipeline 3** (array C at `[+0x34..+0x38]`) |
 | 22 | `FUN_006c9930` (121 B) | **`CopyMemberByLookup(key, dst, len)`** — looks up by short key, validates extent, copies len bytes via shared `memcpy` at `0x9d4600` |
-| 23..27 | `FUN_006c99b0`..`FUN_006c9bb0` | (sibling copy variants) |
+| 23..27 | `FUN_006c99b0`..`FUN_006c9bb0` | (sibling copy variants — likely pipeline-2/3 variants of slot 22) |
 
-**Member-array layout** (deduced from slot 19 / 22):
-- `[this+0x14]` — pointer to first member entry
-- `[this+0x18]` — pointer to one-past-last member entry
-- Member entries are 16 bytes each (`shl esi, 4` = `idx * 16`)
-- Out-of-range index → calls `0x9d22b4` (likely `__report_rangecheckfailure` or assert)
+**Member-array layout** (deduced from slots 16/17/18 + 19/20/21 + 22 —
+**resolved 2026-05-17, Phase 8 #3**):
 
-So `SharedWork` exposes a **bounded array of fixed-size member entries**
-(16 B each) with typed slot accessors. The 28-slot vtable is the
-per-field reader/writer surface that the SyncWriter pipeline drives
-when a property changes.
+SharedWork has **3 PARALLEL member arrays** at byte-aligned offsets:
+
+| Pipeline | Begin ptr | End ptr | Read slot | Write slot | Adjustor thunk |
+|---|---|---|---:|---:|---|
+| **1** (likely `MemberInfo`) | `[this+0x14]` | `[this+0x18]` | 19 | 16 | — (primary base, no adjustment) |
+| **2** (likely `Property`) | `[this+0x24]` | `[this+0x28]` | 20 | 17 | slot 13 (`+=0x10`) |
+| **3** (likely `WorkSync`) | `[this+0x34]` | `[this+0x38]` | 21 | 18 | slot 14 (`+=0x20`) |
+
+The 3 pipelines mirror the 3 `*Updater` classes (`MemberInfoUpdater`,
+`PropertyUpdater`, `WorkSyncUpdater`) listed in the class hierarchy
+section above. Each Updater pipeline reads/writes its own member array,
+keeping the SyncWriter callback streams independent.
+
+**MI adjustor thunks** (slots 13/14/15): these are the standard MSVC
+secondary-base adjustor pattern. When a method is called through the
+secondary base's vtable (the secondary base lives at `SharedWork+0x10`
+or `+0x20` or `+0x30`), the thunk adjusts `this` back to the secondary
+base's actual address before tail-calling the shared handler
+`FUN_006dab80` (97 B, "request a member at sub-base offset").
+
+Member entries: 16 bytes each (`shl esi, 4 = idx * 16`) with:
+- `[member+0x0..+0xb]`: opaque member fields
+- `[member+0xc]`: write cursor (advanced by `AppendToMember` slots)
+- Out-of-range index → `FUN_009d22b4` = `__report_rangecheckfailure`
+
+So `SharedWork` exposes **3 parallel bounded arrays of fixed-size
+member entries** (16 B each) with parallel typed-slot accessors per
+pipeline (read at 19/20/21, write at 16/17/18). The 28-slot vtable is
+the per-field reader/writer surface that the 3 `*Updater` pipelines
+drive when a property changes.
 
 ## 0x0133 dispatch — runtime-registered callback
 
@@ -249,7 +276,7 @@ entry pointers at `0xdc0f5c` (jump table).
 |---|---|---|
 | #1 | Group class hierarchy inventory | ✅ done (this doc) |
 | #2 | PacketProcessor dispatch pattern | ✅ done (this doc) |
-| #3 | SharedWork slot map | 🟡 partial (slots 0..27 listed; semantic role of slots 13..18 needs deeper trace) |
+| #3 | SharedWork slot map | ✅ done 2026-05-17 — slots 13..18 fully resolved. Slots 13/14/15 are 8-byte MI adjustor thunks (`+=0x10/0x20/0x30`) for the 3 parallel secondary-base subobjects. Slots 16/17/18 are 92-byte parallel `AppendToMember(idx, src, len)` methods, one per pipeline (arrays at `[+0x14/+0x24/+0x34]`). Slots 19/20/21 are the symmetric `GetMemberAt(idx)` read counterparts. Confirms SharedWork has 3 parallel member arrays for the 3 `*Updater` pipelines (MemberInfo/Property/WorkSync). See "SharedWork — the work-table API" section above. |
 | #4 | EntryBuilderBase 19-slot map | ✅ done (this doc, "EntryBuilderBase + EntryBuilder slot maps" section below) |
 | #5 | PacketRequestBase 13-slot map | ✅ done (this doc, "PacketRequestBase slot map" section below) |
 | #6 | OnlineStatusUpdater + BreakupBuilder slot maps | ✅ done (this doc, "OnlineStatusUpdater + BreakupBuilder" section below) |
