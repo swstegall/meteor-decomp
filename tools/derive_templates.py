@@ -378,6 +378,55 @@ def try_ifnotnull_thiscall_then_free_25b(
     return (src, "if-not-null dispatch + free 25b")
 
 
+def try_cdecl_2arg_push_const_3arg_helper_24b(
+        body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 24B "cdecl(2 args) → push const + 2 args → call 3-arg helper":
+    #   8b 44 24 08            MOV EAX, [ESP+8]   ; arg2
+    #   8b 4c 24 04            MOV ECX, [ESP+4]   ; arg1
+    #   68 RR RR RR RR         PUSH offset <const>
+    #   50                     PUSH EAX            ; arg2
+    #   51                     PUSH ECX            ; arg1
+    #   e8 RR RR RR RR         CALL <helper>
+    #   83 c4 0c               ADD ESP, 0xc
+    #   c3                     RET                  ; cdecl (caller cleans)
+    #
+    # MSVC-emitted "facade with hardcoded const-arg" pattern. A cdecl
+    # 2-arg function injects a hardcoded const pointer (format string,
+    # type tag, vtable address, etc.) and forwards to a 3-arg helper.
+    # Two reloc slots: the const ptr push + CALL rel32. Linear ending
+    # in plain RET (no Ghidra under-count bug).
+    if len(body) != 24:
+        return None
+    if body[0:8] != bytes.fromhex("8b4424088b4c2404"):
+        return None
+    if body[8] != 0x68:
+        return None
+    if body[13:16] != b"\x50\x51\xe8":
+        return None
+    if body[20:24] != b"\x83\xc4\x0c\xc3":
+        return None
+    src = (
+        _header(va, "cdecl 2-arg wrapper push const + 2 args, call 3-arg helper (24B)",
+                "8b 44 24 08 8b 4c 24 04 68 RR RR RR RR 50 51 e8 RR RR RR RR 83 c4 0c c3", n)
+        + "\nextern void *g_const_arg;\n"
+          "extern \"C\" void __cdecl logger_helper();\n\n"
+          "extern \"C\" __declspec(naked) void __cdecl "
+          "cdecl_2arg_wrapper_push_const_3arg_logger() {\n"
+          "    __asm {\n"
+          "        mov eax, dword ptr [esp + 8]\n"
+          "        mov ecx, dword ptr [esp + 4]\n"
+          "        push offset g_const_arg\n"
+          "        push eax\n"
+          "        push ecx\n"
+          "        call logger_helper\n"
+          "        add esp, 0xc\n"
+          "        ret\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "cdecl 2arg push-const 3arg helper 24b")
+
+
 def try_thiscall_2arg_shuffle_to_4arg_helper_27b(
         body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 27B "thiscall takes 2 stack args, shuffles to 4-arg cdecl helper":
@@ -1757,6 +1806,7 @@ DERIVERS = [
     try_member10_vcall6_tail_jmp_eax30_18b,
     try_store_ptr_to_global_then_tail_jmp_20b,
     try_thiscall_2arg_shuffle_to_4arg_helper_27b,
+    try_cdecl_2arg_push_const_3arg_helper_24b,
     # try_ifnotnull_thiscall_then_free_25b — disabled, same Ghidra
     # under-count bug as try_release_then_free_22b. Cluster fingerprint
     # is 22 bytes (asm dump truncates the `83 c4 04 5e c3` epilogue),
