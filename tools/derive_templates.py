@@ -320,6 +320,50 @@ def try_jmp_thunk(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     return None
 
 
+def try_null_check_global_vtable_slot0_call_1_19b(
+        body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 19-byte null-check singleton vtable[0] call with arg=1:
+    #   8b 0d RR RR RR RR    MOV ECX, [global]
+    #   85 c9                TEST ECX, ECX
+    #   74 08                JZ skip (+8)
+    #   8b 01                MOV EAX, [ECX]      ; vtable
+    #   8b 10                MOV EDX, [EAX]      ; slot 0
+    #   6a 01                PUSH 1
+    #   ff d2                CALL EDX
+    #   c3                   RET
+    #
+    # Common compiler-emitted "singleton method dispatch with hardcoded
+    # arg=1" pattern. Used for module-init / OnFrame-style hooks that
+    # take a single bool flag. The global is null-checked before the
+    # dispatch, so the cluster includes both "active" and "uninitialised"
+    # call sites without crashing.
+    if len(body) != 19:
+        return None
+    if body[0:2] != b"\x8b\x0d":
+        return None
+    if body[6:19] != b"\x85\xc9\x74\x08\x8b\x01\x8b\x10\x6a\x01\xff\xd2\xc3":
+        return None
+    src = (
+        _header(va, "null-check singleton vtable[0] call with arg=1",
+                "8b 0d RR RR RR RR 85 c9 74 08 8b 01 8b 10 6a 01 ff d2 c3", n)
+        + "\nextern void *g_singleton;\n\n"
+          "extern \"C\" __declspec(naked) void __cdecl null_check_vtable_slot0_call_with_1() {\n"
+          "    __asm {\n"
+          "        mov ecx, dword ptr [g_singleton]\n"
+          "        test ecx, ecx\n"
+          "        jz skip_call\n"
+          "        mov eax, dword ptr [ecx]\n"
+          "        mov edx, dword ptr [eax]\n"
+          "        push 1\n"
+          "        call edx\n"
+          "    skip_call:\n"
+          "        ret\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "null-check vtable[0] call(1) 19b")
+
+
 def try_singleton_tail_call(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # b9 RR RR RR RR e9 RR RR RR RR — MOV ECX, addr; JMP rel32
     if len(body) == 10 and body[0] == 0xb9 and body[5] == 0xe9:
@@ -1485,6 +1529,7 @@ DERIVERS = [
     try_push_arg_str_call_19b,
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
+    try_null_check_global_vtable_slot0_call_1_19b,
     try_jmp_thunk,
     try_no_reloc_emit_fallback,  # last-resort catch-all (no relocs only)
 ]
