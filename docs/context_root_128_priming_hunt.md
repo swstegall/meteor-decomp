@@ -380,6 +380,118 @@ points to two practical garlemald implications:
    pre-fills the event-handler vector). Decoding the 5 missing pmeteor
    packets' opcodes would identify which path is taken.
 
+## 2026-05-17 follow-up #3 — Lua-corpus walk **CONFIRMS** the hypothesis
+
+### NpcBaseClass Lua API has the symmetric `_callServerOn*` family
+
+`build/wire/cpp_bindings.md` lists `npcbaseclass` with 23 methods
+including the **symmetric trio** (one per interaction kind):
+
+```
+_breakEmote_cpp  / _callServerOnEmote_cpp / _doServerOnEmote_cpp
+_breakPush_cpp   / _callServerOnPush_cpp  / _doServerOnPush_cpp
+_breakTalk_cpp   / _callServerOnTalk_cpp  / _doServerOnTalk
+```
+
+These are the **engine-side bindings** dispatched via Lua VM string
+lookup — `_<method>_cpp` names appear in shipped `.lpb` files and
+the engine looks them up by hash.
+
+### The Lua `_onTalkEvent` / `_onPushEvent` / `_onEmoteEvent` wrappers
+
+In `build/lua/729s9/wu7/wu789r57y9rr.lua` (the NpcBaseClass main
+script, 623 lines, decompiled from the shipped corpus), the
+event-entry-point methods are:
+
+```lua
+-- _onTalkEvent (line 446):
+function NpcBaseClass:_onTalkEvent(player, packet)
+    if isEventLockonCameraEnable() then
+        player:_setLockonTarget(self)
+    else
+        player:_setLockonTarget(nil)
+    end
+    self:_callServerOnTalk(player, packet)   -- ⭐ ENGINE BINDING
+    player:_setLockonTarget(nil)
+    desktopWidget:cancelAllTarget()
+end
+
+-- _onEmoteEvent (line 501): symmetric with _callServerOnEmote
+-- _onPushEvent (line 525): calls self:_callServerOnPush(player, packet)
+```
+
+So the engine fires `npc:_onTalkEvent(player, packet)` when the
+player clicks an NPC → Lua wrapper calls
+`npc:_callServerOnTalk_cpp(player, packet)` → **the C++ binding
+side-effects `npc[+0x128] = player_actor_id`** (the priming
+write) AND sends the server-side talk request packet.
+
+This is the **previously-missing primer**. It's NOT a packet
+receiver — it's a CLIENT-SIDE engine binding that runs as part of
+the player's interaction action, BEFORE the server is even
+informed.
+
+### The full kick state-machine timing
+
+```
+1. Player clicks Yda NPC in Gridania
+2. Client engine: npc:_onTalkEvent(player, packet)
+   ├─ npc:_callServerOnTalk_cpp(player, packet)
+   │  ├─ npc[+0x128] = player_actor_id    ⭐ PRIMING (side effect)
+   │  └─ send TalkRequest packet to server
+3. Server processes talk request
+4. Server responds with Kick packet (cinematic start)
+5. Client KickReceiver.slot[2]:
+   ├─ context_root = npc (via vtable[1][+0xc])
+   ├─ Branch A check: [+0x12c] == NO_ACTOR? → no current target
+   ├─ Branch B1/B2 check: [+0x128] == NO_ACTOR?
+   │  ├─ If primed (step 2 fired): Branch B2 → look up actor → SUCCESS
+   │  └─ If NOT primed: Branch B1 → silent fall-through
+```
+
+### Implications for the parallel SEQ_005 garlemald session
+
+If garlemald's SEQ_005 KickReceiver hits silent Branch B1, the
+ROOT CAUSE is one of:
+
+1. **The talk/push trigger event never fires on the client.**
+   E.g., garlemald doesn't broadcast the appropriate `SetPushEvent
+   Condition*` packets when the player approaches Yda, so the
+   client never registers the trigger box → never fires
+   `_onPushEvent` → `_callServerOnPush_cpp` never runs → `[+0x128]`
+   stays at NO_ACTOR.
+
+2. **The talk request never reaches the client engine layer.**
+   E.g., the NPC isn't flagged talkable (`_isTalkable_cpp` returns
+   false) so the engine doesn't dispatch `_onTalkEvent` → no
+   priming.
+
+3. **The kick clearer FUN_006e32f0 runs between priming and kick.**
+   E.g., garlemald's response sequence inadvertently triggers a
+   `MyPlayer::vtable[66]` call that clears `[+0x128]` back to
+   NO_ACTOR before the kick lands.
+
+4. **The Lua-engine binding `_callServerOnTalk_cpp` IS the writer,
+   but the write target differs.** Possible if the binding writes
+   `npc[+0x128] = X` where X is computed from some packet field
+   garlemald isn't setting correctly (e.g., the kick target
+   eventId or some session-context field).
+
+The most likely root cause given pmeteor's "5 extra
+SetEventStatus pre-kick" packets (per Phase 9 #8a) is **option 1**
+— garlemald isn't sending the trigger-box-registration packets
+that promote Yda/Papalymo to "talkable/pushable" state on the
+client, so the talk/push events never fire and never prime
+`[+0x128]`.
+
+### Final next-step priorities (refined)
+
+| Path | Cost | Yield |
+|---|---|---|
+| Identify `_callServerOnTalk_cpp` engine C++ address via the Lua-binding registry — confirm it writes `+0x128` | Low (~30 min if registry is in `cpp_bindings.json`) | **Definitive** |
+| Decode pmeteor's 5 missing SetEventStatus packets (parallel SEQ_005 session) | (other session) | Definitive |
+| Runtime trace (HWBP on `npc[+0x128]` during pmeteor SEQ_005 cinematic) | High setup | Definitively conclusive |
+
 ## Cross-references
 
 - `docs/event_kick_receiver_decomp.md` — kick receiver 3-way branch
@@ -389,3 +501,8 @@ points to two practical garlemald implications:
   + SetNoticeEventCondition receivers (#8b)
 - `docs/receiver_gate_cheatsheet.md` — Phase 9 #6/#7 (38 receivers)
 - `docs/receiver_classes_inventory.md` — Phase 9 #1, #5, #8 task list
+- `build/wire/cpp_bindings.md` — Lua-bound engine API catalog
+  (npcbaseclass section lists the `_callServerOn*` family)
+- `build/lua/729s9/wu7/wu789r57y9rr.lua` — NpcBaseClass main Lua
+  script (the `_onTalkEvent` / `_onPushEvent` / `_onEmoteEvent`
+  wrappers)
