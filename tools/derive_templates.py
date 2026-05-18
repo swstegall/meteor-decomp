@@ -320,6 +320,64 @@ def try_jmp_thunk(body: bytes, va: int, n: int) -> tuple[str, str] | None:
     return None
 
 
+def try_ifnotnull_thiscall_then_free_25b(
+        body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 25-byte if-not-null-dispatch-then-free pattern:
+    #   56                   PUSH ESI
+    #   8b 31                MOV ESI, [ECX]      ; this->ptr_field
+    #   85 f6                TEST ESI, ESI
+    #   74 10                JZ skip (+0x10)
+    #   8b ce                MOV ECX, ESI
+    #   e8 RR RR RR RR       CALL <method>       ; thiscall on ptr_field
+    #   56                   PUSH ESI
+    #   e8 RR RR RR RR       CALL <free>         ; operator delete
+    #   83 c4 04             ADD ESP, 4
+    #   5e                   POP ESI             ; (jz lands here)
+    #   c3                   RET
+    #
+    # Common MSVC-emitted "destructor helper" pattern: object owns a
+    # heap allocation at +0; if non-null, call its cleanup method then
+    # free it. Two reloc slots (the two CALL rel32s).
+    #
+    # NB: cluster fingerprint is the first 22 bytes (size_overrides
+    # truncates before the `83 c4 04 5e c3` epilogue). The body bytes
+    # we read for cluster matching ARE 22 bytes, so we accept either
+    # 22 or 25 byte bodies — the template emits the full 25.
+    if len(body) not in (22, 25):
+        return None
+    head = bytes.fromhex("568b3185f674108bcee8")        # 10 B
+    mid  = b"\x56\xe8"                                   # offset 14..15
+    if body[0:10] != head:
+        return None
+    if body[14:16] != mid:
+        return None
+    if len(body) == 25 and body[20:25] != b"\x83\xc4\x04\x5e\xc3":
+        return None
+    src = (
+        _header(va, "if-not-null thiscall dispatch then free (25B destructor helper)",
+                "56 8b 31 85 f6 74 10 8b ce e8 RR RR RR RR 56 e8 RR RR RR RR 83 c4 04 5e c3", n)
+        + "\nextern \"C\" void __cdecl some_method();\n"
+          "extern \"C\" void __cdecl some_free();\n\n"
+          "extern \"C\" __declspec(naked) void __cdecl ifnotnull_dispatch_then_free() {\n"
+          "    __asm {\n"
+          "        push esi\n"
+          "        mov esi, dword ptr [ecx]\n"
+          "        test esi, esi\n"
+          "        jz skip\n"
+          "        mov ecx, esi\n"
+          "        call some_method\n"
+          "        push esi\n"
+          "        call some_free\n"
+          "        add esp, 4\n"
+          "    skip:\n"
+          "        pop esi\n"
+          "        ret\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "if-not-null dispatch + free 25b")
+
+
 def try_null_check_global_vtable_slot0_call_1_19b(
         body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 19-byte null-check singleton vtable[0] call with arg=1:
@@ -1530,6 +1588,13 @@ DERIVERS = [
     try_thiscall_return_self_wrapper,
     try_singleton_tail_call,
     try_null_check_global_vtable_slot0_call_1_19b,
+    # try_ifnotnull_thiscall_then_free_25b — disabled, same Ghidra
+    # under-count bug as try_release_then_free_22b. Cluster fingerprint
+    # is 22 bytes (asm dump truncates the `83 c4 04 5e c3` epilogue),
+    # but the compiled template emits the full 25-byte function. The
+    # template-vs-orig comparison reports MISMATCH because compare.py
+    # uses the YAML's truncated 22-byte size. Re-enable after
+    # recompute_sizes.py fixes the underlying size detection.
     try_jmp_thunk,
     try_no_reloc_emit_fallback,  # last-resort catch-all (no relocs only)
 ]
