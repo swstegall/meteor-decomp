@@ -378,6 +378,45 @@ def try_ifnotnull_thiscall_then_free_25b(
     return (src, "if-not-null dispatch + free 25b")
 
 
+def try_member10_vcall6_tail_jmp_eax30_18b(
+        body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 18B "navigate to member-at-+0x10, virtual-call slot 6, tail-JMP
+    # into result+0x30":
+    #   8b 49 10             MOV ECX, [ECX+0x10]   ; this = this->member_at_10
+    #   8b 01                MOV EAX, [ECX]         ; vtable
+    #   8b 50 18             MOV EDX, [EAX+0x18]   ; vtable[+0x18] = slot 6
+    #   ff d2                CALL EDX                ; vmethod(member); EAX = result
+    #   8d 48 30             LEA ECX, [EAX+0x30]   ; this = result + 0x30
+    #   e9 RR RR RR RR       JMP <tail helper>      ; tail call (no RET)
+    #
+    # MSVC-emitted "field-of-method-result" delegate: navigate to a
+    # member, invoke its vtable[6] no-arg method, then tail-call into
+    # the returned object's +0x30 field. Cluster fingerprint is the
+    # exact 18 bytes (no JZ-into-body so no Ghidra under-count bug).
+    if len(body) != 18:
+        return None
+    expected = bytes.fromhex("8b49108b018b5018ffd28d4830e9")  # 14 B
+    if body[0:14] != expected:
+        return None
+    src = (
+        _header(va, "member-at-+0x10 vcall[+0x18] tail-JMP into EAX+0x30 (18B)",
+                "8b 49 10 8b 01 8b 50 18 ff d2 8d 48 30 e9 RR RR RR RR", n)
+        + "\nextern \"C\" void __cdecl tail_helper();\n\n"
+          "extern \"C\" __declspec(naked) void __cdecl "
+          "member10_vcall6_then_tail_jmp_eax30() {\n"
+          "    __asm {\n"
+          "        mov ecx, dword ptr [ecx + 0x10]\n"
+          "        mov eax, dword ptr [ecx]\n"
+          "        mov edx, dword ptr [eax + 0x18]\n"
+          "        call edx\n"
+          "        lea ecx, [eax + 0x30]\n"
+          "        jmp tail_helper\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "member10 vcall6 tail-jmp eax30 18b")
+
+
 def try_delegate_float_to_member8_19b(
         body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 19B "delegate float arg to member-at-+0x8" thiscall forwarder:
@@ -1628,6 +1667,7 @@ DERIVERS = [
     try_singleton_tail_call,
     try_null_check_global_vtable_slot0_call_1_19b,
     try_delegate_float_to_member8_19b,
+    try_member10_vcall6_tail_jmp_eax30_18b,
     # try_ifnotnull_thiscall_then_free_25b — disabled, same Ghidra
     # under-count bug as try_release_then_free_22b. Cluster fingerprint
     # is 22 bytes (asm dump truncates the `83 c4 04 5e c3` epilogue),
