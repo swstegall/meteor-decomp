@@ -378,6 +378,44 @@ def try_ifnotnull_thiscall_then_free_25b(
     return (src, "if-not-null dispatch + free 25b")
 
 
+def try_store_ptr_to_global_then_tail_jmp_20b(
+        body: bytes, va: int, n: int) -> tuple[str, str] | None:
+    # 20B "store const-ptr to global, set ECX to global addr, tail-JMP":
+    #   c7 05 RR RR RR RR RR RR RR RR  MOV [g_dest], offset g_value  (10 B)
+    #   b9 RR RR RR RR                 MOV ECX, offset g_dest          (5 B)
+    #   e9 RR RR RR RR                 JMP <tail helper>               (5 B)
+    #
+    # MSVC-emitted "initialise singleton with pointer then call init"
+    # pattern: store a const-ptr into a global slot, set ECX to that
+    # global's address (so the callee receives the slot itself as
+    # `this`), and tail-call an initialiser. 4 reloc slots: dest addr,
+    # value ptr, ECX-load addr (same as dest), JMP target.
+    if len(body) != 20:
+        return None
+    if body[0:2] != b"\xc7\x05":
+        return None
+    if body[10] != 0xb9:
+        return None
+    if body[15] != 0xe9:
+        return None
+    src = (
+        _header(va, "store const ptr to global, set ECX to global, tail-JMP (20B)",
+                "c7 05 RR RR RR RR RR RR RR RR b9 RR RR RR RR e9 RR RR RR RR", n)
+        + "\nextern void *g_dest;\n"
+          "extern void *g_value;\n"
+          "extern \"C\" void __cdecl tail_helper();\n\n"
+          "extern \"C\" __declspec(naked) void __cdecl "
+          "store_ptr_to_global_then_tail_jmp() {\n"
+          "    __asm {\n"
+          "        mov dword ptr [g_dest], offset g_value\n"
+          "        mov ecx, offset g_dest\n"
+          "        jmp tail_helper\n"
+          "    }\n"
+          "}\n"
+    )
+    return (src, "store ptr to global tail-jmp 20b")
+
+
 def try_member10_vcall6_tail_jmp_eax30_18b(
         body: bytes, va: int, n: int) -> tuple[str, str] | None:
     # 18B "navigate to member-at-+0x10, virtual-call slot 6, tail-JMP
@@ -1668,6 +1706,7 @@ DERIVERS = [
     try_null_check_global_vtable_slot0_call_1_19b,
     try_delegate_float_to_member8_19b,
     try_member10_vcall6_tail_jmp_eax30_18b,
+    try_store_ptr_to_global_then_tail_jmp_20b,
     # try_ifnotnull_thiscall_then_free_25b — disabled, same Ghidra
     # under-count bug as try_release_then_free_22b. Cluster fingerprint
     # is 22 bytes (asm dump truncates the `83 c4 04 5e c3` epilogue),
