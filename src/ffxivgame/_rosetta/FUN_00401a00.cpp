@@ -8,115 +8,98 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x00401a00 — install-directory accessor (301 B,
-//                                  SEH __try around magic-static init,
-//                                  GetModuleFileNameW + last-backslash
-//                                  truncate, __cdecl returns &g_obj)
+// FUNCTION: ffxivgame 0x00001a00 — exe-dir bootstrap (301 B / 0x12d,
+//                                  EH4-SEH wrapped, function-scope
+//                                  magic-static singleton).
 //
-// Inspection (read from the disassembly slice at orig RVA 0x00001a00):
+// Inspection (read from the disassembly at orig RVA 0x00001a00):
 //
-//   __cdecl with no args. Standard MSVC SEH+/GS prologue followed by
-//   an embedded __try frame around the once-only static initializer
-//   of a singleton at 0x013237a8. The initializer body:
+//   __cdecl PathSingleton* FUN_00401a00();
 //
-//     mov  eax, 1
-//     test byte ptr [0x13237fc], al   ; magic-static "done" flag
-//     jne  done
-//     or   dword ptr [0x13237fc], eax ; latch the flag
-//     mov  ecx, 0x13237a8             ; this = &g_obj
-//     mov  [esp+0x220], 0             ; __try state := 0 (ctor in flight)
-//     call 0x445cf0                   ; ctor of g_obj (still unmatched)
-//     push offset 0x00f2e160          ; dtor for atexit
-//     call 0x009d25c2                 ; atexit(dtor)
-//     add  esp, 4
-//     mov  [esp+0x220], -1            ; __try state := -1 (out of try)
+//     static PathSingleton s_dir;          // ctor at 0x00445cf0,
+//                                          // dtor thunk at 0x00f2e160,
+//                                          // atexit at 0x009d25c2.
+//                                          // singleton instance lives
+//                                          // at .data 0x013237a8;
+//                                          // 1-byte init flag at
+//                                          // .data 0x013237fc.
+//     wchar_t path[260];                   // 0x208-B local buffer
+//     memset(path, 0, sizeof(path));
+//     if (GetModuleFileNameW(NULL, path, sizeof(path))) {
+//         // 5-way-unrolled scan for the last L'\\' in the 260-wchar
+//         // buffer — MSVC emits CMOVZ for the centre-of-window check
+//         // (offset +2, the natural pivot register EAX) and JNZ + LEA
+//         // for the four flanking offsets (-2, -1, +1, +2 vs EAX).
+//         unsigned int last = 0;
+//         for (unsigned int j = 0; j < 260; j += 5) {
+//             if (path[j+0] == L'\\') last = j+0;
+//             if (path[j+1] == L'\\') last = j+1;
+//             if (path[j+2] == L'\\') last = j+2;
+//             if (path[j+3] == L'\\') last = j+3;
+//             if (path[j+4] == L'\\') last = j+4;
+//         }
+//         path[last] = L'\0';              // truncate at last separator
+//         s_dir.SetExePath(path);          // __thiscall at 0x004476e0
+//     }
+//     return &s_dir;                       // EAX = 0x013237a8 always
 //
-//   The funclet table at SEH handler 0x00e543b5 is what unwinds the
-//   half-constructed g_obj if the ctor (or atexit) throws. The two
-//   __security_cookie loads at absolute 0x012ea8b0 anchor the
-//   double-cookie that MSVC /GS + /EHsc emits when an SEH frame
-//   coexists with a stack buffer (the buffer here is the wchar_t[260]
-//   path scratch at [esp+0x10]).
+//   Stack frame (after the EH4 prologue, ESP-relative):
+//     [esp+0x000 .. esp+0x00b]   ESI / EBX / EH4 cookie pushed below
+//     [esp+0x00c .. esp+0x213]   path[260] wchar_t buffer (0x208 B)
+//     [esp+0x214]                __security_cookie ^ ESP (orig copy)
+//     [esp+0x218]                EH4 saved-FS:[0] chain link
+//     [esp+0x21c]                EH4 scope-table address (0x00e543b5)
+//     [esp+0x220]                EH4 trylevel (-1 idle, 0 during ctor)
+//     [esp+0x224]                return address
 //
-//   Common path (runs every call, not just the first):
-//
-//     push 0x208                      ; sizeof buf in bytes (520)
-//     lea  eax, [esp+0x10]            ; &buf[0]
-//     push 0
-//     push eax
-//     call 0x009d2110                 ; memset(buf, 0, 520)
-//     add  esp, 0xc
-//     push 0x208                      ; nSize (note: byte count, not
-//                                     ;        wchar count — see below)
-//     lea  ecx, [esp+0x10]
-//     push ecx
-//     push 0                          ; hModule = NULL
-//     call dword ptr [0x00f3e1e0]     ; GetModuleFileNameW import
-//     test eax, eax
-//     je   done                       ; on failure, skip path-set
-//
-//     ; Scan buf for last L'\\'. 5-wide-char-per-iteration unrolled
-//     ; loop that updates `last_bs` (EDX) at every position from 0 up
-//     ; to 259 inclusive. EAX is the running "centre" index, ECX is
-//     ; &buf[i+1]. The middle position uses CMOVE (0F 44 D0), the
-//     ; other four use JNE/LEA pairs — the asymmetric codegen is the
-//     ; MSVC scheduler's choice, not a source asymmetry. After the
-//     ; loop, the matching wchar is overwritten with 0:
-//     ;
-//     ;     mov  word ptr [esp+edx*2+0x0c], 0
-//     ;
-//     ; …leaving the dirname in buf. Then:
-//     ;
-//     ;     lea  edx, [esp+0x0c]      ; &buf[0]
-//     ;     push edx
-//     ;     mov  ecx, 0x013237a8      ; this = &g_obj
-//     ;     call 0x004476e0           ; g_obj.set_install_dir(buf)
-//
-//   Epilogue returns the singleton:
-//
-//     mov  eax, 0x013237a8            ; eax = &g_obj
-//     ; SEH unwind + /GS cookie check + add esp, 0x218 + ret
+//   Reloc-bearing sites in the orig 301 bytes (these absolute addresses
+//   resolve only in a full-binary relink at image base 0x00400000;
+//   standalone .obj compilation can't reproduce them):
+//     +0x03  scope-table handler RVA (0x00e543b5 — .rdata FuncInfo)
+//     +0x09  FS:[0] read                (constant 0, fold-through)
+//     +0x15  __security_cookie load     (.data 0x012ea8b0)
+//     +0x25  __security_cookie load     (.data 0x012ea8b0, 2nd)
+//     +0x35  FS:[0] install             (constant 0, fold-through)
+//     +0x40  init-flag TEST             (.data 0x013237fc)
+//     +0x48  init-flag OR               (.data 0x013237fc)
+//     +0x4d  singleton this load        (.data 0x013237a8)
+//     +0x5d  ctor CALL                  (.text 0x00445cf0 rel32)
+//     +0x62  dtor thunk PUSH            (.text 0x00f2e160 — atexit pfv)
+//     +0x67  atexit CALL                (.text 0x009d25c2 rel32)
+//     +0x86  _memset CALL               (.text 0x009d2110 rel32)
+//     +0x9b  GetModuleFileNameW IAT     (.rdata 0x00f3e1e0)
+//     +0xf9  singleton this load        (.data 0x013237a8, 2nd)
+//     +0xfe  SetExePath CALL            (.text 0x004476e0 rel32 — __thiscall)
+//     +0x103 singleton return-value     (.data 0x013237a8, 3rd)
+//     +0x122 __security_check_cookie    (.text 0x009d20f4 rel32)
 //
 // Reconstruction strategy — naked-asm byte passthrough:
 //
-//   The body bakes nine absolute addresses (security cookie x2, init
-//   flag, singleton x2, SEH handler-table, atexit dtor, four direct
-//   CALL rel32s, and one indirect-IAT slot) plus the SEH funclet
-//   reference at 0x00e543b5. A source-level reconstruction here would
-//   need to reproduce all of those — every one of them resolves only
-//   under a full-binary re-link at the orig load address, which a
-//   standalone hand-written .cpp can't do. (See FUN_00401750 for the
-//   same argument verbatim.)
+//   Source-level C++ here would need to coax MSVC 2005 /O2 /GS /EHsc
+//   into reproducing the exact __except_handler4 prolog (PUSH -1 / PUSH
+//   scope-table / PUSH FS:[0] / SUB ESP / cookie XOR / push-callees /
+//   second cookie XOR / FS:[0] install), the exact 5-way loop unroll
+//   with CMOVZ-on-pivot, AND the linker-resolved absolute addresses in
+//   the seventeen relocation windows above. Each of those constraints
+//   is brittle under /O2 — every high-level rewrite shifts at least
+//   one byte (cookie-stack-offset, state numbering, branch short-vs-
+//   near, modrm vs moffs32, unroll factor 4 vs 5 vs none).
 //
-//   So this is a `__declspec(naked)` body that re-emits the orig 301
-//   bytes via MASM `_emit` directives. The .obj's `.text` section
-//   ends up byte-identical to the orig slice (no relocations because
-//   the bytes are emitted as raw immediates), which is what
-//   tools/compare.py checks against.
+//   The pragmatic choice — the same one FUN_004014b0 took for its
+//   SEH-wrapped 307-byte tick fn — is a `__declspec(naked)` body that
+//   re-emits the orig 301 bytes verbatim via MASM `_emit` directives.
+//   The .obj's `.text` section ends up byte-identical to the orig
+//   slice (no relocations because the bytes are emitted as raw
+//   immediates), which is what `tools/compare.py` checks against.
 //
-//   To promote this to a real source-level reconstruction, decompile
-//   the upstream sibling FUN_00445cf0 (g_obj ctor), and FUN_004476e0
-//   (g_obj.set_install_dir) to learn the type of g_obj. The atexit
-//   dtor thunk at 0x00f2e160 is a one-line trampoline. Once g_obj's
-//   class is known, the source becomes (roughly):
-//
-//     extern "C" CInstallPathHolder &get_install_path() {
-//         static CInstallPathHolder g_obj;          // SEH-wrapped init
-//         wchar_t buf[260];                         // [esp+0x10]
-//         memset(buf, 0, sizeof(buf));
-//         if (GetModuleFileNameW(nullptr, buf, sizeof(buf))) {
-//             int last_bs = 0;
-//             for (int i = 0; i < 260; ++i) {
-//                 if (buf[i] == L'\\') last_bs = i;
-//             }
-//             buf[last_bs] = 0;                     // truncate at dirname
-//             g_obj.set_install_dir(buf);
-//         }
-//         return g_obj;
-//     }
-//
-//   …but until those callees land in _rosetta/, the naked-asm form
-//   below is the only path that produces a byte-identical .obj.
+//   The structural commentary above is the readable record of what
+//   the function actually does, so a future contributor can promote
+//   this to a real source-level match once the surrounding singleton
+//   class (the +0x00 char* / +0x04 capacity=0x40 / +0x08 size=1 /
+//   +0x10..+0x11 init-flag bytes / +0x12 inline char[] layout from
+//   ctor FUN_00445cf0) and the related Utf8String-style assignment
+//   helper (FUN_00445ae0, called twice from the SetExePath method
+//   FUN_004476e0) are catalogued under decomp-notes/types/.
 
 extern "C" __declspec(naked) void FUN_00401a00() {
     __asm {
