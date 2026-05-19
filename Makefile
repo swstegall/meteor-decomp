@@ -17,6 +17,7 @@ help:
 	@echo "  make pe-info              re-run tools/extract_pe.py (Phase 0)"
 	@echo "  make split BINARY=X.exe   Phase 1: Ghidra import + dump + work-pool YAML"
 	@echo "  make split-all            Phase 1: split every binary in orig/"
+	@echo "  make decompile-headless BINARY=X.exe   Phase 1.5: dump Ghidra pseudo-C → build/ghidra-decomp/<bin>/"
 	@echo "  make setup-msvc           Phase 2: verify VS 2005 SP1 + Wine setup"
 	@echo "  make find-rosetta         Phase 2: pick best Rosetta-Stone candidate"
 	@echo "  make rosetta              Phase 2: compile + diff staged Rosetta function"
@@ -152,6 +153,25 @@ split-all:
 	    bn=$$(basename $$exe); \
 	    $(MAKE) split BINARY=$$bn || exit $$?; \
 	done
+
+# --- Phase 1.5 — headless Ghidra pseudo-C dump -------------------------
+#
+# Exports Ghidra's decompiler output as plain-text .c hint files under
+# build/ghidra-decomp/<binary>/<rva>_<symbol>.c. These are NOT byte-
+# correct — they're agent-readable structural hints. Matching still
+# validates via the asm + objdiff. See tools/ghidra_scripts/DumpPseudoC.java.
+#
+# Idempotent: skips functions whose .c file already exists. Pass
+# FORCE=1 to wipe and rebuild.
+
+.PHONY: decompile-headless
+
+decompile-headless:
+	@if [ -z "$(BINARY)" ]; then echo "usage: make decompile-headless BINARY=<binary>.exe [FORCE=1]"; exit 1; fi
+	@if [ "$(FORCE)" = "1" ]; then rm -rf $(BUILD)/ghidra-decomp/$(basename $(BINARY)); fi
+	@mkdir -p $(BUILD)/ghidra-decomp/$(basename $(BINARY)) $(BUILD)/logs
+	$(PY) $(TOOLS)/import_to_ghidra.py $(BINARY) --skip-import --scripts DumpPseudoC.java 2>&1 \
+	    | tee $(BUILD)/logs/$(basename $(BINARY)).decompile-headless.log
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 

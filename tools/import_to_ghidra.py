@@ -36,10 +36,38 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_GHIDRA_HOME = "/opt/homebrew/Cellar/ghidra/12.0.4/libexec"
-DEFAULT_JAVA_HOME = (
-    "/opt/homebrew/Cellar/openjdk@21/21.0.11/libexec/openjdk.jdk/Contents/Home"
-)
+
+
+def _autodetect_ghidra_home() -> str:
+    """Find the newest brew-installed Ghidra cellar, fall back to a hardcoded path."""
+    cellar = Path("/opt/homebrew/Cellar/ghidra")
+    if cellar.is_dir():
+        versions = sorted(
+            (p for p in cellar.iterdir() if p.is_dir() and (p / "libexec" / "support" / "launch.sh").exists()),
+            key=lambda p: tuple(int(x) for x in p.name.split(".") if x.isdigit()),
+            reverse=True,
+        )
+        if versions:
+            return str(versions[0] / "libexec")
+    return "/opt/homebrew/Cellar/ghidra/12.0.4/libexec"
+
+
+def _autodetect_java_home() -> str:
+    """Find the newest brew-installed openjdk@21 cellar, fall back to a hardcoded path."""
+    cellar = Path("/opt/homebrew/Cellar/openjdk@21")
+    if cellar.is_dir():
+        versions = sorted(
+            (p for p in cellar.iterdir() if p.is_dir()),
+            key=lambda p: tuple(int(x) for x in p.name.split(".") if x.isdigit()),
+            reverse=True,
+        )
+        if versions:
+            return str(versions[0] / "libexec" / "openjdk.jdk" / "Contents" / "Home")
+    return "/opt/homebrew/Cellar/openjdk@21/21.0.11/libexec/openjdk.jdk/Contents/Home"
+
+
+DEFAULT_GHIDRA_HOME = _autodetect_ghidra_home()
+DEFAULT_JAVA_HOME = _autodetect_java_home()
 
 
 def main() -> int:
