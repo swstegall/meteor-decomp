@@ -8,37 +8,42 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x401030 — std::bad_alloc::bad_alloc(char const *const &)
+// FUNCTION: ffxivgame 0x00001030 — std::bad_alloc::bad_alloc(char const * const &)
 //
-// Standard MSVC 2005 STL exception-derived ctor. ECX holds `this`,
-// the single stack arg is a `char const *` (passed by reference to
-// the std::exception base ctor at RVA 0x5d18da, VA 0x9d18da), and
-// after the base call we install std::bad_alloc's vftable (RVA
-// 0xb54a10, VA 0xf54a10) into slot 0. The function returns `this`
-// in EAX and pops 4 bytes from the caller's stack (thiscall, 1 arg).
+// The 1-arg form of bad_alloc's constructor. Forwards the message
+// reference to std::exception::exception(const char* const&) (the
+// 78-byte ctor at RVA 0x5d18da) and then patches the vtable to
+// std::bad_alloc::vftable (RVA 0xb54a10, VA 0x00f54a10).
+//
+// Calling convention: __thiscall (ret 4 — one explicit arg).
+// Stack frame: no frame; one callee-saved register (esi = this).
 //
 // Asm (25 bytes):
-//   56                  PUSH ESI
-//   8d 44 24 08         LEA EAX,[ESP+8]
-//   50                  PUSH EAX
-//   8b f1               MOV ESI,ECX
-//   e8 RR RR RR RR      CALL std::exception::exception
-//   c7 06 RR RR RR RR   MOV dword ptr [ESI], offset std::bad_alloc::vftable
-//   8b c6               MOV EAX,ESI
-//   5e                  POP ESI
-//   c2 04 00            RET 4
+//   56                push esi
+//   8d 44 24 08       lea  eax, [esp+8]          ; address of incoming msg arg
+//   50                push eax                    ; pass &msg to base ctor
+//   8b f1             mov  esi, ecx               ; this
+//   e8 RR RR RR RR    call std::exception::exception
+//   c7 06 RR RR RR RR mov  dword ptr [esi], offset std::bad_alloc::vftable
+//   8b c6             mov  eax, esi               ; return this
+//   5e                pop  esi
+//   c2 04 00          ret  4
+//
+// Companion to FUN_00401060, which is the matching bad_alloc scalar
+// deleting destructor (starts by storing the vftable then calling the
+// real exception dtor).
 
-extern "C" int exception_base_ctor();
-extern "C" int bad_alloc_vftable;
+extern "C" int std_exception_ctor_ref();
+extern "C" int std_bad_alloc_vftable;
 
-extern "C" __declspec(naked) void bad_alloc_ctor() {
+extern "C" __declspec(naked) void bad_alloc_ctor_msg() {
     __asm {
         push esi
-        lea eax, [esp + 8]
+        lea eax, [esp+8]
         push eax
         mov esi, ecx
-        call exception_base_ctor
-        mov dword ptr [esi], offset bad_alloc_vftable
+        call std_exception_ctor_ref
+        mov dword ptr [esi], offset std_bad_alloc_vftable
         mov eax, esi
         pop esi
         ret 4
