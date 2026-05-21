@@ -8,31 +8,46 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x00003c60 — __stdcall single-arg thunk over the
-// 2-arg __cdecl allocator FUN_00401090.
+// FUNCTION: ffxivgame 0x00403c60 — `__stdcall` thin allocate wrapper around
+//                                   the `_Allocate<char>` overflow-checking
+//                                   helper at 0x00401090 (18 B / 0x12).
 //
-// Asm (18 bytes @ 0x00003c60):
-//   8b 44 24 04         MOV  EAX, dword ptr [ESP + 0x4]   ; load arg
-//   6a 00               PUSH 0                            ; flag = 0
-//   50                  PUSH EAX                          ; size
-//   e8 24 d4 ff ff      CALL FUN_00401090                 ; rel32 → 0x1090
-//   83 c4 08            ADD  ESP, 8                       ; cdecl cleanup
-//   c2 04 00            RET  4                            ; stdcall ret
+// Behaviour read from the disassembly at orig RVA 0x00003c60:
 //
-// Conventions:
-//   - Caller is __stdcall (RET 4 cleans the single inbound arg).
-//   - Callee FUN_00401090 is __cdecl (ADD ESP, 8 cleans 2 outbound args).
-//   - Return value passes through EAX (callees return void* in EAX;
-//     FUN_004061e0 casts the result of `FUN_00401090(n, 0)` to void*).
+//   __stdcall void* FUN_00403c60(unsigned int count) {
+//       return _Allocate(count, /*type-deduction ptr*/ 0);
+//   }
 //
-// Source-level reconstruction: a trivial forwarder. MSVC 2005 /O2 picks
-// the "load arg to register, then push" form (MOV EAX, [ESP+4] / PUSH EAX)
-// over the alternative "PUSH [ESP+8]" memory-operand form when the source
-// names the argument as a local-like value.
+//   The callee at 0x00401090 is MSVC's `std::_Allocate<_Ty>` template
+//   instantiation for `_Ty = char` (see src/ffxivgame/_rosetta/
+//   FUN_00401090.cpp). Its declared signature is the two-argument form
+//   `__cdecl _Ty* _Allocate(size_t count, _Ty*)` — the second argument
+//   exists only for template type deduction and is discarded by the
+//   callee, which loads `[ESP+4]` (count) and ignores `[ESP+8]`. This
+//   wrapper passes `(count, 0)` accordingly: an `std::allocator<char>`-
+//   style adapter that drops the `(_Ty*)0` for the template machinery
+//   below it.
+//
+//   Calling convention: `__stdcall` (one 4-byte stack arg, callee pops
+//   via `RET 4`). Zero callee-saved registers touched, no stack frame.
+//
+//   Asm shape (18 bytes total):
+//
+//     8b 44 24 04        mov  eax, [esp+4]      ; load count
+//     6a 00              push 0                  ; type-ptr (discarded)
+//     50                 push eax                ; count
+//     e8 RR RR RR RR     call _Allocate          ; e8 + REL32 reloc
+//     83 c4 08           add  esp, 8             ; cdecl cleanup (2 args)
+//     c2 04 00           ret  4                  ; stdcall epilogue
+//
+//   The only reloc-bearing site in the orig 18 bytes is the `e8` REL32
+//   to FUN_00401090; `tools/compare.py` masks the 4-byte offset window
+//   during the byte diff so the source-level CALL (which resolves to
+//   the differently-placed sibling symbol in the .obj) lines up with
+//   the orig PE's resolved offset (0xffffd424 from this RVA).
 
-extern "C" void * __cdecl FUN_00401090(unsigned int size, int flag);
+extern "C" void* __cdecl FUN_00401090(unsigned int count, void* type_ptr);
 
-extern "C" void * __stdcall FUN_00403c60(unsigned int size)
-{
-    return FUN_00401090(size, 0);
+extern "C" void* __stdcall FUN_00403c60(unsigned int count) {
+    return FUN_00401090(count, 0);
 }
