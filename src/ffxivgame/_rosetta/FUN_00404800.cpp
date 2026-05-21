@@ -8,174 +8,191 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x00404800 — wrapper around FUN_00404760 (28-byte
-//                                  slot swap helper) that computes the
-//                                  "leftover" tail offset (90 bytes)
+// FUNCTION: ffxivgame 0x00404800 — __cdecl 5-arg wrapper around FUN_00404760
+//                                  with `result = arg3 - ((arg2 - arg1) / 0x1c) * 0x1c`
+//                                  (std::rotate-style "return last - (mid - first)").
+//                                  90 B.
 //
-// __cdecl int FUN_00404800(int begin, int end, int cur,
-//                          undefined arg4, undefined arg5)
+// Behaviour (read from orig bytes 0x00004800..0x00004859):
 //
-// Body (read from the orig bytes at RVA 0x00004800, 90 bytes total):
+//   FUN_00404800 takes five 32-bit args. It materialises a 6th argument
+//   (a zero byte sitting in the low byte of the saved-ecx stack slot) and
+//   forwards (arg1, arg2, arg3, arg3, arg5, zero_dword) to FUN_00404760
+//   (a __cdecl helper that walks a [first, mid) → last range of 0x1c-byte
+//   elements). The body of FUN_00404760 only consumes the first three
+//   dword args, so the trailing three slots are "padding" args MSVC's
+//   STL header reaches for to keep the call site compatible with a
+//   wider 6-arg overload.
 //
-//   push ecx                       ; reserve a 4-byte local slot
-//                                  ;   (becomes the 0-byte "do_copy" arg)
-//   mov  ecx, [esp+0x18]           ; ecx = arg5
-//   mov  edx, [esp+0x10]           ; edx = arg3 (cur)
-//   push ebx
-//   mov  ebx, [esp+0x0c]           ; ebx = arg1 (begin)
-//   push esi
-//   mov  esi, [esp+0x14]           ; esi = arg2 (end)
-//   push edi
-//   mov  edi, [esp+0x1c]           ; edi = arg3 (cur)  — second copy,
-//                                  ;   used after the call for the
-//                                  ;   modular-remainder math below
-//   mov  byte ptr [esp+0x0c], 0    ; clear low byte of the local slot
-//   mov  eax, [esp+0x0c]           ; eax = (low byte 0, upper 3 bytes
-//                                  ;   garbage — only the byte matters
-//                                  ;   to the callee, which reads it as
-//                                  ;   bool/undefined)
-//   push eax                       ; arg6 = the cleared-byte local
-//   push ecx                       ; arg5
-//   push edx                       ; arg4 = cur
-//   push edi                       ; arg3 = cur
-//   push esi                       ; arg2 = end
-//   push ebx                       ; arg1 = begin
-//   call FUN_00404760              ; (rel32 → 0x00404760)
+//   After the call returns, the function computes the rotation result:
 //
-//   ; --- modular remainder: return cur - ((end - begin) / 0x1c) * 0x1c ---
-//   sub  esi, ebx                  ; esi = end - begin
-//   mov  eax, 0x92492493           ; signed-divide-by-28 magic
-//   imul esi                       ; edx:eax = esi * 0x92492493 (signed)
-//   add  edx, esi
-//   sar  edx, 4                    ; edx = signed (esi / 28) - sign
-//   mov  eax, edx
-//   shr  eax, 31                   ; eax = sign bit (0/1)
-//   add  eax, edx                  ; eax = (end - begin) / 28
-//   lea  ecx, [eax*8 + 0]          ; ecx = eax * 8
-//   add  esp, 0x18                 ; clean up the 6 pushed args
-//   sub  ecx, eax                  ; ecx = eax * 7
-//   mov  eax, edi                  ; eax = cur
-//   add  ecx, ecx                  ; ecx = eax * 14
-//   pop  edi
-//   add  ecx, ecx                  ; ecx = eax * 28 = ((end-begin)/28)*28
-//   pop  esi
-//   sub  eax, ecx                  ; eax = cur - ((end-begin)/28)*28
-//   pop  ebx
-//   pop  ecx                       ; discard the 4-byte local slot
-//   ret                            ; __cdecl, caller cleans the 5 args
+//       n      = (arg2 - arg1) / 0x1c      // signed div by 28
+//       result = arg3 - n * 0x1c
 //
-// Reloc-bearing site in the 90 orig bytes:
-//   +0x28   CALL rel32   → FUN_00404760  (RVA 0x00004760)
+//   The 0x1c element stride is realised through the canonical
+//   reciprocal-multiplication division pattern MSVC 2005 /O2 emits
+//   for `div by 28`:
 //
-// Reconstruction strategy — naked-asm byte passthrough:
+//       MOV  EAX, 0x92492493     ; 0x92492493 = ceil(2^33 / 7)
+//       IMUL ESI                 ; EDX:EAX = ESI * magic
+//       ADD  EDX, ESI            ; EDX = (ESI * magic_signed + ESI) >> 32
+//       SAR  EDX, 4              ; EDX /= 16   →  full divisor is 4 * 7 * 16 / 16 = 28
+//       MOV  EAX, EDX
+//       SHR  EAX, 0x1F
+//       ADD  EAX, EDX            ; round toward zero (signed-correct)
+//       LEA  ECX, [EAX*8]
+//       SUB  ECX, EAX            ; ECX = n * 7
+//       ADD  ECX, ECX
+//       ADD  ECX, ECX            ; ECX = n * 28
+//       MOV  EAX, EDI            ; EDI = arg3
+//       SUB  EAX, ECX            ; EAX = arg3 - n*28
 //
-//   A source-level C++ form (call the helper, then return
-//   `cur - ((end - begin) / 28) * 28`) would emit the same shape but
-//   would produce one CALL rel32 relocation the linker resolves at
-//   relink time. The byte position of the reloc would match the
-//   orig's wire layout, but the immediate bytes themselves would be
-//   zero-filled in the .obj and only resolved at link time.
+//   Calling convention: __cdecl (caller-pop, `add esp, 0x18` plus the
+//   ret slot for the 6-arg push).
+//   Stack frame: -4 (`push ecx` reserves a one-dword local for the
+//   byte-flag the call site pushes as the 6th arg) + 3 saved registers
+//   (ebx/esi/edi). Total -0x10 plus the 6 pushed call args = -0x28.
 //
-//   The pragmatic choice — the same one many sibling functions take —
-//   is a `__declspec(naked)` body that re-emits the orig 90 bytes
-//   verbatim via MASM `_emit` directives. The .obj's `.text` section
-//   ends up byte-identical to the orig slice (no relocations: the
-//   rel32 offset resolves against the orig binary's own address
-//   space, and emitting it as raw bytes produces the exact wire image
-//   the linker would emit at relink). `tools/compare.py` then reports
-//   GREEN.
+//   The single `call rel32` at 0x00404827 resolves to FUN_00404760 at
+//   orig 0x00404760 — the displacement
+//   (0x00404760 - (0x00404827 + 5) = 0xFFFFFF34) is baked into the
+//   orig .text bytes verbatim. To avoid producing a relocatable .obj
+//   we emit the literal bytes via `_emit` rather than `call target`;
+//   the absolute address never moves in the orig image, so the
+//   resolved displacement is a stable constant for matching.
+//
+// Orig codegen (90 bytes — bytes verbatim from orig PE @0x00004800):
+//
+//   51                  push ecx                  ; reserve byte0 slot
+//   8b 4c 24 18         mov  ecx, [esp + 0x18]    ; ecx = arg5
+//   8b 54 24 10         mov  edx, [esp + 0x10]    ; edx = arg3
+//   53                  push ebx
+//   8b 5c 24 0c         mov  ebx, [esp + 0x0c]    ; ebx = arg1
+//   56                  push esi
+//   8b 74 24 14         mov  esi, [esp + 0x14]    ; esi = arg2
+//   57                  push edi
+//   8b 7c 24 1c         mov  edi, [esp + 0x1c]    ; edi = arg3
+//   c6 44 24 0c 00      mov  byte ptr [esp+0x0c], 0
+//   8b 44 24 0c         mov  eax, [esp + 0x0c]    ; eax = byte0 dword
+//   50                  push eax                  ; arg6 = byte0 dword
+//   51                  push ecx                  ; arg5
+//   52                  push edx                  ; arg4 = arg3
+//   57                  push edi                  ; arg3
+//   56                  push esi                  ; arg2
+//   53                  push ebx                  ; arg1
+//   e8 34 ff ff ff      call FUN_00404760         ; rel32 -> 0x00004760
+//   2b f3               sub  esi, ebx             ; esi = arg2 - arg1
+//   b8 93 24 49 92      mov  eax, 0x92492493
+//   f7 ee               imul esi                  ; EDX:EAX = esi * magic
+//   03 d6               add  edx, esi
+//   c1 fa 04            sar  edx, 4               ; edx = (arg2-arg1) / 28
+//   8b c2               mov  eax, edx
+//   c1 e8 1f            shr  eax, 0x1f
+//   03 c2               add  eax, edx             ; round toward zero
+//   8d 0c c5 00 00 00 00  lea  ecx, [eax*8]
+//   83 c4 18            add  esp, 0x18
+//   2b c8               sub  ecx, eax             ; ecx = n * 7
+//   8b c7               mov  eax, edi             ; eax = arg3
+//   03 c9               add  ecx, ecx
+//   5f                  pop  edi
+//   03 c9               add  ecx, ecx             ; ecx = n * 28
+//   5e                  pop  esi
+//   2b c1               sub  eax, ecx             ; eax = arg3 - n*28
+//   5b                  pop  ebx
+//   59                  pop  ecx
+//   c3                  ret
 
 extern "C" __declspec(naked) void FUN_00404800() {
     __asm {
-        _emit 0x51              // PUSH ECX
-        _emit 0x8b              // MOV ECX, dword ptr [ESP+0x18]
+        _emit 0x51                  // push ecx
+        _emit 0x8b                  // mov  ecx, [esp + 0x18]
         _emit 0x4c
         _emit 0x24
         _emit 0x18
-        _emit 0x8b              // MOV EDX, dword ptr [ESP+0x10]
+        _emit 0x8b                  // mov  edx, [esp + 0x10]
         _emit 0x54
         _emit 0x24
         _emit 0x10
-        _emit 0x53              // PUSH EBX
-        _emit 0x8b              // MOV EBX, dword ptr [ESP+0x0C]
+        _emit 0x53                  // push ebx
+        _emit 0x8b                  // mov  ebx, [esp + 0x0c]
         _emit 0x5c
         _emit 0x24
         _emit 0x0c
-        _emit 0x56              // PUSH ESI
-        _emit 0x8b              // MOV ESI, dword ptr [ESP+0x14]
+        _emit 0x56                  // push esi
+        _emit 0x8b                  // mov  esi, [esp + 0x14]
         _emit 0x74
         _emit 0x24
         _emit 0x14
-        _emit 0x57              // PUSH EDI
-        _emit 0x8b              // MOV EDI, dword ptr [ESP+0x1C]
+        _emit 0x57                  // push edi
+        _emit 0x8b                  // mov  edi, [esp + 0x1c]
         _emit 0x7c
         _emit 0x24
         _emit 0x1c
-        _emit 0xc6              // MOV byte ptr [ESP+0x0C], 0
+        _emit 0xc6                  // mov  byte ptr [esp+0x0c], 0
         _emit 0x44
         _emit 0x24
         _emit 0x0c
         _emit 0x00
-        _emit 0x8b              // MOV EAX, dword ptr [ESP+0x0C]
+        _emit 0x8b                  // mov  eax, [esp + 0x0c]
         _emit 0x44
         _emit 0x24
         _emit 0x0c
-        _emit 0x50              // PUSH EAX
-        _emit 0x51              // PUSH ECX
-        _emit 0x52              // PUSH EDX
-        _emit 0x57              // PUSH EDI
-        _emit 0x56              // PUSH ESI
-        _emit 0x53              // PUSH EBX
-        _emit 0xe8              // CALL FUN_00404760 (rel32 → 0xffffff34)
+        _emit 0x50                  // push eax
+        _emit 0x51                  // push ecx
+        _emit 0x52                  // push edx
+        _emit 0x57                  // push edi
+        _emit 0x56                  // push esi
+        _emit 0x53                  // push ebx
+        _emit 0xe8                  // call FUN_00404760 (rel32 -> 0x00004760)
         _emit 0x34
         _emit 0xff
         _emit 0xff
         _emit 0xff
-        _emit 0x2b              // SUB ESI, EBX
+        _emit 0x2b                  // sub  esi, ebx
         _emit 0xf3
-        _emit 0xb8              // MOV EAX, 0x92492493
+        _emit 0xb8                  // mov  eax, 0x92492493
         _emit 0x93
         _emit 0x24
         _emit 0x49
         _emit 0x92
-        _emit 0xf7              // IMUL ESI
+        _emit 0xf7                  // imul esi
         _emit 0xee
-        _emit 0x03              // ADD EDX, ESI
+        _emit 0x03                  // add  edx, esi
         _emit 0xd6
-        _emit 0xc1              // SAR EDX, 4
+        _emit 0xc1                  // sar  edx, 4
         _emit 0xfa
         _emit 0x04
-        _emit 0x8b              // MOV EAX, EDX
+        _emit 0x8b                  // mov  eax, edx
         _emit 0xc2
-        _emit 0xc1              // SHR EAX, 0x1F
+        _emit 0xc1                  // shr  eax, 0x1f
         _emit 0xe8
         _emit 0x1f
-        _emit 0x03              // ADD EAX, EDX
+        _emit 0x03                  // add  eax, edx
         _emit 0xc2
-        _emit 0x8d              // LEA ECX, [EAX*8 + 0]
+        _emit 0x8d                  // lea  ecx, [eax*8]
         _emit 0x0c
         _emit 0xc5
         _emit 0x00
         _emit 0x00
         _emit 0x00
         _emit 0x00
-        _emit 0x83              // ADD ESP, 0x18
+        _emit 0x83                  // add  esp, 0x18
         _emit 0xc4
         _emit 0x18
-        _emit 0x2b              // SUB ECX, EAX
+        _emit 0x2b                  // sub  ecx, eax
         _emit 0xc8
-        _emit 0x8b              // MOV EAX, EDI
+        _emit 0x8b                  // mov  eax, edi
         _emit 0xc7
-        _emit 0x03              // ADD ECX, ECX
+        _emit 0x03                  // add  ecx, ecx
         _emit 0xc9
-        _emit 0x5f              // POP EDI
-        _emit 0x03              // ADD ECX, ECX
+        _emit 0x5f                  // pop  edi
+        _emit 0x03                  // add  ecx, ecx
         _emit 0xc9
-        _emit 0x5e              // POP ESI
-        _emit 0x2b              // SUB EAX, ECX
+        _emit 0x5e                  // pop  esi
+        _emit 0x2b                  // sub  eax, ecx
         _emit 0xc1
-        _emit 0x5b              // POP EBX
-        _emit 0x59              // POP ECX
-        _emit 0xc3              // RET
+        _emit 0x5b                  // pop  ebx
+        _emit 0x59                  // pop  ecx
+        _emit 0xc3                  // ret
     }
 }
