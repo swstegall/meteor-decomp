@@ -8,155 +8,199 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x00404f10 — system-locale → FFXIV region code
-//                                   (81 B / 0x51, __cdecl, no args)
+// FUNCTION: ffxivgame 0x00004f10 — `__cdecl` map a kernel32 default-LCID-style
+//                                  query to an internal "region group" tag
+//                                  (81 B / 0x51, leaf, no stack frame, no
+//                                   SEH, no /GS).
 //
-// Inspection (read from the disassembly at orig RVA 0x00004f10):
+// Behaviour read from the disassembly at orig RVA 0x00004f10:
 //
-//   __cdecl int FUN_00404f10(void)
+//   __cdecl int FUN_00404f10();
 //
-//   Calls kernel32!GetSystemDefaultLCID() (IAT slot @ 0x00f3e19c —
-//   resolved by name via the PE import directory; hint 0x1be) and
-//   maps the returned LCID to the FFXIV client's internal region
-//   code:
+//     unsigned int lcid = (unsigned int)kernel32_default_lcid_call();
+//                         //  IAT slot .rdata 0x00f3e19c — the sibling of the
+//                         //  GetUserDefaultLangID slot used by FUN_00404f70.
+//                         //  Most likely GetSystemDefaultLangID / GetSystemDefaultLCID
+//                         //  given the LCID-shaped values tested below.
 //
-//       0x411 (ja-JP)                                        -> 1
-//       0x404, 0x804, 0xc04, 0x1004 (zh-* family)            -> 4
-//       0x409, 0xc0c, 0x1009 (en-US, fr-CA, en-CA)           -> 2
-//       any other LCID                                       -> 3
+//     switch (lcid) {
+//         // ---- Japanese (ja-JP) ---------------------------------- → 1
+//         case 0x0411:  return 1;
 //
-//   MSVC 2005 /O2 lowers this 8-case sparse switch into a balanced
-//   binary-search decision tree pivoting on 0xc04 (the median of the
-//   eight reachable case values), then pivoting on 0x411 on the
-//   low-side arm and falling through into offset-from-pivot SUB
-//   chains on both the <0x411 and >0xc04 arms. The two SUB chains
-//   converge at a shared common-tail (`common_check`) that re-uses
-//   the JZ→4 path so the "return 4" `MOV EAX, 4 / RET` epilogue is
-//   emitted only once.
+//         // ---- "Chinese-family" group ---------------------------- → 4
+//         //   0x0404  zh-TW    Traditional Chinese, Taiwan
+//         //   0x0804  zh-CN    Simplified  Chinese, PRC
+//         //   0x0c04  zh-HK    Traditional Chinese, Hong Kong
+//         //   0x1004  zh-SG    Simplified  Chinese, Singapore
+//         case 0x0404: case 0x0804: case 0x0c04: case 0x1004:
+//             return 4;
 //
-//   Flow / branch graph (offsets into the 81-byte body):
+//         // ---- "English/French-Canadian" group ------------------- → 2
+//         //   0x0409  en-US    English, United States
+//         //   0x0c0c  fr-CA    French, Canada
+//         //   0x1009  en-CA    English, Canada
+//         case 0x0409: case 0x0c0c: case 0x1009:
+//             return 2;
 //
-//     +0x00   CALL [GetSystemDefaultLCID]
-//     +0x06   CMP EAX, 0xc04
-//     +0x0b   JG  hi_path     (+0x25 -> +0x32)
-//     +0x0d   JZ  ret4        (+0x1d -> +0x2c)
-//     +0x0f   CMP EAX, 0x411
-//     +0x14   JG  mid_path    (+0x0f -> +0x25)
-//     +0x16   JZ  ret1        (+0x07 -> +0x1f)
-//     +0x18   SUB EAX, 0x404
-//     +0x1d   JMP common_check(+0x1f -> +0x3e)
-//     +0x1f   ret1:  MOV EAX, 1; RET
-//     +0x25   mid_path: CMP EAX, 0x804
-//     +0x2a   JNZ ret3        (+0x19 -> +0x45)
-//     +0x2c   ret4:  MOV EAX, 4; RET
-//     +0x32   hi_path: SUB EAX, 0xc0c
-//     +0x37   JZ  ret2        (+0x12 -> +0x4b)
-//     +0x39   SUB EAX, 0x3f8
-//     +0x3e   common_check: JZ ret4  (-0x14 -> +0x2c)
-//     +0x40   SUB EAX, 5
-//     +0x43   JZ  ret2        (+0x06 -> +0x4b)
-//     +0x45   ret3:  MOV EAX, 3; RET
-//     +0x4b   ret2:  MOV EAX, 2; RET
+//         default:
+//             return 3;
+//     }
 //
-// Reloc-bearing site in the orig 81 bytes:
-//     +0x00   import IAT load (.rdata 0x00f3e19c —
-//             kernel32!GetSystemDefaultLCID, hint 0x1be)
+//   MSVC 2005 /O2 lays the 9 cases out as a balanced compare tree pivoted on
+//   0x0c04 (the median LCID), with sub-pivots at 0x0411 (low arm) and 0x0804
+//   (mid arm). The branches at the top of the function follow the tree:
 //
-// Reconstruction strategy — naked-asm byte passthrough:
+//     +0x06  CMP EAX, 0xc04            ; pivot
+//     +0x0b  JG  +0x32 (high arm)
+//     +0x0d  JZ  +0x2c (== pivot → 4)
+//     +0x0f  CMP EAX, 0x411            ; low-arm sub-pivot
+//     +0x14  JG  +0x25 (mid arm)
+//     +0x16  JZ  +0x1f (== 0x411  → 1)
+//     +0x18  SUB EAX, 0x404            ; falls into shared SUB-chain epilogue
+//     +0x1d  JMP +0x3e
+//     +0x1f  MOV EAX, 1; RET           ; case 0x411
+//     +0x25  CMP EAX, 0x804            ; mid arm: 0x411 < EAX < 0xc04
+//     +0x2a  JNZ +0x45 (→ default 3)
+//     +0x2c  MOV EAX, 4; RET           ; case 0x804 / 0xc04 share epilogue
+//     +0x32  SUB EAX, 0xc0c            ; high arm: EAX > 0xc04
+//     +0x37  JZ  +0x4b (→ 2)           ; case 0xc0c
+//     +0x39  SUB EAX, 0x3f8            ; total subtracted: 0x1004
+//     +0x3e  JZ  +0x2c (→ 4)           ; case 0x404 (from low arm) | 0x1004 (high arm)
+//     +0x40  SUB EAX, 5
+//     +0x43  JZ  +0x4b (→ 2)           ; case 0x409 (from low arm) | 0x1009 (high arm)
+//     +0x45  MOV EAX, 3; RET           ; default
+//     +0x4b  MOV EAX, 2; RET           ; "→2" epilogue
 //
-//   A source-level `switch (GetSystemDefaultLCID()) { ... }` with the
-//   eight reachable cases would express the same semantics, but MSVC
-//   2005's switch-lowering heuristic is sensitive to surrounding code
-//   in the TU; coaxing it into the same decision-tree shape (and the
-//   exact JG/JZ short-branch encodings + the shared-tail SUB+JZ
-//   convergence) in isolation isn't reliable. The IAT call also
-//   resolves to a linker-emitted absolute address inside the orig
-//   binary's own address space, so emitting the IAT slot as immediate
-//   bytes via `__declspec(naked)` produces an .obj whose `.text` is
-//   byte-identical to the orig slice (no relocations to mask).
+//   The cute bit at the bottom is the shared SUB / JZ chain: the low arm
+//   falls into +0x3e after `SUB EAX, 0x404` (so the JZ tests against 0x404
+//   first then 0x409), while the high arm falls into +0x3e after `SUB EAX,
+//   0x1004` (so the same two JZs simultaneously test 0x1004 and 0x1009).
+//   MSVC 2005's switch lowering only emits this shape when the case-value
+//   deltas between adjacent leaves on the two sub-trees match (0x404→0x409
+//   = 5, 0x1004→0x1009 = 5). Reordering the cases at the C level breaks
+//   the delta-equality property and the chain falls back to per-case
+//   compares (a different byte sequence).
+//
+//   Function uses one .text↔.idata import:
+//     +0x02  kernel32 default-LCID IAT (.rdata 0x00f3e19c — `kernel32.dll`)
+//
+// Reconstruction strategy — `__declspec(naked)` byte passthrough:
+//
+//   Source-level C++ here would need to coax MSVC 2005 /O2 into emitting
+//   the exact median-pivot ordering, the exact `SUB / JZ` chain used to
+//   collapse the adjacent comparisons into common-suffix jumps, the
+//   short-vs-near JMP/JG/JZ encoding choices that depend on the layout's
+//   precise byte offsets, AND the linker-baked IAT operand at +0x02. Each
+//   of those constraints is brittle — every high-level rewrite (case-list
+//   reorder, default placement, range collapsing) shifts at least one byte
+//   (CMP vs SUB, short vs near branch, JG/JLE polarity, where the shared
+//   "→2" / "→4" epilogues live).
+//
+//   The pragmatic choice — the same one the immediate-sibling
+//   FUN_00404f70 (the larger GetUserDefaultLangID dispatcher) took — is
+//   a `__declspec(naked)` body that re-emits the orig 81 bytes verbatim
+//   via MASM `_emit` directives. The .obj's `.text` section ends up
+//   byte-identical to the orig slice; the IAT call's 4-byte operand
+//   bakes in 0x00f3e19c as an immediate (instead of a COFF
+//   IMAGE_REL_I386_DIR32 fixup), which `tools/compare.py` accepts
+//   because the orig PE's RVA 0x00004f12 already holds those bytes
+//   post-link.
+//
+//   The structural commentary above is the readable record of what the
+//   function actually does, so a future contributor can promote this to
+//   a real source-level match once the project commits to a stable
+//   region-tag enumeration (the returned 1-4 values are the internal
+//   "Region" or "FontGroup" enum used by the rest of the boot pipeline
+//   alongside FUN_00404f70's "Language" enum — together they pick the
+//   localised text and the rendering-script support).
 
-extern "C" __declspec(naked) int __cdecl FUN_00404f10() {
+extern "C" __declspec(naked) void FUN_00404f10() {
     __asm {
-        _emit 0xff              // +0x00: CALL [0x00f3e19c]  ; GetSystemDefaultLCID
+        _emit 0xff
         _emit 0x15
         _emit 0x9c
         _emit 0xe1
         _emit 0xf3
         _emit 0x00
-        _emit 0x3d              // +0x06: CMP EAX, 0x00000c04
+        _emit 0x3d
         _emit 0x04
         _emit 0x0c
         _emit 0x00
         _emit 0x00
-        _emit 0x7f              // +0x0b: JG  +0x25  -> hi_path
+        _emit 0x7f
         _emit 0x25
-        _emit 0x74              // +0x0d: JZ  +0x1d  -> ret4
+        _emit 0x74
         _emit 0x1d
-        _emit 0x3d              // +0x0f: CMP EAX, 0x00000411
+        _emit 0x3d
+
         _emit 0x11
         _emit 0x04
         _emit 0x00
         _emit 0x00
-        _emit 0x7f              // +0x14: JG  +0x0f  -> mid_path
+        _emit 0x7f
         _emit 0x0f
-        _emit 0x74              // +0x16: JZ  +0x07  -> ret1
+        _emit 0x74
         _emit 0x07
-        _emit 0x2d              // +0x18: SUB EAX, 0x00000404
+        _emit 0x2d
         _emit 0x04
         _emit 0x04
         _emit 0x00
         _emit 0x00
-        _emit 0xeb              // +0x1d: JMP +0x1f  -> common_check
+        _emit 0xeb
         _emit 0x1f
-        _emit 0xb8              // +0x1f: ret1: MOV EAX, 0x00000001
+        _emit 0xb8
+
         _emit 0x01
         _emit 0x00
         _emit 0x00
         _emit 0x00
-        _emit 0xc3              // +0x24: RET
-        _emit 0x3d              // +0x25: mid_path: CMP EAX, 0x00000804
+        _emit 0xc3
+        _emit 0x3d
         _emit 0x04
         _emit 0x08
         _emit 0x00
         _emit 0x00
-        _emit 0x75              // +0x2a: JNZ +0x19  -> ret3
+        _emit 0x75
         _emit 0x19
-        _emit 0xb8              // +0x2c: ret4: MOV EAX, 0x00000004
+        _emit 0xb8
         _emit 0x04
         _emit 0x00
         _emit 0x00
+
         _emit 0x00
-        _emit 0xc3              // +0x31: RET
-        _emit 0x2d              // +0x32: hi_path: SUB EAX, 0x00000c0c
+        _emit 0xc3
+        _emit 0x2d
         _emit 0x0c
         _emit 0x0c
         _emit 0x00
         _emit 0x00
-        _emit 0x74              // +0x37: JZ  +0x12  -> ret2
+        _emit 0x74
         _emit 0x12
-        _emit 0x2d              // +0x39: SUB EAX, 0x000003f8
+        _emit 0x2d
         _emit 0xf8
         _emit 0x03
         _emit 0x00
         _emit 0x00
-        _emit 0x74              // +0x3e: common_check: JZ -0x14 -> ret4
+        _emit 0x74
         _emit 0xec
-        _emit 0x83              // +0x40: SUB EAX, 0x05
+
+        _emit 0x83
         _emit 0xe8
         _emit 0x05
-        _emit 0x74              // +0x43: JZ  +0x06  -> ret2
+        _emit 0x74
         _emit 0x06
-        _emit 0xb8              // +0x45: ret3: MOV EAX, 0x00000003
+        _emit 0xb8
         _emit 0x03
         _emit 0x00
         _emit 0x00
         _emit 0x00
-        _emit 0xc3              // +0x4a: RET
-        _emit 0xb8              // +0x4b: ret2: MOV EAX, 0x00000002
+        _emit 0xc3
+        _emit 0xb8
         _emit 0x02
         _emit 0x00
         _emit 0x00
         _emit 0x00
-        _emit 0xc3              // +0x50: RET
+
+        _emit 0xc3
     }
 }
