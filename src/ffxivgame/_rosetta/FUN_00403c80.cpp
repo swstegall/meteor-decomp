@@ -8,46 +8,51 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x403c80 — 4-arg __cdecl wrapper around _memmove_s
-// that returns the dest pointer (1st arg). Sits at orig RVA 0x00003c80
-// (33 B). The inner call lands on the `_memmove_s` slot at orig RVA
-// 0x005d186e — adjacent siblings include the unmatched `_memcpy_s`
-// neighbor at 0x005d17f3, so this is part of the MSVC 2005 secure-CRT
-// memmove-family thunks compiled in.
+// FUNCTION: ffxivgame 0x00403c80 — 4-arg __cdecl thunk over `memmove_s`
+// that returns the destination pointer instead of the bounds-check
+// `errno_t`. Same structural pattern as the inline wrappers MSVC
+// emits when callers want a `memmove_s`-style copy but expect the
+// classic `memmove`/`memcpy` return value (dest).
 //
-// Behaviour:
+// Asm (33 bytes):
+//   8b 44 24 10        MOV EAX, [ESP + 0x10]    ; arg4 = count
+//   8b 4c 24 0c        MOV ECX, [ESP + 0x0c]    ; arg3 = src
+//   8b 54 24 08        MOV EDX, [ESP + 0x08]    ; arg2 = destsz
+//   56                 PUSH ESI                  ; save callee-save
+//   8b 74 24 08        MOV ESI, [ESP + 0x08]    ; arg1 = dest (after PUSH)
+//   50                 PUSH EAX                  ; push count
+//   51                 PUSH ECX                  ; push src
+//   52                 PUSH EDX                  ; push destsz
+//   56                 PUSH ESI                  ; push dest
+//   e8 ?? ?? ?? ??     CALL _memmove_s           ; rel32 reloc
+//   83 c4 10           ADD ESP, 0x10             ; cdecl cleanup
+//   8b c6              MOV EAX, ESI              ; return dest
+//   5e                 POP ESI
+//   c3                 RET
 //
-//     void *FUN_00403c80(void *dest, rsize_t destsz,
-//                        const void *src, rsize_t count) {
-//         memmove_s(dest, destsz, src, count);
-//         return dest;
-//     }
-//
-// MSVC 2005 emits this exact prologue (eax/ecx/edx pre-loads followed
-// by push esi / mov esi, [esp+8] for the saved-arg-via-esi idiom that
-// preserves the dest pointer across the call) when the inlined-helper
-// pattern lowers through this particular wrapper.
-//
-// Asm: 8b 44 24 10 8b 4c 24 0c 8b 54 24 08 56 8b 74 24 08
-//      50 51 52 56 e8 RR RR RR RR 83 c4 10 8b c6 5e c3
+// Calling convention: __cdecl (caller cleans up). Stack frame: -4
+// (PUSH ESI / POP ESI bracket only). The pre-PUSH reads of EAX/ECX/EDX
+// pin the arg-load ordering MSVC emits for this idiom — load all
+// non-dest args before perturbing ESP, then re-load dest via the
+// shifted offset after PUSH ESI.
 
-extern "C" int memmove_s_thunk();
+extern "C" int memmove_s();
 
 extern "C" __declspec(naked) void FUN_00403c80() {
     __asm {
-        mov     eax, [esp+0x10]
-        mov     ecx, [esp+0x0c]
-        mov     edx, [esp+0x08]
-        push    esi
-        mov     esi, [esp+0x08]
-        push    eax
-        push    ecx
-        push    edx
-        push    esi
-        call    memmove_s_thunk
-        add     esp, 0x10
-        mov     eax, esi
-        pop     esi
+        mov eax, dword ptr [esp + 0x10]
+        mov ecx, dword ptr [esp + 0x0c]
+        mov edx, dword ptr [esp + 0x08]
+        push esi
+        mov esi, dword ptr [esp + 0x08]
+        push eax
+        push ecx
+        push edx
+        push esi
+        call memmove_s
+        add esp, 0x10
+        mov eax, esi
+        pop esi
         ret
     }
 }
