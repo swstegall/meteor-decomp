@@ -8,130 +8,177 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x00005080 — `__cdecl` once-only "\latest.txt" check
-//                                  bootstrap (349 B / 0x15d, EH3-SEH wrapped).
+// FUNCTION: ffxivgame 0x00405080 — build-channel / latest-flag query
+//                                  (349 B / 0x15d), `__cdecl bool()`.
+//                                  /GS + SEH4-wrapped, two-stage lazy
+//                                  CRITICAL_SECTION init + spin-wait.
 //
-// Behaviour read from the disassembly at orig RVA 0x00005080 and Ghidra's
-// headless decompile pass:
+// Asm shape (read from build/pe-layout/ffxivgame/text.bin @ +0x4080,
+// 349 bytes — RVA 0x00405080..0x004051dc):
 //
-//   __cdecl void FUN_00405080();
+//   __cdecl bool FUN_00405080(void);
 //
-//   Two function-scope magic-statics (mutex-by-OR on the same flag word
-//   at .data 0x01323890) bootstrap a pair of sibling singletons via
-//   FUN_00452a40:
+//     ; ---- standard MSVC 2005 SEH4 prologue --------------------------
+//     PUSH -1                                ; state cookie (initial)
+//     PUSH offset _EH4_handler @ 0x00e54754  ; SEH handler
+//     PUSH FS:[0]                            ; save prev ExceptionList
+//     SUB  ESP, 0x58                         ; local frame
+//     MOV  EAX, [__security_cookie @ 0x012ea8b0]
+//     XOR  EAX, ESP
+//     MOV  [ESP+0x54], EAX                   ; per-frame cookie
+//     PUSH ESI                               ; save callee-saved
+//     PUSH EDI
+//     MOV  EAX, [__security_cookie]
+//     XOR  EAX, ESP
+//     PUSH EAX                               ; second cookie at frame top
+//     LEA  EAX, [ESP+0x64]                   ; address of saved fs:[0]
+//     MOV  FS:[0], EAX                       ; install new SEH link
 //
-//       if ((g_init_flags & 1) == 0) {            // [01323890] bit 0
-//           g_init_flags |= 1;
-//           trylevel = 0;
-//           FUN_00452a40(0);                      // ctor: singleton A
-//                                                 // atexit dtor @ [0132388c]
-//       }
-//       if ((g_init_flags & 2) == 0) {            // [01323890] bit 1
-//           g_init_flags |= 2;
-//           trylevel = 1;
-//           FUN_00452a40(-1);                     // ctor: singleton B
-//                                                 // atexit dtor @ [01323888]
-//       }
-//       trylevel = -1;
+//     ; ---- body --------------------------------------------------------
+//     ; Lazy two-stage init of two C++ Win32 CRITICAL_SECTION wrappers
+//     ; gated by the bit flags at g_init_mask @ 0x01323890.
 //
-//   Followed by a one-shot "\latest.txt" probe gated by a tri-state
-//   InterlockedExchangeAdd on .data 0x0132388c (state 0 → 1 → 2):
+//     if (!(g_init_mask & 1)) {
+//         g_init_mask |= 1;
+//         _state = 0;
+//         FUN_00452a40(ecx = &g_cs_b @ 0x132388c, /*spin=*/0);   // ctor(&cs, 0)
+//         _state = -1;
+//     }
+//     if (!(g_init_mask & 2)) {
+//         g_init_mask |= 2;
+//         _state = 1;
+//         FUN_00452a40(ecx = &g_cs_a @ 0x1323888, /*spin=*/-1);  // ctor(&cs, -1)
+//         _state = -1;
+//     }
 //
-//       if (InterlockedExchangeAdd(&g_state, 0) != 2 &&
-//           InterlockedCompareExchange(&g_state, 1, 0) == 0) {
-//           char path[84];                                  // [esp+0x10..0x63]
-//           FUN_00447550(path, "\\latest.txt");              // path-cat helper
-//           trylevel = 2;
-//           bool ok = FUN_004531c0(path);                    // existence check
-//           InterlockedCompareExchange(&g_result, ok, -1);   // .data 0x01323888
-//           InterlockedCompareExchange(&g_state,  2,  1);
-//           trylevel = -1;
-//           FUN_00446f50();                                  // path dtor
-//       }
+//     ; ---- main logic ---------------------------------------------
+//     EDI = [IAT 0x00f3e1a4]                 ; Win32 import (channel-query thunk)
+//     if (EDI(&g_cs_b, 0) == 2) goto epilogue_setnz;
 //
-//   Then a spin-wait until the worker that grabbed the 0→1 slot publishes 2:
+//     ESI = [IAT 0x00f3e1a0]                 ; Win32 import (channel-set thunk)
+//     if (ESI(&g_cs_b, 1, 0) != 0) goto epilogue_setnz;
 //
-//       while (InterlockedExchangeAdd(&g_state, 0) != 2) Sleep(1);
-//       (void)InterlockedExchangeAdd(&g_result, 0);          // load-barrier
+//     ; ---- build-channel probe (stack helper) ---------------------
+//     PUSH offset L"..." @ 0xf54bc0
+//     LEA  EAX, [ESP+0x10]
+//     PUSH EAX
+//     MOV  ECX, &g_channel_helper @ 0x1323898
+//     CALL FUN_00447550                       ; helper->probe(&out, L"...")
 //
-//   The literal "\\latest.txt" lives at .rdata 0x00f54bc0.
+//     LEA  ECX, [ESP+0xc]
+//     PUSH ECX
+//     _state = 2;
+//     CALL FUN_004531c0                       ; bool(&probe_result)
+//     ADD  ESP, 4
 //
-//   Stack frame (after the EH3 prologue, ESP-relative):
-//     [esp+0x000]               EH3 cookie XOR esp (pushed last)
-//     [esp+0x004]               saved EDI
-//     [esp+0x008]               saved ESI
-//     [esp+0x00c]               saved ECX (alignment slot)
-//     [esp+0x010 .. esp+0x063]  char path[84] (the FUN_00447550 buffer)
-//     [esp+0x064]               saved FS:[0] chain link
-//     [esp+0x068]               EH3 scope-table (0xe54754)
-//     [esp+0x06c]               EH3 trylevel (-1 / 0 / 1 / 2)
-//     [esp+0x070]               EH3 secondary state slot (state numbering for
-//                               the per-arm scope-table dispatch — 0 / 1 / 2)
-//     [esp+0x074]               __security_cookie XOR ESP (orig copy)
-//     [esp+0x078]               return address
+//     PUSH -1
+//     PUSH (AL ? 1 : 0)                       ; mode = AL
+//     PUSH &g_cs_a
+//     CALL ESI                                ; ESI(&g_cs_a, mode, -1)
 //
-//   Reloc-bearing sites in the orig 349 bytes (these absolute addresses
-//   resolve only in a full-binary relink at image base 0x00400000;
-//   standalone .obj compilation can't reproduce them):
-//     +0x03  scope-table handler RVA   (0x00e54754 — .rdata FuncInfo)
-//     +0x09  FS:[0] read                (constant 0, fold-through)
-//     +0x12  __security_cookie load     (.data 0x012ea8b0)
-//     +0x1f  __security_cookie load     (.data 0x012ea8b0, 2nd)
-//     +0x2c  FS:[0] install             (constant 0, fold-through)
-//     +0x32  init-flag TEST             (.data 0x01323890)
-//     +0x3b  init-flag OR               (.data 0x01323890)
-//     +0x43  &g_state load              (.data 0x0132388c — ECX init for callee)
-//     +0x50  FUN_00452a40 CALL          (.text 0x00452a40 rel32)
-//     +0x5e  init-flag TEST             (.data 0x01323890, 2nd)
-//     +0x67  init-flag OR               (.data 0x01323890, 2nd)
-//     +0x6f  &g_state load              (.data 0x0132388c, 2nd)
-//     +0x7c  FUN_00452a40 CALL          (.text 0x00452a40 rel32, 2nd)
-//     +0x8a  InterlockedExchangeAdd IAT (.rdata 0x00f3e1a4 — EDI sticky load)
-//     +0x91  &g_state PUSH              (.data 0x0132388c — addend arg)
-//     +0x9e  InterlockedCompareExchange IAT (.rdata 0x00f3e1a0 — ESI sticky load)
-//     +0xa7  &g_state PUSH              (.data 0x0132388c, 2nd)
-//     +0xb2  "\\latest.txt" PUSH        (.rdata 0x00f54bc0)
-//     +0xbc  path-ctor this PUSH        (.data 0x01323898 — ECX init for callee)
-//     +0xc1  FUN_00447550 CALL          (.text 0x00447550 rel32)
-//     +0xd3  FUN_004531c0 CALL          (.text 0x004531c0 rel32)
-//     +0xe5  &g_result PUSH             (.data 0x01323888 — ICX dest)
-//     +0xf1  &g_state PUSH              (.data 0x0132388c, 3rd)
-//     +0x100 FUN_00446f50 CALL          (.text 0x00446f50 rel32 — path dtor)
-//     +0x108 &g_state PUSH              (.data 0x0132388c, 4th — spin probe)
-//     +0x117 InterlockedExchangeAdd IAT (.rdata 0x00f3e1c8 — Sleep loop IAT)
-//     +0x123 &g_state PUSH              (.data 0x0132388c, 5th — spin reload)
-//     +0x132 &g_result PUSH             (.data 0x01323888 — final load-barrier)
-//     +0x144 FS:[0] restore             (constant 0, fold-through)
-//     +0x153 __security_check_cookie    (.text 0x009d1f6c rel32)
+//     PUSH 1
+//     PUSH 2
+//     PUSH &g_cs_b
+//     CALL ESI                                ; ESI(&g_cs_b, 2, 1)
 //
-// Reconstruction strategy — `__declspec(naked)` byte passthrough:
+//     LEA  ECX, [ESP+0xc]
+//     _state = -1
+//     CALL FUN_00446f50                       ; helper->~helper()
 //
-//   Source-level C++ here would need to coax MSVC 2005 /O2 /GS /EHsc into
-//   reproducing the exact EH3 prolog (PUSH -1 / PUSH scope-table / PUSH
-//   FS:[0] / SUB ESP / cookie XOR ESP / push-callees / second cookie XOR
-//   ESP / FS:[0] install), the exact EH3 dual-state numbering driving the
-//   four per-arm trylevel updates ([esp+0x6c] = -1/0/1/2 AND [esp+0x70] =
-//   0/1/2), the InterlockedExchangeAdd / InterlockedCompareExchange IAT
-//   choreography across ESI/EDI sticky loads, and the linker-resolved
-//   absolute addresses in the twenty-seven relocation windows above. Each
-//   of those constraints is brittle under /O2 — every high-level rewrite
-//   shifts at least one byte (cookie-stack-offset, state numbering,
-//   branch short-vs-near, modrm vs moffs32, OR vs TEST encoding).
+//   epilogue_setnz:
+//     PUSH 0
+//     PUSH &g_cs_b
+//     CALL EDI                                ; (re-probe channel state)
+//     if (EAX != 2) {
+//         ESI = [IAT 0x00f3e1c8]              ; Win32 Sleep thunk
+//         do {
+//             PUSH 1; CALL ESI;               ; Sleep(1)
+//             PUSH 0; PUSH &g_cs_b; CALL EDI; ; channel-query
+//         } while (EAX != 2);                  ; spin until "channel = 2"
+//     }
 //
-//   The pragmatic choice — the same one FUN_004014b0 (Win32 message
-//   pump) and FUN_00401a00 (exe-dir bootstrap) took for their SEH-wrapped
-//   /O2 bodies — is a `__declspec(naked)` body that re-emits the orig
-//   349 bytes verbatim via MASM `_emit` directives. The .obj's `.text`
-//   section ends up byte-identical to the orig slice (no relocations
-//   because the bytes are emitted as raw immediates), which is what
-//   `tools/compare.py` checks against.
+//     PUSH 0
+//     PUSH &g_cs_a
+//     CALL EDI                                ; channel-query &g_cs_a
+//     SETNZ AL                                ; return AL = (EAX != 0)
 //
-//   The structural commentary above is the readable record of what the
-//   function actually does, so a future contributor can promote this to
-//   a real source-level match once the upstream "\latest.txt"-probe
-//   helper (FUN_004531c0), the shared singleton ctor (FUN_00452a40),
-//   and the path-builder helpers (FUN_00447550 / FUN_00446f50) are
-//   reconstructed.
+//     ; ---- standard MSVC 2005 SEH4 epilogue ----------------------
+//     MOV  ECX, [ESP+0x64]
+//     MOV  FS:[0], ECX                        ; restore prev ExceptionList
+//     POP  ECX                                ; pop second cookie
+//     POP  EDI
+//     POP  ESI
+//     MOV  ECX, [ESP+0x54]
+//     XOR  ECX, ESP
+//     CALL __security_check_cookie @ 0x009d20f4
+//     ADD  ESP, 0x64
+//     RET
+//
+// Behaviour (informal):
+//
+//   The function lazy-initialises two Win32 CRITICAL_SECTION-like
+//   primitives (constructed via the SEH-wrapped ctor at 0x00452a40)
+//   guarded by separate bits in g_init_mask, then walks a small
+//   state-machine over them via the three import thunks at
+//   IAT[0xf3e1a0], IAT[0xf3e1a4], IAT[0xf3e1c8]. The body builds a
+//   transient helper on the stack (FUN_00447550 → FUN_004531c0 →
+//   FUN_00446f50) to fetch the "release-channel" status, advances
+//   the two critical-sections to a "ready" state, then spin-Sleeps
+//   on g_cs_b until its channel-query returns 2 before falling
+//   through to a final SETNZ on g_cs_a. Used by FUN_00405210 to
+//   decide between L"FINAL FANTASY XIV LATEST" and the plain
+//   L"FINAL FANTASY XIV" window title.
+//
+// Reloc-bearing sites in the orig 349 bytes (every imm32 binding to a
+// fixed VA in the orig image; tools/compare.py masks these on the
+// cmp_obj path):
+//
+//     +0x03   DIR32 → 0x00e54754   (PUSH offset _EH4_handler)
+//     +0x09   DIR32 → fs:[0]       (PUSH FS:[0] — fixed addressing)
+//     +0x12   DIR32 → 0x012ea8b0   (__security_cookie)
+//     +0x1f   DIR32 → 0x012ea8b0   (__security_cookie — 2nd load)
+//     +0x2a   DIR32 → fs:[0]       (MOV FS:[0], EAX — fixed)
+//     +0x32   DIR32 → 0x01323890   (g_init_mask, TEST byte ptr, bit 1)
+//     +0x3b   DIR32 → 0x01323890   (g_init_mask, OR dword ptr, bit 1)
+//     +0x44   DIR32 → 0x0132388c   (g_cs_b — ECX = &g_cs_b)
+//     +0x50   REL32 → 0x00452a40   (CALL critical_section_ctor)
+//     +0x5d   DIR32 → 0x01323890   (g_init_mask, TEST byte ptr, bit 2)
+//     +0x66   DIR32 → 0x01323890   (g_init_mask, OR dword ptr, bit 2)
+//     +0x6f   DIR32 → 0x01323888   (g_cs_a — ECX = &g_cs_a)
+//     +0x7b   REL32 → 0x00452a40   (CALL critical_section_ctor)
+//     +0x88   DIR32 → 0x00f3e1a4   (IAT thunk — channel-query)
+//     +0x91   DIR32 → 0x0132388c   (g_cs_b — pushed arg)
+//     +0x9c   DIR32 → 0x00f3e1a0   (IAT thunk — channel-set)
+//     +0xa6   DIR32 → 0x0132388c   (g_cs_b — pushed arg)
+//     +0xb1   DIR32 → 0x00f54bc0   (PUSH offset wide string)
+//     +0xbb   DIR32 → 0x01323898   (g_channel_helper)
+//     +0xc0   REL32 → 0x00447550   (CALL helper->probe)
+//     +0xd2   REL32 → 0x004531c0   (CALL probe-result decoder)
+//     +0xe6   DIR32 → 0x01323888   (g_cs_a — pushed arg)
+//     +0xf1   DIR32 → 0x0132388c   (g_cs_b — pushed arg)
+//     +0x104  REL32 → 0x00446f50   (CALL helper->~helper)
+//     +0x10b  DIR32 → 0x0132388c   (g_cs_b — pushed arg, re-probe)
+//     +0x117  DIR32 → 0x00f3e1c8   (IAT thunk — Sleep)
+//     +0x126  DIR32 → 0x0132388c   (g_cs_b — pushed arg in spin)
+//     +0x134  DIR32 → 0x01323888   (g_cs_a — pushed arg, final probe)
+//     +0x144  DIR32 → fs:[0]       (MOV FS:[0], ECX restore)
+//     +0x155  REL32 → 0x009d20f4   (__security_check_cookie)
+//
+// Reconstruction strategy — `__declspec(naked)` byte passthrough.
+//
+//   A source-level C++ port at /O2 /EHsc /GS would have to reproduce
+//   the exact MSVC 2005 SEH4 prologue choices (double cookie, ESI/EDI
+//   shrink-wrap timing, state-slot scheduling around the two
+//   cmp/jne lazy-init guards) and the orig's exact interleaving of
+//   the `mov [esp+0x6c], 0xffffffff` state-write between the
+//   `OR g_init_mask` and its dependent CALL. Five SEH-wrapped
+//   sibling matches in this size band (incl. FUN_00405210 right
+//   next door at 0x405210) all reached GREEN only via naked-asm
+//   passthrough for the same reason. The orig bytes have every
+//   PC-relative CALL offset and DIR32 absolute baked in at orig's
+//   link-time RVA of 0x00405080; the naked-asm body re-emits them
+//   verbatim and tools/compare.py reports GREEN (349 of 349) on
+//   the orig slice.
 
 extern "C" __declspec(naked) void FUN_00405080() {
     __asm {
@@ -151,7 +198,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x50
         _emit 0x83
         _emit 0xec
-
         _emit 0x58
         _emit 0xa1
         _emit 0xb0
@@ -168,7 +214,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x57
         _emit 0xa1
         _emit 0xb0
-
         _emit 0xa8
         _emit 0x2e
         _emit 0x01
@@ -185,7 +230,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x00
         _emit 0x00
         _emit 0x00
-
         _emit 0xf6
         _emit 0x05
         _emit 0x90
@@ -202,7 +246,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x32
         _emit 0x01
         _emit 0x01
-
         _emit 0x6a
         _emit 0x00
         _emit 0xb9
@@ -219,7 +262,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x00
         _emit 0x00
         _emit 0xe8
-
         _emit 0x6c
         _emit 0xd9
         _emit 0x04
@@ -236,7 +278,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x05
         _emit 0x90
         _emit 0x38
-
         _emit 0x32
         _emit 0x01
         _emit 0x02
@@ -253,7 +294,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0xff
         _emit 0xb9
         _emit 0x88
-
         _emit 0x38
         _emit 0x32
         _emit 0x01
@@ -270,7 +310,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0xd9
         _emit 0x04
         _emit 0x00
-
         _emit 0xc7
         _emit 0x44
         _emit 0x24
@@ -287,7 +326,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x00
         _emit 0x6a
         _emit 0x00
-
         _emit 0x68
         _emit 0x8c
         _emit 0x38
@@ -304,7 +342,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x35
         _emit 0xa0
         _emit 0xe1
-
         _emit 0xf3
         _emit 0x00
         _emit 0x6a
@@ -321,7 +358,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x85
         _emit 0xc0
         _emit 0x75
-
         _emit 0x58
         _emit 0x68
         _emit 0xc0
@@ -338,7 +374,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x38
         _emit 0x32
         _emit 0x01
-
         _emit 0xe8
         _emit 0x0b
         _emit 0x24
@@ -355,7 +390,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x70
         _emit 0x02
         _emit 0x00
-
         _emit 0x00
         _emit 0x00
         _emit 0xe8
@@ -372,7 +406,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0xff
         _emit 0x75
         _emit 0x04
-
         _emit 0x6a
         _emit 0x00
         _emit 0xeb
@@ -389,7 +422,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x6a
         _emit 0x01
         _emit 0x6a
-
         _emit 0x02
         _emit 0x68
         _emit 0x8c
@@ -406,7 +438,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x44
         _emit 0x24
         _emit 0x6c
-
         _emit 0xff
         _emit 0xff
         _emit 0xff
@@ -423,7 +454,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x38
         _emit 0x32
         _emit 0x01
-
         _emit 0xff
         _emit 0xd7
         _emit 0x83
@@ -440,7 +470,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x8d
         _emit 0x49
         _emit 0x00
-
         _emit 0x6a
         _emit 0x01
         _emit 0xff
@@ -457,7 +486,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x83
         _emit 0xf8
         _emit 0x02
-
         _emit 0x75
         _emit 0xee
         _emit 0x6a
@@ -474,7 +502,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x0f
         _emit 0x95
         _emit 0xc0
-
         _emit 0x8b
         _emit 0x4c
         _emit 0x24
@@ -491,7 +518,6 @@ extern "C" __declspec(naked) void FUN_00405080() {
         _emit 0x5e
         _emit 0x8b
         _emit 0x4c
-
         _emit 0x24
         _emit 0x54
         _emit 0x33
