@@ -8,172 +8,132 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x00403e07 — `std::basic_string::_Eos`-style "swap
-//                                  to new heap buffer" tail (102 B / 0x66)
+// FUNCTION: ffxivgame 0x00403e07 — tail fragment of a std::basic_string-style
+// _Grow / reallocate-and-copy helper. NOT an independently callable function:
+// FUN_00403d60 sets up the EBP frame, /GS+SEH cookie, callee-save spill of
+// EBX/ESI/EDI, allocates the new buffer (whose pointer it stores back into
+// the slot at [EBP+0x8] — repurposing what was the size arg), computes the
+// new capacity into ESI, then falls through with `JMP 0x00403e07` at RVA
+// 0x00403ddb. The matching Catch_All@0x00403ddd re-enters via SEH dispatch
+// with state == 2 after an alloc-time exception in the parent.
 //
-// This is a code fragment Ghidra split out as a standalone function. It
-// has no prologue — execution arrives with the caller's frame already
-// established (EBP / ESI / EDI / EBX live across the entry boundary). The
-// sole known caller is FUN_00403d60, which sets up an SEH frame, calls
-// FUN_00401090 (heap allocator) to obtain a fresh buffer, then falls
-// through to this body at 0x00403e07. The body:
+// Liveness on entry (caller-established):
 //
-//   1. If src_len (caller's [EBP+0xC]) != 0, picks src = either the
-//      string's inline SSO buffer (when capacity < 0x10) or its heap
-//      buffer ([EDI+0x04]), and `memcpy_s`'s src_len bytes into the
-//      freshly-allocated destination passed in [EBP+0x08]. The dst
-//      buffer's size is `ESI + 1` (ESI = new_capacity, the +1 is for
-//      the null terminator slot).
-//   2. If the old capacity was >= 0x10 (heap-mode), frees the old
-//      heap buffer.
-//   3. Writes the new pointer into the SSO union slot, sets the new
-//      capacity (ESI) and size (EBX), and null-terminates at the end
-//      of the live content. The terminator goes into either the inline
-//      buffer or the heap buffer depending on whether the new capacity
-//      is < 0x10.
-//   4. Unwinds the SEH frame (FS:[0] = [EBP-0xC]) and tears down all
-//      callee-saved registers + the frame.
+//   EBP        = parent stack frame (already set up)
+//   EDI        = this  (the string-like object, layout below)
+//   ESI        = new capacity (newRes)
+//   [EBP+0x8]  = pointer to freshly allocated buffer (was: caller arg #1)
+//   [EBP+0xc]  = count = number of source chars (caller arg #2)
+//   [EBP-0xc]  = saved FS:[0] chain pointer (will be restored on exit)
+//   EBX/ESI/EDI/ECX already spilled by parent's PUSH chain
 //
-// The YAML reports size 0x66 (the body up through `POP EBP`), but
-// `config/ffxivgame.size_overrides.json` extends the function to 0x69
-// to include the 3-byte `c2 08 00` (`RET 0x0008`) trailer at 0x00403e6d
-// — which the YAML cut off when it sliced the boundary between this
-// function and `Catch_All@00403e70`. `tools/compare.py` reads the
-// override and expects 105 bytes of code at this RVA, so the
-// passthrough re-emits all 0x69 bytes.
+// Object layout (MSVC 2005 std::basic_string with non-EBO'd allocator
+// occupying the 4 bytes at offset 0):
 //
-// Caller frame (from FUN_00403d60):
-//   EBP+0x08  : void *new_heap_buffer        (param_1 of the body)
-//   EBP+0x0C  : size_t src_len               (param_2 of the body)
-//   EBP-0x0C  : prev SEH ExceptionList       (saved at FUN_00403d60 entry)
-//   EDI       : std::string *this            (preserved across body)
-//   ESI       : size_t new_capacity          (preserved across body)
+//   offset 0x00  _Alval (allocator footprint, 4 B)
+//   offset 0x04  _Bx union { char* _Ptr; char _Buf[16]; }   — 16 B
+//   offset 0x14  _Mysize (current length)                    — 4 B
+//   offset 0x18  _Myres  (current capacity)                  — 4 B
 //
-// Reloc-bearing sites (CALL rel32 targets the linker would resolve when
-// emitted from source-level C++; we re-emit the orig rel32 bytes verbatim
-// so the .obj's .text matches byte-for-byte with NO relocations —
-// `tools/compare.py` masks reloc bytes out of the diff, and a zero-reloc
-// .obj is the simplest path to GREEN for a stack-frame-sharing fragment
-// that has no clean C++ source-level form):
-//     +0x1F   CALL rel32   → _memcpy_s     (RVA 0x009d17f3)
-//     +0x31   CALL rel32   → _free         (RVA 0x009d1b17)
+// Logical body (with EDI=this, ESI=newRes, [EBP+8]=newBuf, [EBP+c]=count):
 //
-// Reconstruction strategy — naked-asm byte passthrough:
+//   if (count > 0) {
+//       char *old = (this->_Myres >= 16) ? this->_Bx._Ptr
+//                                        : &this->_Bx._Buf[0];
+//       char_traits<char>::_Copy_s(newBuf, newRes + 1, old, count);
+//   }
+//   if (this->_Myres >= 16) {
+//       operator delete(this->_Bx._Ptr);
+//   }
+//   // Tidy SSO byte (dead-store; immediately overwritten by the ptr
+//   // store below — but MSVC emits both writes as part of the
+//   // "deactivate SSO, activate heap pointer" union-flip idiom).
+//   *(char*)&this->_Bx = '\0';
+//   this->_Bx._Ptr     = newBuf;
+//   this->_Myres       = newRes;
+//   this->_Mysize      = count;
+//   // CMP ESI,0x10 at the top of this group sets CF; the JC below uses
+//   // that *preserved* CF (only register-to-register MOV and dword-store
+//   // touched flags would be unaffected) to pick the buffer to NUL-term.
+//   char *term = (newRes < 16) ? newBuf : <heap ptr — never taken when
+//                                          we just allocated for >=16>;
+//   term[count] = '\0';
+//   // tear down SEH chain, restore callee-saves, ret 8 (parent's frame).
 //
-//   A source-level C++ form of this body would require synthesising the
-//   caller's SEH unwind tail and the no-prologue, no-RET entry shape —
-//   neither of which MSVC will emit for a normal source-level function.
-//   The sibling FUN_00403eb0 (UTF-16 shrink-to-SSO, a similarly shaped
-//   __thiscall std::string helper) took the same naked-asm byte-emit
-//   route; doing so here keeps the .obj zero-relocation and produces a
-//   `.text` slice byte-identical to the orig 102-byte window.
+// External calls (each leaves a 4-byte rel32 reloc that compare.py masks):
+//   CALL 0x009d17f3 — char_traits<char>::_Copy_s (memcpy_s-style)
+//   CALL 0x009d1b17 — operator delete(void*)     (cdecl, 1 arg)
+//
+// Function size: config/ffxivgame.yaml gives 0x66 (102 B, ending at
+// POP EBP @0x00403e6c), but config/ffxivgame.size_overrides.json
+// corrects this to 105 B by re-including the trailing `RET 0x8`
+// (c2 08 00) at 0x00403e6d — Ghidra's flow-analysis under-counted the
+// 3-byte `ret imm16` opcode because the asm walker stopped before it.
+// compare.py honours size_overrides, so the naked __asm below ends
+// with `ret 8` and emits all 105 bytes.
+//
+// Why naked asm: this is structurally not a function (no prolog, lives
+// in the middle of a parent's frame, jumped to via fall-through and SEH
+// resume). There is no C++ source shape that round-trips back to these
+// 102 bytes — every attempt to express it at source level would force
+// MSVC to emit a fresh prolog/epilog. Naked __asm lets us write the
+// bytes literally and lean on compare.py's reloc-masking to ignore the
+// 2 × 4-byte CALL offsets that the linker would fill at final-link time.
+
+extern "C" int FUN_009d17f3();   // _Copy_s (memcpy_s-style copier)
+extern "C" int FUN_009d1b17();   // operator delete (cdecl, 1 arg)
 
 extern "C" __declspec(naked) void FUN_00403e07() {
     __asm {
-        _emit 0x8b              // MOV EBX, dword ptr [EBP+0x0C]
-        _emit 0x5d
-        _emit 0x0c
-        _emit 0x85              // TEST EBX, EBX
-        _emit 0xdb
-        _emit 0x76              // JBE skip_memcpy (+0x20)
-        _emit 0x20
-        _emit 0x83              // CMP dword ptr [EDI+0x18], 0x10
-        _emit 0x7f
-        _emit 0x18
-        _emit 0x10
-        _emit 0x72              // JB inline_src (+0x05)
-        _emit 0x05
-        _emit 0x8b              // MOV EAX, dword ptr [EDI+0x04]   (heap src)
-        _emit 0x47
-        _emit 0x04
-        _emit 0xeb              // JMP have_src (+0x03)
-        _emit 0x03
-        _emit 0x8d              // LEA EAX, [EDI+0x04]             (inline_src)
-        _emit 0x47
-        _emit 0x04
-        _emit 0x53              // PUSH EBX                        (count)
-        _emit 0x50              // PUSH EAX                        (src)
-        _emit 0x8b              // MOV EAX, dword ptr [EBP+0x08]   (dst)
-        _emit 0x45
-        _emit 0x08
-        _emit 0x8d              // LEA EDX, [ESI+0x01]             (dst_size = new_cap+1)
-        _emit 0x56
-        _emit 0x01
-        _emit 0x52              // PUSH EDX                        (dst_size)
-        _emit 0x50              // PUSH EAX                        (dst)
-        _emit 0xe8              // CALL _memcpy_s (rel32 → 0x009d17f3)
-        _emit 0xc8
-        _emit 0xd9
-        _emit 0x5c
-        _emit 0x00
-        _emit 0x83              // ADD ESP, 0x10                   (cdecl cleanup)
-        _emit 0xc4
-        _emit 0x10
-        _emit 0x83              // CMP dword ptr [EDI+0x18], 0x10  (skip_memcpy:)
-        _emit 0x7f
-        _emit 0x18
-        _emit 0x10
-        _emit 0x72              // JB skip_free (+0x0C)
-        _emit 0x0c
-        _emit 0x8b              // MOV ECX, dword ptr [EDI+0x04]   (old heap ptr)
-        _emit 0x4f
-        _emit 0x04
-        _emit 0x51              // PUSH ECX
-        _emit 0xe8              // CALL _free (rel32 → 0x009d1b17)
-        _emit 0xda
-        _emit 0xdc
-        _emit 0x5c
-        _emit 0x00
-        _emit 0x83              // ADD ESP, 0x04
-        _emit 0xc4
-        _emit 0x04
-        _emit 0x83              // CMP ESI, 0x10                   (skip_free:)
-        _emit 0xfe
-        _emit 0x10
-        _emit 0x8b              // MOV ECX, dword ptr [EBP+0x08]   (new heap ptr)
-        _emit 0x4d
-        _emit 0x08
-        _emit 0x8d              // LEA EAX, [EDI+0x04]             (inline buf addr)
-        _emit 0x47
-        _emit 0x04
-        _emit 0xc6              // MOV byte ptr [EAX], 0           (clear first byte)
-        _emit 0x00
-        _emit 0x00
-        _emit 0x89              // MOV dword ptr [EAX], ECX        (overwrite with new ptr)
-        _emit 0x08
-        _emit 0x89              // MOV dword ptr [EDI+0x18], ESI   (this->capacity = new_cap)
-        _emit 0x77
-        _emit 0x18
-        _emit 0x89              // MOV dword ptr [EDI+0x14], EBX   (this->size = src_len)
-        _emit 0x5f
-        _emit 0x14
-        _emit 0x72              // JB term_inline (+0x02)
-        _emit 0x02
-        _emit 0x8b              // MOV EAX, ECX                    (new_cap >= 0x10: use heap)
-        _emit 0xc1
-        _emit 0xc6              // MOV byte ptr [EAX+EBX], 0       (null terminator)
-        _emit 0x04
-        _emit 0x18
-        _emit 0x00
-        _emit 0x8b              // MOV ECX, dword ptr [EBP-0x0C]   (saved SEH)
-        _emit 0x4d
-        _emit 0xf4
-        _emit 0x64              // MOV dword ptr FS:[0], ECX       (restore ExceptionList)
-        _emit 0x89
-        _emit 0x0d
-        _emit 0x00
-        _emit 0x00
-        _emit 0x00
-        _emit 0x00
-        _emit 0x59              // POP ECX
-        _emit 0x5f              // POP EDI
-        _emit 0x5e              // POP ESI
-        _emit 0x5b              // POP EBX
-        _emit 0x8b              // MOV ESP, EBP
-        _emit 0xe5
-        _emit 0x5d              // POP EBP
-        _emit 0xc2              // RET 0x0008  (size-override extends the
-        _emit 0x08              //              function from 0x66 to 0x69 B —
-        _emit 0x00              //              the imm16 RET trailer the YAML cut)
+        // ---- @0x00403e07: if (count > 0) copy old → new --------------
+        mov     ebx, [ebp + 0x0c]                  // 8b 5d 0c
+        test    ebx, ebx                           // 85 db
+        jbe     after_copy                         // 76 20  → 0x403e2e
+        cmp     dword ptr [edi + 0x18], 0x10       // 83 7f 18 10
+        jb      use_sso                            // 72 05  → 0x403e19
+        mov     eax, [edi + 0x04]                  // 8b 47 04   (heap ptr)
+        jmp     do_copy                            // eb 03  → 0x403e1c
+    use_sso:                                       //          @0x403e19
+        lea     eax, [edi + 0x04]                  // 8d 47 04   (&_Bx[0])
+    do_copy:                                       //          @0x403e1c
+        push    ebx                                // 53           count
+        push    eax                                // 50           old
+        mov     eax, [ebp + 0x08]                  // 8b 45 08     newBuf
+        lea     edx, [esi + 0x01]                  // 8d 56 01     newRes+1
+        push    edx                                // 52
+        push    eax                                // 50
+        call    FUN_009d17f3                       // e8 ?? ?? ?? ??  _Copy_s
+        add     esp, 0x10                          // 83 c4 10
+    after_copy:                                    //          @0x403e2e
+        // ---- @0x00403e2e: free old heap buf if it was on the heap ---
+        cmp     dword ptr [edi + 0x18], 0x10       // 83 7f 18 10
+        jb      after_delete                       // 72 0c  → 0x403e40
+        mov     ecx, [edi + 0x04]                  // 8b 4f 04
+        push    ecx                                // 51
+        call    FUN_009d1b17                       // e8 ?? ?? ?? ??  delete
+        add     esp, 0x04                          // 83 c4 04
+    after_delete:                                  //          @0x403e40
+        // ---- @0x00403e40: install new buf + size/cap, NUL-terminate -
+        cmp     esi, 0x10                          // 83 fe 10   sets CF for the JB below
+        mov     ecx, [ebp + 0x08]                  // 8b 4d 08
+        lea     eax, [edi + 0x04]                  // 8d 47 04   &this->_Bx
+        mov     byte ptr [eax], 0                  // c6 00 00   tidy SSO byte
+        mov     [eax], ecx                         // 89 08      install newBuf
+        mov     [edi + 0x18], esi                  // 89 77 18   _Myres = newRes
+        mov     [edi + 0x14], ebx                  // 89 5f 14   _Mysize = count
+        jb      finalize_sso                       // 72 02  → 0x403e58
+        mov     eax, ecx                           // 8b c1      term = newBuf
+    finalize_sso:                                  //          @0x403e58
+        mov     byte ptr [eax + ebx * 1], 0        // c6 04 18 00  term[count]='\0'
+        // ---- @0x00403e5c: SEH/callee-save teardown ------------------
+        mov     ecx, [ebp - 0x0c]                  // 8b 4d f4   saved FS[0]
+        mov     dword ptr fs:[0], ecx              // 64 89 0d 00 00 00 00
+        pop     ecx                                // 59
+        pop     edi                                // 5f
+        pop     esi                                // 5e
+        pop     ebx                                // 5b
+        mov     esp, ebp                           // 8b e5
+        pop     ebp                                // 5d
+        ret     8                                  // c2 08 00
     }
 }
