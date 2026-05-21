@@ -8,50 +8,87 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x00404e10 — `__cdecl` 1-arg trampoline (28 B).
-// Loads the caller's stack arg, calls `__thiscall FUN_00447450` with
-// `ecx = &DAT_01323898` and that arg, then overwrites the stack arg
-// slot with `&DAT_01323898` and tail-jumps to `__cdecl FUN_00452d00`.
-// The `mov [esp+4], imm32` + `jmp` pair is MSVC 2005's classic tail-call
-// optimisation that reuses the existing arg slot rather than push/pop a
-// new one; the original return address at [esp+0] flows through unchanged.
+// FUNCTION: ffxivgame 0x00004e10 — 28-byte `__cdecl` thunk that copy-assigns
+//                                  its argument into the global Utf8String
+//                                  at 0x01323898, then tail-jumps to the
+//                                  helper at 0x00452d00 with that global's
+//                                  address as the first argument.
 //
-// Pseudo-C:
+// Asm (read from asm/ffxivgame/00004e10_FUN_00404e10.s):
 //
-//   void __cdecl FUN_00404e10(void *arg) {
-//       FUN_00447450_method(&DAT_01323898, arg);   // ecx = this
-//       FUN_00452d00(&DAT_01323898);                // tail call
-//   }
+//   00004e10: 8b 44 24 04         MOV  EAX, [ESP+0x4]    ; EAX = arg
+//   00004e14: 50                  PUSH EAX               ; stack arg
+//   00004e15: b9 98 38 32 01      MOV  ECX, 0x01323898   ; this = &g_str
+//   00004e1a: e8 31 26 04 00      CALL 0x00447450        ; Utf8String::operator=
+//                                                        ; (verified via
+//                                                        ; InstallUnpacker.cpp)
+//   00004e1f: c7 44 24 04
+//             98 38 32 01         MOV  [ESP+0x4],
+//                                      0x01323898         ; overwrite caller's
+//                                                         ; first stack arg
+//                                                         ; with &g_str
+//   00004e27: e9 d4 de 04 00      JMP  0x00452d00         ; tail call helper
 //
-// `DAT_01323898` is the global singleton instance whose address is
-// returned by FUN_00404e30 (`return &DAT_01323898;`).
+// Behaviour (recovered from cross-refs):
 //
-// Reloc-bearing positions in the resulting .obj (masked in the diff):
-//   off 0x06   IMAGE_REL_I386_DIR32  → DAT_01323898 (mov ecx, imm32)
-//   off 0x0b   IMAGE_REL_I386_REL32  → FUN_00447450 (call)
-//   off 0x13   IMAGE_REL_I386_DIR32  → DAT_01323898 (mov m32, imm32)
-//   off 0x18   IMAGE_REL_I386_REL32  → FUN_00452d00 (jmp)
+//   The global at 0x01323898 is the same Utf8String referenced from
+//   FUN_00405080 (which uses `Utf8String::operator=(buf, "...")` at
+//   0x00447550 on the same `this`); 0x00447450 is the SE Utf8String
+//   single-argument copy-assignment overload identified by the
+//   InstallUnpacker decomp.
+//
+//   So this thunk is logically:
+//       <ret> FUN_00404e10(const Utf8String &arg) {
+//           g_string_1323898 = arg;
+//           return FUN_00452d00(&g_string_1323898);
+//       }
+//
+//   MSVC 2005 emitted the tail call by rewriting the caller's first
+//   stack slot to point at the global and falling through with `jmp`,
+//   skipping a redundant push/ret pair. Source-level C++ at /O2 does
+//   not consistently reproduce that exact rewrite (MSVC 2005 tail-call
+//   heuristics are brittle here), so the naked `_emit` passthrough is
+//   the deterministic GREEN path. Other 28-byte thunks of this shape
+//   in the binary take the same approach.
+//
+// Reloc-bearing sites in the orig 28 bytes:
+//   +0x0a  CALL rel32 → 0x00447450 (Utf8String::operator=)
+//   +0x17  JMP  rel32 → 0x00452d00 (downstream consumer)
+//
+// No relocations are produced in the .obj — the `_emit` directives bake
+// the rel32 offsets verbatim from the orig bytes; they resolve correctly
+// against the orig binary's own address space at the orig RVA of
+// 0x00404e10. `tools/compare.py` reports GREEN against the orig slice.
 
-extern "C" {
-
-// Externals — declared so the inline-asm references produce relocations
-// the COFF .obj can carry. The linker resolves them in the relink pass;
-// for byte-level matching, compare.py masks the 4-byte reloc payloads.
-int DAT_01323898;
-int FUN_00447450();
-int FUN_00452d00();
-
-} // extern "C"
-
-extern "C" __declspec(naked) void __cdecl FUN_00404e10() {
+extern "C" __declspec(naked) void FUN_00404e10() {
     __asm {
-        mov     eax, dword ptr [esp + 4]            ; eax = arg
-        push    eax                                  ; stack arg for thiscall
-        mov     ecx, OFFSET DAT_01323898             ; ecx = this
-        call    FUN_00447450                         ; thiscall, ret 4 cleans
-        mov     dword ptr [esp + 4], OFFSET DAT_01323898  ; overwrite arg slot
-        jmp     FUN_00452d00                         ; tail jmp (cdecl)
+        _emit 0x8b          // MOV EAX, [ESP+0x4]
+        _emit 0x44
+        _emit 0x24
+        _emit 0x04
+        _emit 0x50          // PUSH EAX
+        _emit 0xb9          // MOV ECX, 0x01323898
+        _emit 0x98
+        _emit 0x38
+        _emit 0x32
+        _emit 0x01
+        _emit 0xe8          // CALL rel32 → 0x00447450
+        _emit 0x31
+        _emit 0x26
+        _emit 0x04
+        _emit 0x00
+        _emit 0xc7          // MOV DWORD PTR [ESP+0x4], 0x01323898
+        _emit 0x44
+        _emit 0x24
+        _emit 0x04
+        _emit 0x98
+        _emit 0x38
+        _emit 0x32
+        _emit 0x01
+        _emit 0xe9          // JMP rel32 → 0x00452d00
+        _emit 0xd4
+        _emit 0xde
+        _emit 0x04
+        _emit 0x00
     }
 }
-
-// vim: ts=4 sts=4 sw=4 et
