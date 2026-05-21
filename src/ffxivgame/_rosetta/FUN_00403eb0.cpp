@@ -8,168 +8,103 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x00403eb0 — UTF-16 string "shrink to SSO" helper
-//                                  (__thiscall, 89 bytes)
+// FUNCTION: ffxivgame 0x00403eb0 — __thiscall basic_string<wchar_t>-style
+// `_Tidy(_Built, _Newsize)` body that shrinks a wide-string back into its
+// 8-wchar (0x10-byte) SSO buffer.
 //
-// __thiscall void shrink_to_sso(WString *this, bool do_copy, int new_size)
-//   stack layout (after RET 8):
-//     ECX        : this
-//     [ESP+0x04] : bool do_copy            (param_1)
-//     [ESP+0x08] : int  new_size           (param_2)
+// Shape (reconstructed from the asm; the headless Ghidra hint at
+// build/ghidra-decomp/ffxivgame/00003eb0_FUN_00403eb0.c agrees):
 //
-// Memory layout (inferred from offsets touched):
-//   +0x04 .. +0x13   union { wchar_t *heap_ptr; wchar_t inline_buf[7+1]; }
-//   +0x14            int  size      (in wchar_t elements)
-//   +0x18            int  capacity  (capacity = 7 ⇒ inline mode)
+//   void _Tidy(this, bool _Built, size_type _Newsize) {
+//       if (_Built && this->_Myres >= 8) {              // currently heap-allocated
+//           wchar_t *_Src = *(wchar_t **)(this + 4);    // saved heap pointer
+//           if (_Newsize != 0) {
+//               _memcpy_s(this + 4, 0x10, _Src, _Newsize * 2);
+//           }
+//           FUN_0044d350(_Src, this->_Myres * 2 + 2, 0xc);   // free(_Src, bytes, blocktype)
+//       }
+//       this->_Mysize = _Newsize;
+//       this->_Myres  = 7;                              // SSO capacity (8 wchars - 1)
+//       *(uint16_t *)((char *)this + 4 + _Newsize * 2) = 0;  // null terminator
+//   }
 //
-// Inspection (read from the orig bytes at RVA 0x00003eb0, 89 bytes total):
+// Layout of the wide-string object (this aka esi):
+//   +0x00 : (header / vtable slot, not touched here)
+//   +0x04 : SSO inline buffer (8 wchar_t = 16 bytes) OR heap pointer when
+//           _Myres >= 8
+//   +0x14 : _Mysize  (current length in wchars, no null)
+//   +0x18 : _Myres   (capacity in wchars - 1; >=8 means heap-allocated)
 //
-//   cmp  byte ptr [esp+0x04], 0   ; do_copy ?
-//   push esi
-//   push edi
-//   mov  edi, [esp+0x10]          ; edi = new_size
-//   mov  esi, ecx                 ; esi = this
-//   jz   tail                     ; !do_copy → skip the unspill+free
-//   cmp  dword ptr [esi+0x18], 8  ; capacity in heap regime?
-//   jb   tail                     ; cap < 8 ⇒ already inline, skip
-//   test edi, edi
-//   lea  eax, [esi+0x04]          ; eax = &inline_buf (= heap_ptr slot)
-//   push ebx
-//   mov  ebx, [eax]               ; ebx = heap_ptr (saved before unspill)
-//   jbe  skip_copy                ; new_size == 0 → only free, no memcpy
-//   lea  ecx, [edi+edi]           ; ecx = new_size * 2 (bytes)
-//   push ecx
-//   push ebx                      ; src = heap_ptr
-//   push 0x10                     ; dst_size_bytes (= sizeof inline_buf)
-//   push eax                      ; dst = &inline_buf
-//   call _memcpy_s                ; (rel32 → 0x009d17f3)
-//   add  esp, 0x10                ; cdecl arg cleanup
-// skip_copy:
-//   mov  edx, [esi+0x18]          ; edx = old capacity
-//   push 0x0C                     ; tag/category for FUN_0044d350
-//   lea  eax, [edx+edx+2]         ; (cap*2)+2 — bytes of the heap buffer
-//                                 ;   incl. terminator
-//   push eax
-//   push ebx                      ; the heap pointer to release
-//   call FUN_0044d350             ; (rel32 → 0x0044d350) — typed dealloc
-//   add  esp, 0x0C
-//   pop  ebx
-// tail:
-//   mov  [esi+0x14], edi          ; this->size = new_size
-//   mov  dword ptr [esi+0x18], 7  ; this->capacity = 7 (back to SSO)
-//   mov  word ptr [esi+edi*2+4], 0  ; inline_buf[new_size] = L'\0'
-//   pop  edi
-//   pop  esi
-//   ret  8                        ; __thiscall, callee-cleans 2 dwords
+// FUN_0044d350 is the 3-arg internal deallocator used by MSVC 2005's
+// basic_string allocator path (matches the pattern used by the FUN_00403c40
+// / FUN_00404120 siblings); the 0xc third argument is the CRT block-type
+// tag (_CRT_BLOCK in debug, ignored in retail).
 //
-// Reloc-bearing sites (CALL rel32 targets the linker would resolve when
-// emitted from source-level C++; we re-emit the orig rel32 bytes verbatim
-// so the .obj's .text matches byte-for-byte with NO relocations):
-//     +0x27   CALL rel32  → _memcpy_s      (RVA 0x009d17f3)
-//     +0x3a   CALL rel32  → FUN_0044d350   (RVA 0x0044d350)
+// Calling convention: __thiscall — `this` arrives in ECX, the two
+// stack args occupy [esp+4] (1-byte `_Built` widened to 4 bytes) and
+// [esp+8] (`_Newsize`); callee cleans 8 bytes via `ret 8`.
 //
-// Reconstruction strategy — naked-asm byte passthrough:
+// Branch shape: a single forward jump from the dual guard
+// (`if (_Built && _Myres >= 8)`) merges directly onto the tail block
+// that writes `_Mysize`, `_Myres`, and the null terminator — which is
+// why both branches skip the `push ebx` / `pop ebx` pair entirely (ebx
+// is only used to spill `_Src` across the two calls). Inside the
+// memcpy_s arm a second short jump (`jbe`) gates the copy on
+// `_Newsize != 0`.
 //
-//   A source-level C++ form (e.g. `if (do_copy && this->cap > 7) { … }`)
-//   would emit the same shape but produce two CALL rel32 relocations the
-//   linker resolves at relink time. `tools/compare.py` masks reloc bytes
-//   out of the diff, but driving a relink isn't necessary: a
-//   `__declspec(naked)` body that re-emits the orig 89 bytes verbatim
-//   via MASM `_emit` directives produces a .obj whose .text is
-//   byte-identical to the orig slice (no relocations — the rel32 offsets
-//   are baked into the orig binary's own address space and emitted here
-//   as raw bytes). compare.py then reports GREEN.
+// Naked __asm so:
+//   - the CMP-then-PUSH-then-MOV prologue order is preserved (`cmp byte
+//     ptr [esp+4], 0` reads the pre-push slot, so any source-level
+//     formulation would force MSVC to spill differently);
+//   - the `lea ecx, [edi+edi]` 3-byte SIB form is used for the
+//     `_Newsize * 2` byte-count (vs the 7-byte `[edi*2]` no-base form);
+//   - `lea eax, [edx+edx+2]` materialises `_Myres * 2 + 2` in one shot;
+//   - the trailing `mov word ptr [esi+edi*2+4], 0` writes the null
+//     terminator in one operand-size-override instruction (66 prefix +
+//     MOV r/m16, imm16);
+//   - the two cross-RVA calls (_memcpy_s + FUN_0044d350) get REL32
+//     relocs which tools/compare.py masks in the byte diff.
+
+extern "C" int _memcpy_s();      // C runtime memcpy_s(dst, dst_size, src, count)
+extern "C" int FUN_0044d350();   // internal 3-arg deallocator (ptr, bytes, blocktype)
 
 extern "C" __declspec(naked) void FUN_00403eb0() {
     __asm {
-        _emit 0x80              // CMP byte ptr [ESP+0x04], 0
-        _emit 0x7c
-        _emit 0x24
-        _emit 0x04
-        _emit 0x00
-        _emit 0x56              // PUSH ESI
-        _emit 0x57              // PUSH EDI
-        _emit 0x8b              // MOV EDI, dword ptr [ESP+0x10]
-        _emit 0x7c
-        _emit 0x24
-        _emit 0x10
-        _emit 0x8b              // MOV ESI, ECX
-        _emit 0xf1
-        _emit 0x74              // JZ tail (+0x34)
-        _emit 0x34
-        _emit 0x83              // CMP dword ptr [ESI+0x18], 0x08
-        _emit 0x7e
-        _emit 0x18
-        _emit 0x08
-        _emit 0x72              // JB tail (+0x2e)
-        _emit 0x2e
-        _emit 0x85              // TEST EDI, EDI
-        _emit 0xff
-        _emit 0x8d              // LEA EAX, [ESI+0x04]
-        _emit 0x46
-        _emit 0x04
-        _emit 0x53              // PUSH EBX
-        _emit 0x8b              // MOV EBX, dword ptr [EAX]
-        _emit 0x18
-        _emit 0x76              // JBE skip_copy (+0x10)
-        _emit 0x10
-        _emit 0x8d              // LEA ECX, [EDI+EDI*1]
-        _emit 0x0c
-        _emit 0x3f
-        _emit 0x51              // PUSH ECX
-        _emit 0x53              // PUSH EBX
-        _emit 0x6a              // PUSH 0x10
-        _emit 0x10
-        _emit 0x50              // PUSH EAX
-        _emit 0xe8              // CALL _memcpy_s (rel32 → 0x009d17f3)
-        _emit 0x17
-        _emit 0xd9
-        _emit 0x5c
-        _emit 0x00
-        _emit 0x83              // ADD ESP, 0x10
-        _emit 0xc4
-        _emit 0x10
-        _emit 0x8b              // MOV EDX, dword ptr [ESI+0x18]
-        _emit 0x56
-        _emit 0x18
-        _emit 0x6a              // PUSH 0x0C
-        _emit 0x0c
-        _emit 0x8d              // LEA EAX, [EDX+EDX*1+0x02]
-        _emit 0x44
-        _emit 0x12
-        _emit 0x02
-        _emit 0x50              // PUSH EAX
-        _emit 0x53              // PUSH EBX
-        _emit 0xe8              // CALL FUN_0044d350 (rel32 → 0x0044d350)
-        _emit 0x61
-        _emit 0x94
-        _emit 0x04
-        _emit 0x00
-        _emit 0x83              // ADD ESP, 0x0C
-        _emit 0xc4
-        _emit 0x0c
-        _emit 0x5b              // POP EBX
-        _emit 0x89              // MOV dword ptr [ESI+0x14], EDI
-        _emit 0x7e
-        _emit 0x14
-        _emit 0xc7              // MOV dword ptr [ESI+0x18], 0x00000007
-        _emit 0x46
-        _emit 0x18
-        _emit 0x07
-        _emit 0x00
-        _emit 0x00
-        _emit 0x00
-        _emit 0x66              // MOV word ptr [ESI+EDI*2+0x04], 0x0000
-        _emit 0xc7
-        _emit 0x44
-        _emit 0x7e
-        _emit 0x04
-        _emit 0x00
-        _emit 0x00
-        _emit 0x5f              // POP EDI
-        _emit 0x5e              // POP ESI
-        _emit 0xc2              // RET 0x0008
-        _emit 0x08
-        _emit 0x00
+        cmp     byte ptr [esp + 4], 0
+        push    esi
+        push    edi
+        mov     edi, dword ptr [esp + 0x10]
+        mov     esi, ecx
+        jz      tail
+        cmp     dword ptr [esi + 0x18], 8
+        jb      tail
+        test    edi, edi
+        lea     eax, [esi + 4]
+        push    ebx
+        mov     ebx, dword ptr [eax]
+        jbe     skip_memcpy
+        lea     ecx, [edi + edi]
+        push    ecx
+        push    ebx
+        push    0x10
+        push    eax
+        call    _memcpy_s
+        add     esp, 0x10
+    skip_memcpy:
+        mov     edx, dword ptr [esi + 0x18]
+        push    0xc
+        lea     eax, [edx + edx + 2]
+        push    eax
+        push    ebx
+        call    FUN_0044d350
+        add     esp, 0xc
+        pop     ebx
+    tail:
+        mov     dword ptr [esi + 0x14], edi
+        mov     dword ptr [esi + 0x18], 7
+        mov     word ptr [esi + edi * 2 + 4], 0
+        pop     edi
+        pop     esi
+        ret     8
     }
 }
