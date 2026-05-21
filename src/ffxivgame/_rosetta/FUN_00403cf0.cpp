@@ -9,11 +9,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
 // FUNCTION: ffxivgame 0x00403cf0 — 1-arg __stdcall forwarder that calls
-// FUN_00403bd0(arg, 0). FUN_00403bd0 is a 96-byte allocator-style
-// routine (multiplies count by 0x1c with overflow check, throws
-// std::bad_alloc on overflow). This wrapper supplies the default
-// second argument (0) so callers that only pass one parameter can
-// reach the throwing form without pushing the extra zero themselves.
+// FUN_00403bd0(arg, 0). Same structural pattern as the sibling
+// FUN_00403cd0 (which forwards to FUN_00403b70 the same way): the
+// wrapper supplies a default second argument (0) so callers that only
+// pass one parameter can reach the inner helper without pushing the
+// extra zero themselves.
 //
 // Asm (18 bytes):
 //   8b 44 24 04        MOV EAX, [ESP + 4]       ; load incoming arg
