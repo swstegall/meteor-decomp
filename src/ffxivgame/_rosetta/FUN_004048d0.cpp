@@ -8,61 +8,61 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x4048d0 — __cdecl arg-shuffler (3 dword args + 1 byte)
+// FUNCTION: ffxivgame 0x4048d0 — __cdecl arg-shuffler (3 dword args + 1 byte) (43B)
 //
-// Sibling of the __stdcall variant FUN_004048a0 (which carries a
-// `ret 0x0c` epilogue). This 43-byte function uses the same
-// "materialise a byte 0 by zeroing the low byte of saved-ecx" trick,
-// permutes three caller args into the seven dword slots a downstream
-// helper expects, and tail-cleans the stack via `add esp, 0x1c; ret`
-// (caller-pop = __cdecl).
+// Sibling of 0x4048a0 (the __stdcall variant covered by the cluster
+// template); this one is __cdecl — caller cleans the 3 dword args,
+// hence the terminal `c3` (ret) instead of `c2 0c 00` (ret 12).
 //
-// Orig codegen (43 bytes — bytes verbatim from orig PE @0x000048d0):
+// Calls FUN_00404800(p1, p2, p3, p2, p2, 0) where the trailing `0` is
+// materialised through the standard MSVC byte-local idiom: reserve a
+// dword slot with `push ecx`, zero its low byte with
+// `mov byte ptr [esp], 0`, then push that dword — the callee only reads
+// the low byte so the upper 3 bytes of the slot stay garbage.
 //
-//   51                  push ecx                  ; reserve byte0 slot
-//   8b 4c 24 0c         mov  ecx, [esp + 0x0c]    ; ecx = arg1
-//   8b 54 24 0c         mov  edx, [esp + 0x0c]    ; edx = arg1
-//   c6 04 24 00         mov  byte ptr [esp], 0
-//   8b 04 24            mov  eax, [esp]           ; eax = saved-ecx with low byte 0
-//   50                  push eax                  ; push byte0 dword
-//   8b 44 24 14         mov  eax, [esp + 0x14]    ; eax = arg2
-//   51                  push ecx                  ; push arg1
-//   8b 4c 24 14         mov  ecx, [esp + 0x14]    ; ecx = arg1 (reload)
-//   52                  push edx                  ; push arg1
-//   8b 54 24 14         mov  edx, [esp + 0x14]    ; edx = arg1 (reload)
-//   50                  push eax                  ; push arg2
-//   51                  push ecx                  ; push arg1
-//   52                  push edx                  ; push arg1
-//   e8 09 ff ff ff      call FUN_00404800         ; rel32 -> 0x00004800
+// Asm (43 bytes @ orig RVA 0x000048d0):
+//   51                  push ecx
+//   8b 4c 24 0c         mov  ecx, [esp + 0xc]            ; p2
+//   8b 54 24 0c         mov  edx, [esp + 0xc]            ; p2
+//   c6 04 24 00         mov  byte ptr [esp], 0           ; zero low byte of local slot
+//   8b 04 24            mov  eax, [esp]                  ; load full dword (lo=0)
+//   50                  push eax                         ; arg6 = 0
+//   8b 44 24 14         mov  eax, [esp + 0x14]           ; p3
+//   51                  push ecx                         ; arg5 = p2
+//   8b 4c 24 14         mov  ecx, [esp + 0x14]           ; p2
+//   52                  push edx                         ; arg4 = p2
+//   8b 54 24 14         mov  edx, [esp + 0x14]           ; p1
+//   50                  push eax                         ; arg3 = p3
+//   51                  push ecx                         ; arg2 = p2
+//   52                  push edx                         ; arg1 = p1
+//   e8 RR RR RR RR      call FUN_00404800
 //   83 c4 1c            add  esp, 0x1c
 //   c3                  ret
 //
-// The single `call rel32` is the only relocation site. Compiling this
-// as a __declspec(naked) body with `call target` leaves a 4-byte
-// linker-relocation window at offset 0x23; `tools/compare.py` masks
-// reloc windows out of the byte diff, so the symbol the call resolves
-// to is irrelevant for matching purposes.
+// Emitted as `__declspec(naked)` inline asm so the .obj's `.text` is
+// exactly 43 bytes matching orig; the CALL rel32 is the only reloc
+// and `tools/compare.py` masks reloc bytes from the diff.
 
-extern "C" void target();
+extern "C" void __cdecl target_404800();
 
-extern "C" __declspec(naked) void FUN_004048d0() {
+extern "C" __declspec(naked) void __cdecl FUN_004048d0() {
     __asm {
         push ecx
-        mov  ecx, [esp + 0x0c]
-        mov  edx, [esp + 0x0c]
-        mov  byte ptr [esp], 0
-        mov  eax, [esp]
+        mov ecx, [esp + 0xc]
+        mov edx, [esp + 0xc]
+        mov byte ptr [esp], 0
+        mov eax, [esp]
         push eax
-        mov  eax, [esp + 0x14]
+        mov eax, [esp + 0x14]
         push ecx
-        mov  ecx, [esp + 0x14]
+        mov ecx, [esp + 0x14]
         push edx
-        mov  edx, [esp + 0x14]
+        mov edx, [esp + 0x14]
         push eax
         push ecx
         push edx
-        call target
-        add  esp, 0x1c
+        call target_404800
+        add esp, 0x1c
         ret
     }
 }
