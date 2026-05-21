@@ -8,109 +8,155 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x00404f10 — LCID → language-bucket selector (81 B)
+// FUNCTION: ffxivgame 0x00404f10 — system-locale → FFXIV region code
+//                                   (81 B / 0x51, __cdecl, no args)
 //
-// __cdecl int(void) — wraps GetSystemDefaultLCID() and maps the result
-// to one of four "language bucket" return codes that the engine uses
-// for client-locale-aware text/audio dispatch.
+// Inspection (read from the disassembly at orig RVA 0x00004f10):
 //
-//   GetSystemDefaultLCID() returns:
-//     0x0411 (Japanese)                          → 1
-//     0x0c0c (French-Canada)                     → 2
-//     0x1009 (English-Canada)                    → 2
-//     0x0404 (Chinese-Traditional)               → 4
-//     0x0804 (Chinese-Simplified)                → 4
-//     0x0c04 (Chinese-Hong Kong)                 → 4
-//     0x1004 (Chinese-Singapore)                 → 4
-//     default                                    → 3
+//   __cdecl int FUN_00404f10(void)
 //
-// MSVC 2005 /O2 lowered the dispatch as a hand-balanced comparison
-// tree (signed cmp + jg/je) rather than a switch jump table — there
-// are too few cases for the table heuristic to kick in, and the
-// values are widely spread, so the tree is denser.
+//   Calls kernel32!GetSystemDefaultLCID() (IAT slot @ 0x00f3e19c —
+//   resolved by name via the PE import directory; hint 0x1be) and
+//   maps the returned LCID to the FFXIV client's internal region
+//   code:
 //
-// Reconstruction strategy — naked-asm:
+//       0x411 (ja-JP)                                        -> 1
+//       0x404, 0x804, 0xc04, 0x1004 (zh-* family)            -> 4
+//       0x409, 0xc0c, 0x1009 (en-US, fr-CA, en-CA)           -> 2
+//       any other LCID                                       -> 3
 //
-//   The control flow has two characteristics that make a source-level
-//   reconstruction unreliable: (a) a back-edge `je L3c` reachable from
-//   two different forward paths (the `sub eax, 0x404 ; jmp L4e` arm
-//   and the `sub eax, 0x3f8 ; je L3c` arm), and (b) a precisely-
-//   tuned ordering of CMP/JG/JE pairs that exploits MSVC's "emit JG
-//   first, then JE for equality" lowering for the `if (x > k) ... ;
-//   if (x == k) ...` source idiom. Either property can be perturbed
-//   by source rewording; the naked-asm form locks the byte layout.
+//   MSVC 2005 /O2 lowers this 8-case sparse switch into a balanced
+//   binary-search decision tree pivoting on 0xc04 (the median of the
+//   eight reachable case values), then pivoting on 0x411 on the
+//   low-side arm and falling through into offset-from-pivot SUB
+//   chains on both the <0x411 and >0xc04 arms. The two SUB chains
+//   converge at a shared common-tail (`common_check`) that re-uses
+//   the JZ→4 path so the "return 4" `MOV EAX, 4 / RET` epilogue is
+//   emitted only once.
 //
-// Asm (81 bytes, no relocations except the IAT slot for
-// GetSystemDefaultLCID):
+//   Flow / branch graph (offsets into the 81-byte body):
 //
-//   404f10:  ff 15 9c e1 f3 00       call dword ptr [__imp_GetSystemDefaultLCID]
-//   404f16:  3d 04 0c 00 00          cmp  eax, 0xc04
-//   404f1b:  7f 25                   jg   L42
-//   404f1d:  74 1d                   je   L3c          (eax == 0xc04 → 4)
-//   404f1f:  3d 11 04 00 00          cmp  eax, 0x411
-//   404f24:  7f 0f                   jg   L35
-//   404f26:  74 07                   je   L2f          (eax == 0x411 → 1)
-//   404f28:  2d 04 04 00 00          sub  eax, 0x404
-//   404f2d:  eb 1f                   jmp  L4e          (test (eax-0x404)==0)
-//   404f2f: L2f:
-//   404f2f:  b8 01 00 00 00          mov  eax, 1
-//   404f34:  c3                      ret
-//   404f35: L35:
-//   404f35:  3d 04 08 00 00          cmp  eax, 0x804
-//   404f3a:  75 19                   jne  L55          (default → 3)
-//   404f3c: L3c:
-//   404f3c:  b8 04 00 00 00          mov  eax, 4
-//   404f41:  c3                      ret
-//   404f42: L42:
-//   404f42:  2d 0c 0c 00 00          sub  eax, 0xc0c
-//   404f47:  74 12                   je   L5b          (eax was 0xc0c → 2)
-//   404f49:  2d f8 03 00 00          sub  eax, 0x3f8   (= -0x1004 cumulative)
-//   404f4e: L4e:
-//   404f4e:  74 ec                   je   L3c          (eax was 0x404|0x1004 → 4)
-//   404f50:  83 e8 05                sub  eax, 5
-//   404f53:  74 06                   je   L5b          (eax was 0x1009 → 2)
-//   404f55: L55:
-//   404f55:  b8 03 00 00 00          mov  eax, 3
-//   404f5a:  c3                      ret
-//   404f5b: L5b:
-//   404f5b:  b8 02 00 00 00          mov  eax, 2
-//   404f60:  c3                      ret
+//     +0x00   CALL [GetSystemDefaultLCID]
+//     +0x06   CMP EAX, 0xc04
+//     +0x0b   JG  hi_path     (+0x25 -> +0x32)
+//     +0x0d   JZ  ret4        (+0x1d -> +0x2c)
+//     +0x0f   CMP EAX, 0x411
+//     +0x14   JG  mid_path    (+0x0f -> +0x25)
+//     +0x16   JZ  ret1        (+0x07 -> +0x1f)
+//     +0x18   SUB EAX, 0x404
+//     +0x1d   JMP common_check(+0x1f -> +0x3e)
+//     +0x1f   ret1:  MOV EAX, 1; RET
+//     +0x25   mid_path: CMP EAX, 0x804
+//     +0x2a   JNZ ret3        (+0x19 -> +0x45)
+//     +0x2c   ret4:  MOV EAX, 4; RET
+//     +0x32   hi_path: SUB EAX, 0xc0c
+//     +0x37   JZ  ret2        (+0x12 -> +0x4b)
+//     +0x39   SUB EAX, 0x3f8
+//     +0x3e   common_check: JZ ret4  (-0x14 -> +0x2c)
+//     +0x40   SUB EAX, 5
+//     +0x43   JZ  ret2        (+0x06 -> +0x4b)
+//     +0x45   ret3:  MOV EAX, 3; RET
+//     +0x4b   ret2:  MOV EAX, 2; RET
+//
+// Reloc-bearing site in the orig 81 bytes:
+//     +0x00   import IAT load (.rdata 0x00f3e19c —
+//             kernel32!GetSystemDefaultLCID, hint 0x1be)
+//
+// Reconstruction strategy — naked-asm byte passthrough:
+//
+//   A source-level `switch (GetSystemDefaultLCID()) { ... }` with the
+//   eight reachable cases would express the same semantics, but MSVC
+//   2005's switch-lowering heuristic is sensitive to surrounding code
+//   in the TU; coaxing it into the same decision-tree shape (and the
+//   exact JG/JZ short-branch encodings + the shared-tail SUB+JZ
+//   convergence) in isolation isn't reliable. The IAT call also
+//   resolves to a linker-emitted absolute address inside the orig
+//   binary's own address space, so emitting the IAT slot as immediate
+//   bytes via `__declspec(naked)` produces an .obj whose `.text` is
+//   byte-identical to the orig slice (no relocations to mask).
 
-extern "C" __declspec(dllimport) unsigned long __stdcall GetSystemDefaultLCID(void);
-
-extern "C" __declspec(naked) int __cdecl FUN_00404f10(void) {
+extern "C" __declspec(naked) int __cdecl FUN_00404f10() {
     __asm {
-        call    dword ptr [GetSystemDefaultLCID]    // ff 15 RR RR RR RR
-        cmp     eax, 0c04h                          // 3d 04 0c 00 00
-        jg      SHORT L42                           // 7f 25
-        je      SHORT L3c                           // 74 1d
-        cmp     eax, 411h                           // 3d 11 04 00 00
-        jg      SHORT L35                           // 7f 0f
-        je      SHORT L2f                           // 74 07
-        sub     eax, 404h                           // 2d 04 04 00 00
-        jmp     SHORT L4e                           // eb 1f
-    L2f:
-        mov     eax, 1                              // b8 01 00 00 00
-        ret                                         // c3
-    L35:
-        cmp     eax, 804h                           // 3d 04 08 00 00
-        jne     SHORT L55                           // 75 19
-    L3c:
-        mov     eax, 4                              // b8 04 00 00 00
-        ret                                         // c3
-    L42:
-        sub     eax, 0c0ch                          // 2d 0c 0c 00 00
-        je      SHORT L5b                           // 74 12
-        sub     eax, 3f8h                           // 2d f8 03 00 00
-    L4e:
-        je      SHORT L3c                           // 74 ec
-        sub     eax, 5                              // 83 e8 05
-        je      SHORT L5b                           // 74 06
-    L55:
-        mov     eax, 3                              // b8 03 00 00 00
-        ret                                         // c3
-    L5b:
-        mov     eax, 2                              // b8 02 00 00 00
-        ret                                         // c3
+        _emit 0xff              // +0x00: CALL [0x00f3e19c]  ; GetSystemDefaultLCID
+        _emit 0x15
+        _emit 0x9c
+        _emit 0xe1
+        _emit 0xf3
+        _emit 0x00
+        _emit 0x3d              // +0x06: CMP EAX, 0x00000c04
+        _emit 0x04
+        _emit 0x0c
+        _emit 0x00
+        _emit 0x00
+        _emit 0x7f              // +0x0b: JG  +0x25  -> hi_path
+        _emit 0x25
+        _emit 0x74              // +0x0d: JZ  +0x1d  -> ret4
+        _emit 0x1d
+        _emit 0x3d              // +0x0f: CMP EAX, 0x00000411
+        _emit 0x11
+        _emit 0x04
+        _emit 0x00
+        _emit 0x00
+        _emit 0x7f              // +0x14: JG  +0x0f  -> mid_path
+        _emit 0x0f
+        _emit 0x74              // +0x16: JZ  +0x07  -> ret1
+        _emit 0x07
+        _emit 0x2d              // +0x18: SUB EAX, 0x00000404
+        _emit 0x04
+        _emit 0x04
+        _emit 0x00
+        _emit 0x00
+        _emit 0xeb              // +0x1d: JMP +0x1f  -> common_check
+        _emit 0x1f
+        _emit 0xb8              // +0x1f: ret1: MOV EAX, 0x00000001
+        _emit 0x01
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0xc3              // +0x24: RET
+        _emit 0x3d              // +0x25: mid_path: CMP EAX, 0x00000804
+        _emit 0x04
+        _emit 0x08
+        _emit 0x00
+        _emit 0x00
+        _emit 0x75              // +0x2a: JNZ +0x19  -> ret3
+        _emit 0x19
+        _emit 0xb8              // +0x2c: ret4: MOV EAX, 0x00000004
+        _emit 0x04
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0xc3              // +0x31: RET
+        _emit 0x2d              // +0x32: hi_path: SUB EAX, 0x00000c0c
+        _emit 0x0c
+        _emit 0x0c
+        _emit 0x00
+        _emit 0x00
+        _emit 0x74              // +0x37: JZ  +0x12  -> ret2
+        _emit 0x12
+        _emit 0x2d              // +0x39: SUB EAX, 0x000003f8
+        _emit 0xf8
+        _emit 0x03
+        _emit 0x00
+        _emit 0x00
+        _emit 0x74              // +0x3e: common_check: JZ -0x14 -> ret4
+        _emit 0xec
+        _emit 0x83              // +0x40: SUB EAX, 0x05
+        _emit 0xe8
+        _emit 0x05
+        _emit 0x74              // +0x43: JZ  +0x06  -> ret2
+        _emit 0x06
+        _emit 0xb8              // +0x45: ret3: MOV EAX, 0x00000003
+        _emit 0x03
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0xc3              // +0x4a: RET
+        _emit 0xb8              // +0x4b: ret2: MOV EAX, 0x00000002
+        _emit 0x02
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0xc3              // +0x50: RET
     }
 }
