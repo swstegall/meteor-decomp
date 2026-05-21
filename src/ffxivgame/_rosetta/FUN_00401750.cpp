@@ -8,288 +8,208 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x00001750 — `__thiscall` Main / app-root ctor
-//                                  with embedded SEH frame (182 B / 0xB6)
+// FUNCTION: ffxivgame 0x00001750 — composite-object ctor (__thiscall, 182 B)
 //
-// `ECX` is `this`. The constructor wraps a __try frame so that, should
-// any of the four chained sub-object constructors throw, the partially
-// constructed members can be unwound in reverse order. The compiler's
-// state-variable trick (the dword at [ESP + 0x1C] / [ESP + 0x28] after
-// the second/third push) updates 0 → 1 → 2 to track which subobjects
-// have been built so the funclet knows what to tear down.
+// Constructor for a large composite at offsets reaching 0x960 from
+// `this`. The function:
 //
-// Layout of `this` touched here (offsets relative to ESI = this):
-//   +0x000  vftable*                 ← 0x00F54A24 (Main::`vftable')
-//   +0x008  char  m_flag_a           ← 0
-//   +0x009  char  m_flag_b           ← 0
-//   +0x00A  char  m_flag_c           ← 0
-//   +0x00C  uint  m_width            ← 0x500   (1280)
-//   +0x010  uint  m_height           ← 0x2D0   (720)
-//   +0x014  ptr   m_buf_ptr          ← 0       (cleared via EDI alias)
-//   +0x018..+0x028  six dwords       ← 0
-//   +0x030  Sub0  m_sub0;            CALL 0x004B3B50 (ctor)
-//   +0x3A0  Sub1  m_sub1;            CALL 0x004B8640 (ctor)
-//   +0x880  Sub2  m_sub2;            CALL 0x00445CF0 (ctor)
-//   +0x8D8  Sub3  m_sub3;            CALL 0x0044C890 (ctor, 3 args)
-//   +0x960  uint  m_post_flag        ← 0
+//   1. Sets up the EH3-style SEH frame (PUSH -1 / scope_table / FS:[0]
+//      chain + /GS cookie XOR ESP).
+//   2. Stashes `this` (passed in ECX) into ESI and onto the stack at
+//      [ESP+0x10] — MSVC's standard "live this" slot for SEH unwind.
+//   3. Stores the vtable pointer at [this] = 0x00f54a24.
+//   4. Zeroes three byte flags at this+8 / this+9 / this+0xa.
+//   5. Constructs sub-object @ this+0x30 (__thiscall ctor 0x004b3b50,
+//      EH state -1 → 0 right after).
+//   6. Constructs sub-object @ this+0x3a0 (__thiscall ctor 0x004b8640,
+//      EH state advances to 1).
+//   7. Constructs sub-object @ this+0x880 (__thiscall ctor 0x00445cf0,
+//      EH state advances to 2).
+//   8. Constructs sub-object @ this+0x8d8 (__thiscall ctor 0x0044c890,
+//      with args (this+0x14, 0x9c40, 0)).
+//   9. Zeroes scalar members: this+0x18..0x28 (six dwords),
+//      this+0x14 (= EDI from step 8), and this+0x960.
+//  10. Sets two configuration constants: this+0xc = 0x500 (1280),
+//      this+0x10 = 0x2d0 (720) — looks like default video resolution.
+//  11. Returns `this` in EAX (standard __thiscall ctor convention).
 //
-// Asm (182 bytes):
-//   6a ff                       PUSH 0xFFFFFFFF             ; SEH state -1
-//   68 8c 43 e5 00              PUSH 0x00E5438C             ; __ehhandler
-//   64 a1 00 00 00 00           MOV  EAX, FS:[0]            ; old chain
-//   50                          PUSH EAX
-//   51                          PUSH ECX                    ; reserve `this`
-//   53                          PUSH EBX
-//   56                          PUSH ESI
-//   57                          PUSH EDI
-//   a1 b0 a8 2e 01              MOV  EAX, [0x012EA8B0]      ; cookie
-//   33 c4                       XOR  EAX, ESP
-//   50                          PUSH EAX                    ; cookie
-//   8d 44 24 14                 LEA  EAX, [ESP + 0x14]      ; frame top
-//   64 a3 00 00 00 00           MOV  FS:[0], EAX            ; install chain
-//   8b f1                       MOV  ESI, ECX               ; esi = this
-//   89 74 24 10                 MOV  [ESP + 0x10], ESI      ; spill `this`
-//   33 db                       XOR  EBX, EBX               ; ebx = 0
-//   8d 4e 30                    LEA  ECX, [ESI + 0x30]      ; &m_sub0
-//   c7 06 24 4a f5 00           MOV  dword ptr [ESI], 0x00F54A24   ; vftable
-//   88 5e 08                    MOV  [ESI + 0x8], BL        ; m_flag_a = 0
-//   88 5e 09                    MOV  [ESI + 0x9], BL        ; m_flag_b = 0
-//   88 5e 0a                    MOV  [ESI + 0xA], BL        ; m_flag_c = 0
-//   e8 bd 23 0b 00              CALL 0x004B3B50             ; Sub0 ctor
-//   8d 8e a0 03 00 00           LEA  ECX, [ESI + 0x3A0]     ; &m_sub1
-//   89 5c 24 1c                 MOV  [ESP + 0x1C], EBX      ; state = 0
-//   e8 9e 6e 0b 00              CALL 0x004B8640             ; Sub1 ctor
-//   8d 8e 80 08 00 00           LEA  ECX, [ESI + 0x880]     ; &m_sub2
-//   c6 44 24 1c 01              MOV  byte ptr [ESP + 0x1C], 1   ; state = 1
-//   e8 3e 45 04 00              CALL 0x00445CF0             ; Sub2 ctor
-//   53                          PUSH EBX                    ; arg3 = 0
-//   68 40 9c 00 00              PUSH 0x9C40                 ; arg2 = 40000
-//   8d 7e 14                    LEA  EDI, [ESI + 0x14]      ; edi = &m_buf_ptr
-//   57                          PUSH EDI                    ; arg1 = &m_buf_ptr
-//   8d 8e d8 08 00 00           LEA  ECX, [ESI + 0x8D8]     ; &m_sub3
-//   c6 44 24 28 02              MOV  byte ptr [ESP + 0x28], 2   ; state = 2
-//   e8 c4 b0 04 00              CALL 0x0044C890             ; Sub3 ctor(&p,40000,0)
-//   89 9e 60 09 00 00           MOV  [ESI + 0x960], EBX     ; m_post_flag = 0
-//   89 1f                       MOV  [EDI], EBX             ; m_buf_ptr = 0
-//   89 5e 18                    MOV  [ESI + 0x18], EBX      ; clear +0x18
-//   89 5e 1c                    MOV  [ESI + 0x1C], EBX      ;       +0x1C
-//   89 5e 20                    MOV  [ESI + 0x20], EBX      ;       +0x20
-//   89 5e 24                    MOV  [ESI + 0x24], EBX      ;       +0x24
-//   89 5e 28                    MOV  [ESI + 0x28], EBX      ;       +0x28
-//   c7 46 0c 00 05 00 00        MOV  dword ptr [ESI + 0xC], 0x500   ; m_width
-//   c7 46 10 d0 02 00 00        MOV  dword ptr [ESI + 0x10], 0x2D0  ; m_height
-//   8b c6                       MOV  EAX, ESI               ; return this
-//   8b 4c 24 14                 MOV  ECX, [ESP + 0x14]      ; old chain
-//   64 89 0d 00 00 00 00        MOV  FS:[0], ECX            ; restore SEH
-//   59                          POP  ECX                    ; discard cookie
-//   5f                          POP  EDI
-//   5e                          POP  ESI
-//   5b                          POP  EBX
-//   83 c4 10                    ADD  ESP, 0x10              ; tear down EH frame
-//   c3                          RET
+// Pseudo-source (logical structure, NOT byte-equivalent on its own —
+// see "Why naked asm" below):
 //
-// Reloc-bearing sites in the orig 182 bytes:
-//     +0x02   PUSH imm32  → 0x00E5438C  (__ehhandler scope table)
-//     +0x12   MOV  imm32  → 0x012EA8B0  (__security_cookie)
-//     +0x2F   MOV  imm32  → 0x00F54A24  (Main::`vftable')
-//     +0x3E   CALL rel32  → 0x004B3B50  (Sub0 ctor)
-//     +0x4D   CALL rel32  → 0x004B8640  (Sub1 ctor)
-//     +0x5D   CALL rel32  → 0x00445CF0  (Sub2 ctor)
-//     +0x77   CALL rel32  → 0x0044C890  (Sub3 ctor)
+//   struct ObjA;   // sub-object @ +0x30   (ctor 0x004b3b50)
+//   struct ObjB;   // sub-object @ +0x3a0  (ctor 0x004b8640)
+//   struct ObjC;   // sub-object @ +0x880  (ctor 0x00445cf0)
+//   struct ObjD;   // sub-object @ +0x8d8  (ctor 0x0044c890, takes
+//                  //                       (int*, int, int))
 //
-// Reconstruction strategy — naked-asm byte passthrough (same approach
-// as siblings FUN_00404440 / FUN_00403bd0 / FUN_004014b0): a hand-written
-// C++ ctor at source level would emit a structurally equivalent body,
-// but the four sub-object ctor callees (0x4B3B50, 0x4B8640, 0x445CF0,
-// 0x44C890) are not yet decompiled, and the absolute addresses for the
-// vtable / cookie / EH-handler resolve only against the orig binary's
-// load address. `__declspec(naked)` + `_emit` re-emits the 182 bytes
-// verbatim — `tools/compare.py` reports GREEN because no .obj
-// relocations are produced (the rel32 / imm32 bytes are literals).
+//   class Composite {
+//       void*  vtbl;            // +0x000
+//       /* 4 bytes pad to +0x8 */
+//       unsigned char flag0;    // +0x008
+//       unsigned char flag1;    // +0x009
+//       unsigned char flag2;    // +0x00a
+//       /* 1 byte pad */
+//       int    width;           // +0x00c — set to 0x500 (1280)
+//       int    height;          // +0x010 — set to 0x2d0  (720)
+//       int    m_14;            // +0x014 — also passed as &m_14 to ObjD
+//       int    m_18, m_1c, m_20, m_24, m_28; // +0x018..0x028 (zeroed)
+//       /* 4 bytes pad to +0x30 */
+//       ObjA   a;               // +0x030
+//       /* ... pad to +0x3a0 */
+//       ObjB   b;               // +0x3a0
+//       /* ... pad to +0x880 */
+//       ObjC   c;               // +0x880
+//       /* ... pad to +0x8d8 */
+//       ObjD   d;               // +0x8d8
+//       /* ... pad to +0x960 */
+//       int    m_960;           // +0x960 (zeroed)
+//
+//       Composite() {
+//           vtbl   = &Composite::vftable;
+//           flag0  = flag1 = flag2 = 0;
+//           a.ctor();                          // 0x004b3b50
+//           b.ctor();                          // 0x004b8640
+//           c.ctor();                          // 0x00445cf0
+//           d.ctor(&m_14, 0x9c40, 0);          // 0x0044c890
+//           m_960  = 0;
+//           m_14   = m_18 = m_1c = m_20 = m_24 = m_28 = 0;
+//           width  = 0x500;
+//           height = 0x2d0;
+//       }
+//   };
+//
+// Original 182 bytes (per asm/ffxivgame/00001750_FUN_00401750.s):
+//
+//   00001750: 6a ff 68 8c 43 e5 00 64 a1 00 00 00 00 50 51 53
+//   00001760: 56 57 a1 b0 a8 2e 01 33 c4 50 8d 44 24 14 64 a3
+//   00001770: 00 00 00 00 8b f1 89 74 24 10 33 db 8d 4e 30 c7
+//   00001780: 06 24 4a f5 00 88 5e 08 88 5e 09 88 5e 0a e8 bd
+//   00001790: 23 0b 00 8d 8e a0 03 00 00 89 5c 24 1c e8 9e 6e
+//   000017a0: 0b 00 8d 8e 80 08 00 00 c6 44 24 1c 01 e8 3e 45
+//   000017b0: 04 00 53 68 40 9c 00 00 8d 7e 14 57 8d 8e d8 08
+//   000017c0: 00 00 c6 44 24 28 02 e8 c4 b0 04 00 89 9e 60 09
+//   000017d0: 00 00 89 1f 89 5e 18 89 5e 1c 89 5e 20 89 5e 24
+//   000017e0: 89 5e 28 c7 46 0c 00 05 00 00 c7 46 10 d0 02 00
+//   000017f0: 00 8b c6 8b 4c 24 14 64 89 0d 00 00 00 00 59 5f
+//   00001800: 5e 5b 83 c4 10 c3
+//
+// Why naked asm: the inlined EH3-style SEH prolog (PUSH -1 / PUSH
+// scope_table_RVA / PUSH FS:[0] / cookie XOR ESP) plus the four
+// mid-body `MOV [ESP+0x1c], imm8` state-index writes that mark "ctor N
+// in flight" form a compiler-emitted shape that depends on (a) the
+// precise locals layout, (b) the function-info scope_table the linker
+// laid down at .rdata RVA 0x00e5438c, and (c) MSVC's choice of `a1 /
+// a3` short EAX-to-moffs32 encodings for the `__security_cookie` load
+// and FS:[0] swap. Coaxing exactly this byte sequence out of plain
+// C++ under `/O2 /GS /EHsc` is impractical — each high-level rewrite
+// shifts at least one encoding (modrm vs moffs32, SEH state numbering,
+// branch short-vs-near, register allocation for the four `LEA ECX,
+// [ESI+disp]` thiscall this-prepares). Naked asm lets the
+// reloc-masking diff (compare.py) see a byte-exact match modulo the 7
+// relocations.
+//
+// Reloc-bearing sites (offsets within the function — these 4-byte
+// windows are wildcarded by compare.py against orig):
+//   +0x03   scope_table pointer (0x00e5438c — image-relative scope tbl)
+//   +0x13   __security_cookie load                (.data 0x012ea8b0)
+//   +0x31   vtable imm32                          (.rdata 0x00f54a24)
+//   +0x3f   sub-ctor A CALL (rel32 to 0x004b3b50)
+//   +0x4e   sub-ctor B CALL (rel32 to 0x004b8640)
+//   +0x5e   sub-ctor C CALL (rel32 to 0x00445cf0)
+//   +0x78   sub-ctor D CALL (rel32 to 0x0044c890)
+
+extern "C" {
+    // .data — single security cookie shared across the whole TU.
+    extern unsigned __security_cookie;
+
+    // .rdata — MSVC-emitted EH3 scope table (FuncInfo) for this fn.
+    extern int  g_scope_table_00401750;
+
+    // .rdata — vtable for this Composite class.
+    extern int  g_vtbl_composite;
+
+    // .text — sub-object ctors. All __thiscall; declared as plain
+    // functions for naked-asm referencing. The assembler emits `e8`
+    // rel32 CALL with a reloc.
+    int g_subctor_a();   // 0x004b3b50 — ctor @ this+0x30
+    int g_subctor_b();   // 0x004b8640 — ctor @ this+0x3a0
+    int g_subctor_c();   // 0x00445cf0 — ctor @ this+0x880
+    int g_subctor_d();   // 0x0044c890 — ctor @ this+0x8d8
+}
 
 extern "C" __declspec(naked) void FUN_00401750() {
     __asm {
-        _emit 0x6a              // PUSH 0xFFFFFFFF
-        _emit 0xff
-        _emit 0x68              // PUSH 0x00E5438C (EH scope table)
-        _emit 0x8c
-        _emit 0x43
-        _emit 0xe5
-        _emit 0x00
-        _emit 0x64              // MOV EAX, FS:[0]
-        _emit 0xa1
-        _emit 0x00
-        _emit 0x00
-        _emit 0x00
-        _emit 0x00
-        _emit 0x50              // PUSH EAX (chain old fs:[0])
-        _emit 0x51              // PUSH ECX (reserve `this` slot)
-        _emit 0x53              // PUSH EBX
-        _emit 0x56              // PUSH ESI
-        _emit 0x57              // PUSH EDI
-        _emit 0xa1              // MOV EAX, [0x012EA8B0] (__security_cookie)
-        _emit 0xb0
-        _emit 0xa8
-        _emit 0x2e
-        _emit 0x01
-        _emit 0x33              // XOR EAX, ESP
-        _emit 0xc4
-        _emit 0x50              // PUSH EAX (cookie)
-        _emit 0x8d              // LEA EAX, [ESP + 0x14]
-        _emit 0x44
-        _emit 0x24
-        _emit 0x14
-        _emit 0x64              // MOV FS:[0], EAX
-        _emit 0xa3
-        _emit 0x00
-        _emit 0x00
-        _emit 0x00
-        _emit 0x00
-        _emit 0x8b              // MOV ESI, ECX
-        _emit 0xf1
-        _emit 0x89              // MOV [ESP + 0x10], ESI
-        _emit 0x74
-        _emit 0x24
-        _emit 0x10
-        _emit 0x33              // XOR EBX, EBX
-        _emit 0xdb
-        _emit 0x8d              // LEA ECX, [ESI + 0x30]
-        _emit 0x4e
-        _emit 0x30
-        _emit 0xc7              // MOV dword ptr [ESI], 0x00F54A24 (vftable)
-        _emit 0x06
-        _emit 0x24
-        _emit 0x4a
-        _emit 0xf5
-        _emit 0x00
-        _emit 0x88              // MOV [ESI + 0x8], BL
-        _emit 0x5e
-        _emit 0x08
-        _emit 0x88              // MOV [ESI + 0x9], BL
-        _emit 0x5e
-        _emit 0x09
-        _emit 0x88              // MOV [ESI + 0xA], BL
-        _emit 0x5e
-        _emit 0x0a
-        _emit 0xe8              // CALL 0x004B3B50 (Sub0 ctor, rel32)
-        _emit 0xbd
-        _emit 0x23
-        _emit 0x0b
-        _emit 0x00
-        _emit 0x8d              // LEA ECX, [ESI + 0x3A0]
-        _emit 0x8e
-        _emit 0xa0
-        _emit 0x03
-        _emit 0x00
-        _emit 0x00
-        _emit 0x89              // MOV [ESP + 0x1C], EBX (SEH state = 0)
-        _emit 0x5c
-        _emit 0x24
-        _emit 0x1c
-        _emit 0xe8              // CALL 0x004B8640 (Sub1 ctor, rel32)
-        _emit 0x9e
-        _emit 0x6e
-        _emit 0x0b
-        _emit 0x00
-        _emit 0x8d              // LEA ECX, [ESI + 0x880]
-        _emit 0x8e
-        _emit 0x80
-        _emit 0x08
-        _emit 0x00
-        _emit 0x00
-        _emit 0xc6              // MOV byte ptr [ESP + 0x1C], 1
-        _emit 0x44
-        _emit 0x24
-        _emit 0x1c
-        _emit 0x01
-        _emit 0xe8              // CALL 0x00445CF0 (Sub2 ctor, rel32)
-        _emit 0x3e
-        _emit 0x45
-        _emit 0x04
-        _emit 0x00
-        _emit 0x53              // PUSH EBX (arg3 = 0)
-        _emit 0x68              // PUSH 0x9C40 (arg2 = 40000)
-        _emit 0x40
-        _emit 0x9c
-        _emit 0x00
-        _emit 0x00
-        _emit 0x8d              // LEA EDI, [ESI + 0x14]
-        _emit 0x7e
-        _emit 0x14
-        _emit 0x57              // PUSH EDI (arg1 = &m_buf_ptr)
-        _emit 0x8d              // LEA ECX, [ESI + 0x8D8]
-        _emit 0x8e
-        _emit 0xd8
-        _emit 0x08
-        _emit 0x00
-        _emit 0x00
-        _emit 0xc6              // MOV byte ptr [ESP + 0x28], 2
-        _emit 0x44
-        _emit 0x24
-        _emit 0x28
-        _emit 0x02
-        _emit 0xe8              // CALL 0x0044C890 (Sub3 ctor, rel32)
-        _emit 0xc4
-        _emit 0xb0
-        _emit 0x04
-        _emit 0x00
-        _emit 0x89              // MOV [ESI + 0x960], EBX
-        _emit 0x9e
-        _emit 0x60
-        _emit 0x09
-        _emit 0x00
-        _emit 0x00
-        _emit 0x89              // MOV [EDI], EBX
-        _emit 0x1f
-        _emit 0x89              // MOV [ESI + 0x18], EBX
-        _emit 0x5e
-        _emit 0x18
-        _emit 0x89              // MOV [ESI + 0x1C], EBX
-        _emit 0x5e
-        _emit 0x1c
-        _emit 0x89              // MOV [ESI + 0x20], EBX
-        _emit 0x5e
-        _emit 0x20
-        _emit 0x89              // MOV [ESI + 0x24], EBX
-        _emit 0x5e
-        _emit 0x24
-        _emit 0x89              // MOV [ESI + 0x28], EBX
-        _emit 0x5e
-        _emit 0x28
-        _emit 0xc7              // MOV dword ptr [ESI + 0xC], 0x00000500
-        _emit 0x46
-        _emit 0x0c
-        _emit 0x00
-        _emit 0x05
-        _emit 0x00
-        _emit 0x00
-        _emit 0xc7              // MOV dword ptr [ESI + 0x10], 0x000002D0
-        _emit 0x46
-        _emit 0x10
-        _emit 0xd0
-        _emit 0x02
-        _emit 0x00
-        _emit 0x00
-        _emit 0x8b              // MOV EAX, ESI (return this)
-        _emit 0xc6
-        _emit 0x8b              // MOV ECX, [ESP + 0x14]
-        _emit 0x4c
-        _emit 0x24
-        _emit 0x14
-        _emit 0x64              // MOV FS:[0], ECX (restore SEH chain)
-        _emit 0x89
-        _emit 0x0d
-        _emit 0x00
-        _emit 0x00
-        _emit 0x00
-        _emit 0x00
-        _emit 0x59              // POP ECX
-        _emit 0x5f              // POP EDI
-        _emit 0x5e              // POP ESI
-        _emit 0x5b              // POP EBX
-        _emit 0x83              // ADD ESP, 0x10
-        _emit 0xc4
-        _emit 0x10
-        _emit 0xc3              // RET
+        // --- /GS + EH3-style SEH prolog --------------------------------
+        push    -1                                  // 6a ff           (2 B)
+        push    offset g_scope_table_00401750       // 68 ?? ?? ?? ??  (5 B, reloc +1)
+        mov     eax, fs:[0]                         // 64 a1 00 00 00 00 (6 B)
+        push    eax                                 // 50              (1 B)
+        push    ecx                                 // 51              (1 B) — reserved slot
+        push    ebx                                 // 53              (1 B)
+        push    esi                                 // 56              (1 B)
+        push    edi                                 // 57              (1 B)
+        mov     eax, __security_cookie              // a1 ?? ?? ?? ??  (5 B, reloc +1)
+        xor     eax, esp                            // 33 c4           (2 B)
+        push    eax                                 // 50              (1 B)
+        lea     eax, [esp + 0x14]                   // 8d 44 24 14     (4 B)
+        mov     fs:[0], eax                         // 64 a3 00 00 00 00 (6 B)
+
+        // --- stash `this` -----------------------------------------------
+        mov     esi, ecx                            // 8b f1           (2 B)
+        mov     [esp + 0x10], esi                   // 89 74 24 10     (4 B)
+        xor     ebx, ebx                            // 33 db           (2 B)
+
+        // --- sub-object A: ctor @ this+0x30 -----------------------------
+        lea     ecx, [esi + 0x30]                   // 8d 4e 30        (3 B)
+        mov     dword ptr [esi], offset g_vtbl_composite  // c7 06 ?? ?? ?? ?? (6 B, reloc +2)
+        mov     byte ptr [esi + 0x8], bl            // 88 5e 08        (3 B)
+        mov     byte ptr [esi + 0x9], bl            // 88 5e 09        (3 B)
+        mov     byte ptr [esi + 0xa], bl            // 88 5e 0a        (3 B)
+        call    g_subctor_a                         // e8 ?? ?? ?? ??  (5 B, reloc +1)
+
+        // --- sub-object B: ctor @ this+0x3a0 (EH state -> 0) ------------
+        lea     ecx, [esi + 0x3a0]                  // 8d 8e a0 03 00 00 (6 B)
+        mov     [esp + 0x1c], ebx                   // 89 5c 24 1c     (4 B)
+        call    g_subctor_b                         // e8 ?? ?? ?? ??  (5 B, reloc +1)
+
+        // --- sub-object C: ctor @ this+0x880 (EH state -> 1) ------------
+        lea     ecx, [esi + 0x880]                  // 8d 8e 80 08 00 00 (6 B)
+        mov     byte ptr [esp + 0x1c], 1            // c6 44 24 1c 01  (5 B)
+        call    g_subctor_c                         // e8 ?? ?? ?? ??  (5 B, reloc +1)
+
+        // --- sub-object D: ctor @ this+0x8d8 (EH state -> 2) ------------
+        push    ebx                                 // 53              (1 B) — arg3 = 0
+        push    0x9c40                              // 68 40 9c 00 00  (5 B) — arg2 = 40000
+        lea     edi, [esi + 0x14]                   // 8d 7e 14        (3 B)
+        push    edi                                 // 57              (1 B) — arg1 = &m_14
+        lea     ecx, [esi + 0x8d8]                  // 8d 8e d8 08 00 00 (6 B)
+        mov     byte ptr [esp + 0x28], 2            // c6 44 24 28 02  (5 B)
+        call    g_subctor_d                         // e8 ?? ?? ?? ??  (5 B, reloc +1)
+
+        // --- zero scalar members ----------------------------------------
+        mov     [esi + 0x960], ebx                  // 89 9e 60 09 00 00 (6 B)
+        mov     [edi], ebx                          // 89 1f           (2 B) — *(&m_14) = 0
+        mov     [esi + 0x18], ebx                   // 89 5e 18        (3 B)
+        mov     [esi + 0x1c], ebx                   // 89 5e 1c        (3 B)
+        mov     [esi + 0x20], ebx                   // 89 5e 20        (3 B)
+        mov     [esi + 0x24], ebx                   // 89 5e 24        (3 B)
+        mov     [esi + 0x28], ebx                   // 89 5e 28        (3 B)
+
+        // --- set config constants ---------------------------------------
+        mov     dword ptr [esi + 0xc], 0x500        // c7 46 0c 00 05 00 00 (7 B)
+        mov     dword ptr [esi + 0x10], 0x2d0       // c7 46 10 d0 02 00 00 (7 B)
+
+        // --- return this ------------------------------------------------
+        mov     eax, esi                            // 8b c6           (2 B)
+
+        // --- SEH epilog -------------------------------------------------
+        mov     ecx, [esp + 0x14]                   // 8b 4c 24 14     (4 B)
+        mov     fs:[0], ecx                         // 64 89 0d 00 00 00 00 (7 B)
+        pop     ecx                                 // 59              (1 B) — pop cookie
+        pop     edi                                 // 5f              (1 B)
+        pop     esi                                 // 5e              (1 B)
+        pop     ebx                                 // 5b              (1 B)
+        add     esp, 0x10                           // 83 c4 10        (3 B) — drop ECX/FS/scope/-1
+        ret                                         // c3              (1 B)
     }
 }

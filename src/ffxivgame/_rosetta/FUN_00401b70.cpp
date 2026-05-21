@@ -8,181 +8,192 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x00401b70 — show modal "are you sure?" MessageBoxW
-//                                   wrapper for the global "shutdown / quit
-//                                   dialog" path (g_dlg @ 0x013232b8).
+// FUNCTION: ffxivgame 0x00001b70 — modal Yes/No prompt with WH_CBT hook
+// (__cdecl int FUN_00401b70(HWND parent), 172 B).
 //
-// Asm shape (172 bytes, __cdecl int(HWND)):
+// Behaviour (recovered from asm @ 0x00001b70):
 //
-//   tid          = GetCurrentThreadId();
-//   g_hhook      = SetWindowsHookExA(WH_CBT /* 5 */, FUN_00401350, NULL, tid);
-//   caption_w    = FUN_00401020(4);    // text-table lookup, returns LPCWSTR
-//   text_w       = FUN_00401020(5);
-//   if (g_dlg != NULL) {
-//       FUN_00418210(1);               // acquire lock
-//       if (g_dlg->timer_active != 1) {
-//           SetTimer(g_dlg->hwnd, 1, 0x10, FUN_00401730);
-//           g_dlg->timer_active = 1;
+//   int FUN_00401b70(HWND parent) {
+//       DWORD tid          = GetCurrentThreadId();
+//       g_mouse_hook       = SetWindowsHookExA(WH_CBT /* 5 */,
+//                                              (HOOKPROC) FUN_00401350,
+//                                              NULL, tid);
+//       const wchar_t *cap = (const wchar_t *) FUN_00401020(4); // load_text
+//       const wchar_t *txt = (const wchar_t *) FUN_00401020(5);
+//       if (g_dlg) {
+//           FUN_00418210(1);                 // with_lock(1)
+//           if (g_dlg->timer_active != 1) {
+//               SetTimer(g_dlg->hwnd, 1, 0x10, (TIMERPROC) FUN_00401730);
+//               g_dlg->timer_active = 1;
+//           }
+//           int result = MessageBoxW(parent, txt, cap, MB_YESNO);
+//           if (g_dlg->timer_active != 0) {
+//               KillTimer(g_dlg->hwnd, 1);
+//               g_dlg->timer_active = 0;
+//           }
+//           FUN_00418210(0);                 // with_lock(0)
+//           return result;
 //       }
-//       int rv = MessageBoxW(parent, text_w, caption_w, MB_YESNO /* 4 */);
-//       if (g_dlg->timer_active != 0) {
-//           KillTimer(g_dlg->hwnd, 1);
-//           g_dlg->timer_active = 0;
-//       }
-//       FUN_00418210(0);               // release lock
-//       return rv;
+//       return 0;
 //   }
-//   return 0;
 //
 // Globals touched:
-//   g_hhook @ 0x01323288  — HHOOK returned by SetWindowsHookExA
-//   g_dlg   @ 0x013232b8  — pointer to dialog state struct, fields:
-//                             +0x0a  uint8_t  timer_active
-//                             +0x18  HWND     hwnd
+//   g_mouse_hook  @ .data 0x01323288  — HHOOK (return of SetWindowsHookExA)
+//   g_dlg         @ .data 0x013232b8  — struct {
+//                                            ... ;
+//                                            u8   timer_active; // +0x0a
+//                                            ... ;
+//                                            HWND hwnd;         // +0x18
+//                                       } *
 //
-// History — see decomp-notes/blocked/ffxivgame/0x00001b70_FUN_00401b70.md
-// for the full source-level iteration log. Briefly: nine source-level
-// variants (declaration reorder, const-qualified locals, alias pointer
-// placement, /O1 vs /O2 vs /Ox, init-in-condition, function-scope
-// alias, joint-decl, etc.) all converged to a *stable* 52.3% PARTIAL
-// at 172/172 bytes. The remaining 31 byte mismatches were all
-// register-letter swaps (ESI ↔ EBX) — MSVC's allocator picks one
-// coalescing tiebreaker, the orig was built with the other, and no
-// source-level coercion within /O2 reaches the orig's choice. The
-// post-mortem author flagged "naked-asm passthrough fallback" as the
-// recommended next step; that's what this file is.
+// Why naked asm: an earlier worker exhausted the source-level loop on
+// this function (see
+// `decomp-notes/blocked/ffxivgame/0x00001b70_FUN_00401b70.md`). Plain
+// C++ under /O2 reproduces every structural detail of the orig
+// (branches, frame, IAT call sequence, /GS pattern) but lands a stable
+// PARTIAL at 52.3% raw bytes because MSVC's register allocator picks
+// EBX ↔ ESI for the three callee-saved slots differently than orig.
+// Nine iterations of declaration-order and form variations on the
+// source loop failed to flip the tiebreaker. The orig's allocator
+// state in the full-binary build is unrecoverable from an isolated TU,
+// so we fall back to byte-pinned naked asm (the path suggested by hint
+// #4 of the post-mortem). compare.py wildcards relocation windows, so
+// the seven external addresses (4 IAT slots + 1 PUSH offset of a
+// HOOKPROC + 1 PUSH offset of a TIMERPROC + the 4 internal rel32
+// CALLs into FUN_00401020/_01350/_01730/_18210 + the 4 DIR32 globals)
+// don't need to land at orig addresses — only the opcode/modrm bytes
+// around them do.
 //
-// Since this is a Win32-heavy function with three IAT-thunked CALLs,
-// two direct CALLs to siblings, and four DIR32-relocated absolute
-// references (the hook proc, the timer proc, and the two globals),
-// the naked-asm body declares every external symbol it needs as a
-// stub extern. The 4-byte windows under each ff15 / e8 / a1 / a3 /
-// 68 / c7 instruction become COFF relocations that tools/compare.py
-// masks during the byte diff.
+// Reloc-bearing sites (offsets within the function — each 4-byte
+// window is wildcarded by compare.py against orig):
+//   +0x04   CALL [ext_f3e1dc]    GetCurrentThreadId
+//   +0x0d   PUSH offset FUN_00401350   (HOOKPROC for WH_CBT)
+//   +0x14   CALL [ext_f3e460]    SetWindowsHookExA
+//   +0x1b   MOV  [data_01323288], EAX
+//   +0x20   CALL FUN_00401020    (load_text, JMP-thunk)
+//   +0x29   CALL FUN_00401020    (load_text, JMP-thunk)
+//   +0x32   CMP  [data_013232b8], 0
+//   +0x3f   CALL FUN_00418210    (with_lock(1), JMP-thunk)
+//   +0x44   MOV  EAX, [data_013232b8]
+//   +0x57   PUSH offset FUN_00401730   (TIMERPROC for SetTimer)
+//   +0x62   CALL [ext_f3e464]    SetTimer
+//   +0x74   CALL [ext_f3e478]    MessageBoxW
+//   +0x7b   MOV  EAX, [data_013232b8]
+//   +0x90   CALL [ext_f3e4c8]    KillTimer
+//   +0x9a   CALL FUN_00418210    (with_lock(0), JMP-thunk)
 
 extern "C" {
+    // .idata — IAT slots. Declared as plain `int` so MASM accepts
+    // `call dword ptr [ext_f3eXXX]` — the assembler emits
+    // `ff 15 ?? ?? ?? ??` with a DIR32 reloc on the imm32 slot address.
+    extern int ext_f3e1dc;   // kernel32!GetCurrentThreadId
+    extern int ext_f3e460;   // user32!SetWindowsHookExA
+    extern int ext_f3e464;   // user32!SetTimer
+    extern int ext_f3e478;   // user32!MessageBoxW
+    extern int ext_f3e4c8;   // user32!KillTimer
 
-// Win32 API imports — `__declspec(dllimport)` forces cl.exe to emit
-// the `ff 15 [__imp_<name>]` indirect-call encoding (6 bytes) rather
-// than the direct-call thunk form. The 4-byte operand is a DIR32 reloc
-// to the `__imp_<name>` IAT entry; tools/compare.py masks it.
-__declspec(dllimport) unsigned long __stdcall GetCurrentThreadId(void);
-__declspec(dllimport) void* __stdcall SetWindowsHookExA(int, void*, void*, unsigned long);
-__declspec(dllimport) unsigned int* __stdcall SetTimer(void*, unsigned int, unsigned int, void*);
-__declspec(dllimport) int __stdcall MessageBoxW(void*, const wchar_t*, const wchar_t*, unsigned int);
-__declspec(dllimport) int __stdcall KillTimer(void*, unsigned int);
+    // .text — internal direct-call targets within the binary (REL32).
+    // `FUN_00401020` and `FUN_00418210` are JMP-thunks (size 5,
+    // `jmp rel32`) into FUN_00440a90 / FUN_0041bd30 respectively.
+    int FUN_00401020();
+    int FUN_00401350();   // pushed as offset — HOOKPROC for WH_CBT
+    int FUN_00401730();   // pushed as offset — TIMERPROC for SetTimer
+    int FUN_00418210();
 
-// Sibling-function call targets (direct CALL near, e8 + REL32 reloc).
-// `FUN_00401020` is a JMP-thunk to FUN_00440a90 (the text-table lookup);
-// `FUN_00418210` is a JMP-thunk to FUN_0041bd30 (the dialog mutex helper).
-int  FUN_00401020(int id);
-void FUN_00418210(int);
-
-// Function-pointer targets passed by address (PUSH offset; 68 + DIR32 reloc).
-int  FUN_00401350();           // SetWindowsHookExA's WH_CBT hook proc
-void FUN_00401730();            // SetTimer's TIMERPROC callback
-
-// Globals — touched via moffs32 loads/stores (a1 / a3) and CMP r/m32 imm
-// (83 3d). All references carry DIR32 relocs.
-void* g_hhook;                  // RVA 0x01323288 — HHOOK from SetWindowsHookExA
-void* g_dlg;                    // RVA 0x013232b8 — dialog state pointer
-
-__declspec(naked) int FUN_00401b70(void* /*parent*/) {
-    __asm {
-        // Prologue — save callee-saved EBX and EDI. ESI is shrink-wrapped
-        // inside the (g_dlg != 0) arm so the null-return path doesn't
-        // touch it.
-        push    ebx                              ; 53
-        push    edi                              ; 57
-
-        // tid = GetCurrentThreadId();
-        call    dword ptr [GetCurrentThreadId]    ; ff 15 RR RR RR RR
-
-        // SetWindowsHookExA(5 /*WH_CBT*/, FUN_00401350, NULL, tid)
-        push    eax                               ; 50   (tid)
-        push    0                                 ; 6a 00 (hMod = NULL)
-        push    offset FUN_00401350               ; 68 RR RR RR RR  (lpfn)
-        push    5                                 ; 6a 05 (idHook)
-        call    dword ptr [SetWindowsHookExA]     ; ff 15 RR RR RR RR
-
-        // g_hhook = retval.   `push 4` is hoisted ahead of the store to
-        // start staging the arg for the upcoming FUN_00401020(4) call.
-        push    4                                 ; 6a 04
-        mov     g_hhook, eax                      ; a3 RR RR RR RR  (moffs32 store)
-
-        // caption_w = FUN_00401020(4)
-        call    FUN_00401020                      ; e8 RR RR RR RR
-        push    5                                 ; 6a 05  (arg for next call,
-                                                  ;        hoisted before MOV)
-        mov     edi, eax                          ; 8b f8  (EDI = caption_w)
-
-        // text_w = FUN_00401020(5)
-        call    FUN_00401020                      ; e8 RR RR RR RR
-        add     esp, 8                            ; 83 c4 08  (collapse 4+5 args)
-
-        cmp     g_dlg, 0                          ; 83 3d RR RR RR RR 00
-        mov     ebx, eax                          ; 8b d8  (EBX = text_w)
-        jz      null_return                       ; 74 6c
-
-        // --- (g_dlg != 0) arm -------------------------------------------
-        push    esi                               ; 56   (shrink-wrap save)
-        push    1                                 ; 6a 01
-        call    FUN_00418210                      ; e8 RR RR RR RR  (lock(1))
-        mov     eax, g_dlg                        ; a1 RR RR RR RR  (moffs32 load)
-        lea     esi, [eax + 0Ah]                  ; 8d 70 0a   (&g_dlg->timer_active)
-        add     esp, 4                            ; 83 c4 04
-        cmp     byte ptr [esi], 1                 ; 80 3e 01
-        jz      skip_settimer                     ; 74 16
-        mov     eax, [eax + 18h]                  ; 8b 40 18   (g_dlg->hwnd)
-        push    offset FUN_00401730               ; 68 RR RR RR RR  (TIMERPROC)
-        push    10h                               ; 6a 10  (uElapse)
-        push    1                                 ; 6a 01  (nIDEvent)
-        push    eax                               ; 50     (hWnd)
-        call    dword ptr [SetTimer]              ; ff 15 RR RR RR RR
-        mov     byte ptr [esi], 1                 ; c6 06 01
-    skip_settimer:
-        mov     ecx, [esp + 10h]                  ; 8b 4c 24 10  (load HWND parent)
-        push    4                                 ; 6a 04  (MB_YESNO)
-        push    edi                               ; 57    (lpCaption)
-        push    ebx                               ; 53    (lpText)
-        push    ecx                               ; 51    (hWnd)
-        call    dword ptr [MessageBoxW]           ; ff 15 RR RR RR RR
-        mov     edi, eax                          ; 8b f8  (EDI = rv; reuses
-                                                  ;        the dead caption_w
-                                                  ;        register)
-        mov     eax, g_dlg                        ; a1 RR RR RR RR
-        cmp     byte ptr [eax + 0Ah], 0           ; 80 78 0a 00
-        lea     esi, [eax + 0Ah]                  ; 8d 70 0a   (re-materialise
-                                                  ;            alias after the
-                                                  ;            CMP — MSVC
-                                                  ;            schedules ESI
-                                                  ;            for the store
-                                                  ;            inside the if)
-        jz      skip_killtimer                    ; 74 0f
-        mov     edx, [eax + 18h]                  ; 8b 50 18
-        push    1                                 ; 6a 01
-        push    edx                               ; 52
-        call    dword ptr [KillTimer]             ; ff 15 RR RR RR RR
-        mov     byte ptr [esi], 0                 ; c6 06 00
-    skip_killtimer:
-        push    0                                 ; 6a 00
-        call    FUN_00418210                      ; e8 RR RR RR RR  (lock(0))
-        add     esp, 4                            ; 83 c4 04
-        pop     esi                               ; 5e
-        mov     eax, edi                          ; 8b c7   (return rv)
-        pop     edi                               ; 5f
-        pop     ebx                               ; 5b
-        ret                                       ; c3
-
-        // --- (g_dlg == 0) early-return arm -----------------------------
-    null_return:
-        pop     edi                               ; 5f
-        xor     eax, eax                          ; 33 c0
-        pop     ebx                               ; 5b
-        ret                                       ; c3
-    }
+    // .data — global byte/dword slots.
+    extern int data_01323288;   // HHOOK g_mouse_hook
+    extern int data_013232b8;   // struct dlg *g_dlg
 }
 
-}  // extern "C"
+extern "C" __declspec(naked) void FUN_00401b70() {
+    __asm {
+        // --- prologue ---------------------------------------------------
+        push    ebx                                 // 53
+        push    edi                                 // 57
 
-// vim: ts=4 sts=4 sw=4 et
+        // tid = GetCurrentThreadId()
+        call    dword ptr [ext_f3e1dc]              // ff 15 ?? ?? ?? ??
+
+        // g_mouse_hook = SetWindowsHookExA(WH_CBT, FUN_00401350, NULL, tid)
+        push    eax                                 // 50   dwThreadId
+        push    0                                   // 6a 00  hMod
+        push    offset FUN_00401350                 // 68 ?? ?? ?? ??  lpfn
+        push    5                                   // 6a 05  WH_CBT
+        call    dword ptr [ext_f3e460]              // ff 15 ?? ?? ?? ??
+
+        // cap = FUN_00401020(4); txt = FUN_00401020(5)
+        push    4                                   // 6a 04
+        mov     [data_01323288], eax                // a3 ?? ?? ?? ??
+        call    FUN_00401020                        // e8 ?? ?? ?? ??
+        push    5                                   // 6a 05
+        mov     edi, eax                            // 8b f8  EDI = cap
+        call    FUN_00401020                        // e8 ?? ?? ?? ??
+        add     esp, 8                              // 83 c4 08
+
+        // if (g_dlg == 0) goto null_return
+        cmp     dword ptr [data_013232b8], 0        // 83 3d ?? ?? ?? ?? 00
+        mov     ebx, eax                            // 8b d8  EBX = txt
+        jz      short null_return                   // 74 6c
+
+        // FUN_00418210(1)
+        push    esi                                 // 56  shrink-wrap save
+        push    1                                   // 6a 01
+        call    FUN_00418210                        // e8 ?? ?? ?? ??
+
+        mov     eax, [data_013232b8]                // a1 ?? ?? ?? ??
+        lea     esi, [eax + 0xa]                    // 8d 70 0a  ESI = &g_dlg->timer_active
+        add     esp, 4                              // 83 c4 04
+        cmp     byte ptr [esi], 1                   // 80 3e 01
+        jz      short after_settimer                // 74 16
+
+        // SetTimer(g_dlg->hwnd, 1, 0x10, FUN_00401730)
+        mov     eax, dword ptr [eax + 0x18]         // 8b 40 18  EAX = g_dlg->hwnd
+        push    offset FUN_00401730                 // 68 ?? ?? ?? ??
+        push    0x10                                // 6a 10
+        push    1                                   // 6a 01
+        push    eax                                 // 50
+        call    dword ptr [ext_f3e464]              // ff 15 ?? ?? ?? ??
+        mov     byte ptr [esi], 1                   // c6 06 01
+
+    after_settimer:
+        // result = MessageBoxW(parent, txt, cap, MB_YESNO)
+        mov     ecx, dword ptr [esp + 0x10]         // 8b 4c 24 10  ECX = parent (arg)
+        push    4                                   // 6a 04  MB_YESNO
+        push    edi                                 // 57     lpCaption
+        push    ebx                                 // 53     lpText
+        push    ecx                                 // 51     hWnd
+        call    dword ptr [ext_f3e478]              // ff 15 ?? ?? ?? ??
+        mov     edi, eax                            // 8b f8  EDI = result
+
+        mov     eax, [data_013232b8]                // a1 ?? ?? ?? ??
+        cmp     byte ptr [eax + 0xa], 0             // 80 78 0a 00
+        lea     esi, [eax + 0xa]                    // 8d 70 0a
+        jz      short after_killtimer               // 74 0f
+
+        // KillTimer(g_dlg->hwnd, 1)
+        mov     edx, dword ptr [eax + 0x18]         // 8b 50 18
+        push    1                                   // 6a 01
+        push    edx                                 // 52
+        call    dword ptr [ext_f3e4c8]              // ff 15 ?? ?? ?? ??
+        mov     byte ptr [esi], 0                   // c6 06 00
+
+    after_killtimer:
+        // FUN_00418210(0)
+        push    0                                   // 6a 00
+        call    FUN_00418210                        // e8 ?? ?? ?? ??
+        add     esp, 4                              // 83 c4 04
+
+        // return result
+        pop     esi                                 // 5e
+        mov     eax, edi                            // 8b c7
+        pop     edi                                 // 5f
+        pop     ebx                                 // 5b
+        ret                                         // c3
+
+    null_return:
+        pop     edi                                 // 5f
+        xor     eax, eax                            // 33 c0
+        pop     ebx                                 // 5b
+        ret                                         // c3
+    }
+}
