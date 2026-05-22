@@ -2031,10 +2031,10 @@
 - rva: 0x0000d880
   end: 0x0000d908
   size: 0x88
-  module: _unknown
+  module: _rosetta
   symbol: FUN_0040d880
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000d910
