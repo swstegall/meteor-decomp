@@ -1968,10 +1968,10 @@
 - rva: 0x0000d640
   end: 0x0000d686
   size: 0x46
-  module: _unknown
+  module: _rosetta
   symbol: FUN_0040d640
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000d690
@@ -2052,7 +2052,7 @@
   module: _unknown
   symbol: FUN_0040d9a0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000da10
@@ -2133,7 +2133,7 @@
   module: _unknown
   symbol: FUN_0040dd50
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000dd90
