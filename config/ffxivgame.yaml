@@ -2646,7 +2646,7 @@
   module: engine_memory
   symbol: FUN_0040f550
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000f580
@@ -2682,7 +2682,7 @@
   module: engine_memory
   symbol: FUN_0040f5d0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000f5e0
