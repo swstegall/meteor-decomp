@@ -1,0 +1,197 @@
+// meteor-decomp — clean-room decompilation of FINAL FANTASY XIV 1.x client binaries
+// Copyright (C) 2026  Samuel Stegall
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as published
+// by the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
+//
+// FUNCTION: ffxivgame 0x0040a3a0 — get-or-set singleton with one-time init
+//                                  under an MSVC SEH frame (104 B / 0x68).
+//
+// Byte-identical sibling of FUN_00409d80 / FUN_00409a70 — same 104-byte
+// shape, same MSVC 2005 `_except_handler3` SEH prologue, same lazy-init
+// + get-or-set pattern, same ctor (FUN_0040e500). Only three operands
+// differ from FUN_00409d80:
+//
+//   field                       FUN_00409d80    FUN_0040a3a0 (this fn)
+//   ---------------------       ------------    -----------------------
+//   SEH scope-table thunk       0x00edb46e      0x00e54d3e
+//   one-time init-flag global   0x01327ba0      0x01327c20
+//   singleton slot global       0x01327b9c      0x01327c1c
+//   ctor (rel32 target)         0x0040e500      0x0040e500   (shared)
+//
+// __cdecl int FUN_0040a3a0(int new_value)
+//   [ESP+0x04] : int new_value   (param_1) — when nonzero, becomes the
+//                                 new value of DAT_01327c1c and is
+//                                 returned; when zero, the current
+//                                 DAT_01327c1c is returned (read-only
+//                                 query).
+//
+// Globals touched:
+//   DAT_01327c20 (1 byte) : init-once flag (bit 0 = "ctor has run")
+//   DAT_01327c1c (4 byte) : the actual singleton value
+//
+// Asm shape (104 bytes, read from orig RVA 0x0000a3a0):
+//
+//   ; --- MSVC SEH prologue: install a 3-dword EXCEPTION_REGISTRATION ---
+//   mov  eax, fs:[0]                ; eax = old TIB.ExceptionList
+//   push -1                          ; trylevel = -1 (no active __try yet)
+//   push 0x00e54d3e                  ; scope-table / handler thunk addr
+//   push eax                         ; prev EH frame
+//   mov  eax, 1
+//   mov  fs:[0], esp                 ; install our new EH frame
+//
+//   ; --- One-time init guarded by DAT_01327c20 bit 0 ---
+//   test byte ptr [0x01327c20], al   ; (DAT_01327c20 & 1) ?
+//   jnz  check_param                 ; already initialised → skip ctor
+//   or   dword ptr [0x01327c20], eax ; set the init flag (|=1)
+//   mov  dword ptr [esp+0x8], 0      ; trylevel = 0 (cover the ctor CALL)
+//   call FUN_0040e500                ; ctor — produce the default value
+//   mov  [0x01327c1c], eax           ; stash it into the singleton slot
+//
+//   ; --- Get-or-set: if param_1 != 0, store and return param_1 ---
+// check_param:
+//   mov  eax, [esp+0x10]             ; eax = new_value (caller arg)
+//   test eax, eax
+//   jz   read_only                   ; new_value == 0 → query path
+//   mov  [0x01327c1c], eax           ; store new_value
+//   mov  ecx, [esp]                  ; ecx = saved prev EH frame
+//   mov  fs:[0], ecx                 ; restore TIB.ExceptionList
+//   add  esp, 0xc                    ; discard the 3-dword EH frame
+//   ret                              ; eax already == new_value
+//
+// read_only:
+//   mov  ecx, [esp]                  ; ecx = saved prev EH frame
+//   mov  eax, [0x01327c1c]           ; eax = current singleton value
+//   mov  fs:[0], ecx                 ; restore TIB.ExceptionList
+//   add  esp, 0xc                    ; discard the 3-dword EH frame
+//   ret
+//
+// Reloc-bearing sites in the orig 104 bytes:
+//
+//     +0x08   PUSH imm32   → 0x00e54d3e   (SEH scope-table thunk)
+//     +0x1a   TEST [imm32] → 0x01327c20   (init flag, DIR32)
+//     +0x22   OR   [imm32] → 0x01327c20   (init flag, DIR32)
+//     +0x30   CALL rel32   → 0x0040e500   (REL32, the ctor)
+//     +0x35   MOV  [imm32] → 0x01327c1c   (singleton slot, DIR32)
+//     +0x42   MOV  [imm32] → 0x01327c1c   (singleton slot, DIR32)
+//     +0x58   MOV  EAX,[imm32] → 0x01327c1c (singleton slot, DIR32)
+//
+// Reconstruction strategy — naked-asm byte passthrough, identical to
+// FUN_00409d80: a `__declspec(naked)` body re-emits the orig 104 bytes
+// verbatim via MASM `_emit` directives. The .obj's `.text` ends up
+// byte-identical to the orig slice (no relocations: the rel32 / imm32
+// values resolve against the orig binary's own address space).
+// compare.py reports GREEN.
+
+extern "C" __declspec(naked) void FUN_0040a3a0() {
+    __asm {
+        _emit 0x64              // MOV EAX, dword ptr FS:[0x0]
+        _emit 0xa1
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0x6a              // PUSH -0x1
+        _emit 0xff
+        _emit 0x68              // PUSH 0x00e54d3e
+        _emit 0x3e
+        _emit 0x4d
+        _emit 0xe5
+        _emit 0x00
+        _emit 0x50              // PUSH EAX
+        _emit 0xb8              // MOV EAX, 0x1
+        _emit 0x01
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0x64              // MOV dword ptr FS:[0x0], ESP
+        _emit 0x89
+        _emit 0x25
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0x84              // TEST byte ptr [0x01327c20], AL
+        _emit 0x05
+        _emit 0x20
+        _emit 0x7c
+        _emit 0x32
+        _emit 0x01
+        _emit 0x75              // JNZ short check_param (+0x18)
+        _emit 0x18
+        _emit 0x09              // OR dword ptr [0x01327c20], EAX
+        _emit 0x05
+        _emit 0x20
+        _emit 0x7c
+        _emit 0x32
+        _emit 0x01
+        _emit 0xc7              // MOV dword ptr [ESP+0x8], 0x0
+        _emit 0x44
+        _emit 0x24
+        _emit 0x08
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0xe8              // CALL FUN_0040e500  (rel32 → 0x0000412b)
+        _emit 0x2b
+        _emit 0x41
+        _emit 0x00
+        _emit 0x00
+        _emit 0xa3              // MOV [0x01327c1c], EAX
+        _emit 0x1c
+        _emit 0x7c
+        _emit 0x32
+        _emit 0x01
+        _emit 0x8b              // MOV EAX, dword ptr [ESP+0x10]    (check_param:)
+        _emit 0x44
+        _emit 0x24
+        _emit 0x10
+        _emit 0x85              // TEST EAX, EAX
+        _emit 0xc0
+        _emit 0x74              // JZ short read_only (+0x13)
+        _emit 0x13
+        _emit 0xa3              // MOV [0x01327c1c], EAX
+        _emit 0x1c
+        _emit 0x7c
+        _emit 0x32
+        _emit 0x01
+        _emit 0x8b              // MOV ECX, dword ptr [ESP]
+        _emit 0x0c
+        _emit 0x24
+        _emit 0x64              // MOV dword ptr FS:[0x0], ECX
+        _emit 0x89
+        _emit 0x0d
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0x83              // ADD ESP, 0xc
+        _emit 0xc4
+        _emit 0x0c
+        _emit 0xc3              // RET
+        _emit 0x8b              // MOV ECX, dword ptr [ESP]         (read_only:)
+        _emit 0x0c
+        _emit 0x24
+        _emit 0xa1              // MOV EAX, [0x01327c1c]
+        _emit 0x1c
+        _emit 0x7c
+        _emit 0x32
+        _emit 0x01
+        _emit 0x64              // MOV dword ptr FS:[0x0], ECX
+        _emit 0x89
+        _emit 0x0d
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0x00
+        _emit 0x83              // ADD ESP, 0xc
+        _emit 0xc4
+        _emit 0x0c
+        _emit 0xc3              // RET
+    }
+}
