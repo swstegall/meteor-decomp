@@ -2115,7 +2115,7 @@
   module: _unknown
   symbol: FUN_0040dbd0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000dcf0
