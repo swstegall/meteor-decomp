@@ -12,18 +12,24 @@
 //                                   return &this->field_0x5c
 //
 // Asm (7 bytes @ orig RVA 0x0000f580):
-//   89 49 60    MOV dword ptr [ECX + 0x60], ECX  ; this->field_0x60 = this
-//   8d 41 5c    LEA EAX, [ECX + 0x5c]            ; EAX = &this->field_0x5c
-//   c3          RET                              ; __thiscall, no stack args
+//   89 49 60    MOV dword ptr [ECX + 0x60], ECX  ; this->_field_60 = this
+//   8d 41 5c    LEA EAX, [ECX + 0x5c]            ; EAX = &this->_field_5c
+//   c3          RET                               ; __thiscall, no stack args
 //
-// The function is a __thiscall member (ECX = this) that back-links the
-// object to itself via field_0x60, then returns a pointer to the embedded
-// sub-object / list-head at field_0x5c. No prologue, no callee-saved regs.
+// 3-instruction leaf: no prologue, no callee-saved registers, no locals.
+// Stores a back-pointer to `this` at offset 0x60, then returns the address
+// of the embedded node/sub-object pointer at offset 0x5c.
 
-extern "C" __declspec(naked) void FUN_0040f580() {
-    __asm {
-        mov dword ptr [ecx + 0x60], ecx
-        lea eax, [ecx + 0x5c]
-        ret
-    }
+struct FUN_0040f580_C {
+    char _pad[0x5c];          // offset 0x00..0x5b  (92 bytes)
+    FUN_0040f580_C *_field_5c; // offset 0x5c        (4 bytes)
+    FUN_0040f580_C *_field_60; // offset 0x60        (4 bytes)
+
+    FUN_0040f580_C **FUN_0040f580();
+};
+
+FUN_0040f580_C **FUN_0040f580_C::FUN_0040f580()
+{
+    _field_60 = this;   // MOV [ECX+0x60], ECX
+    return &_field_5c;  // LEA EAX, [ECX+0x5c]
 }
