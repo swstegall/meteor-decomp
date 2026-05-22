@@ -2259,7 +2259,7 @@
   module: _unknown
   symbol: FUN_0040e290
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000e2b0
@@ -2313,7 +2313,7 @@
   module: _unknown
   symbol: FUN_0040e3d0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000e430
@@ -2322,7 +2322,7 @@
   module: _unknown
   symbol: FUN_0040e430
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000e500
@@ -2331,7 +2331,7 @@
   module: _unknown
   symbol: FUN_0040e500
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000e5a0
