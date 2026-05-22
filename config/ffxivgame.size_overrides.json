@@ -88,14 +88,6 @@
     "reason": "epilogue continuation (5dc3 \u2026 terminator)"
   },
   {
-    "rva": 55264,
-    "rva_hex": "0x0000d7e0",
-    "name": "FUN_0040d7e0",
-    "old_size": 39,
-    "new_size": 46,
-    "reason": "Ghidra under-counted \u2014 FUN_0040df70 marked noreturn so epilogue (MOV [EDI],0 + POP EDI + RET) was excluded; true end at c3 followed by cc INT3 padding"
-  },
-  {
     "rva": 55424,
     "rva_hex": "0x0000d880",
     "name": "FUN_0040d880",

@@ -2043,7 +2043,7 @@
   module: _unknown
   symbol: FUN_0040d910
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000d9a0
