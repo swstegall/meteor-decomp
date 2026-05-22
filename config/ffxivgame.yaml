@@ -1872,7 +1872,7 @@
   module: _unknown
   symbol: FUN_0040b840
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000ba30
@@ -1953,7 +1953,7 @@
   module: _unknown
   symbol: FUN_0040d5c0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000d600
@@ -1962,7 +1962,7 @@
   module: _unknown
   symbol: FUN_0040d600
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000d640
