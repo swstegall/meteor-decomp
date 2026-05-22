@@ -2061,7 +2061,7 @@
   module: _unknown
   symbol: FUN_0040da10
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000da50
