@@ -1881,7 +1881,7 @@
   module: _unknown
   symbol: FUN_0040ba30
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000c820
@@ -1917,7 +1917,7 @@
   module: _unknown
   symbol: FUN_0040d060
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000d280
