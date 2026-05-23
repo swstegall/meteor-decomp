@@ -3519,7 +3519,7 @@
   module: engine_memory
   symbol: FUN_00411eb0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00011f30
@@ -3528,7 +3528,7 @@
   module: engine_memory
   symbol: FUN_00411f30
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00011fa0
@@ -3537,7 +3537,7 @@
   module: _unknown
   symbol: FUN_00411fa0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012020
@@ -3573,7 +3573,7 @@
   module: engine_memory
   symbol: FUN_00412100
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012150
@@ -3600,7 +3600,7 @@
   module: engine_memory
   symbol: FUN_00412240
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012250
