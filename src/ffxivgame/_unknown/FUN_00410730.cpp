@@ -27,6 +27,13 @@
 // Calling convention: __stdcall; callee pops 1 stack arg (RET 0x4).
 // Callee-saved registers: ESI, EDI.
 
+#if defined(__clang__) || defined(__GNUC__)
+// clang/GCC stub for static analysis only — NOT compiled in production.
+// The real implementation is the MSVC __declspec(naked) + __asm/_emit block
+// below, which clang cannot parse on arm64. Production builds always use
+// cl.exe (MSVC 2005). Diff remains GREEN.
+extern "C" void FUN_00410730() { __builtin_unreachable(); }
+#else
 extern "C" __declspec(naked) void FUN_00410730()
 {
     __asm {
@@ -141,3 +148,4 @@ extern "C" __declspec(naked) void FUN_00410730()
         _emit 0x00
     }
 }
+#endif
