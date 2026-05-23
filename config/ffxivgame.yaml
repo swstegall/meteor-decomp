@@ -3663,7 +3663,7 @@
   module: engine_memory
   symbol: FUN_00412510
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012520
@@ -3672,7 +3672,7 @@
   module: engine_memory
   symbol: FUN_00412520
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012530
