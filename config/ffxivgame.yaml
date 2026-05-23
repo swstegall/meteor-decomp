@@ -3798,7 +3798,7 @@
   module: _unknown
   symbol: FUN_00412950
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000129c0
