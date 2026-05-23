@@ -2925,7 +2925,7 @@
   module: _unknown
   symbol: FUN_00410510
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000105b0
@@ -2934,7 +2934,7 @@
   module: net
   symbol: FUN_004105b0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000105c0
@@ -2943,7 +2943,7 @@
   module: _unknown
   symbol: FUN_004105c0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00010600
