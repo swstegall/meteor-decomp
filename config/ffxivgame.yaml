@@ -3048,10 +3048,10 @@
 - rva: 0x00010800
   end: 0x000108b8
   size: 0xb8
-  module: _unknown
+  module: engine_memory
   symbol: FUN_00410800
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000108c0
