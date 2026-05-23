@@ -3298,12 +3298,12 @@
   owner: null
   section: .text
 - rva: 0x000114f0
-  end: 0x0001154a
-  size: 0x5a
+  end: 0x0001154d
+  size: 0x5d
   module: engine_memory
   symbol: FUN_004114f0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00011550
