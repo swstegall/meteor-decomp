@@ -8,21 +8,24 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// FUNCTION: ffxivgame 0x0000f550 — __thiscall 1-stack-arg: store vtable ptr into *this
-//                                   (SQEX::CDev::Engine::Memory::IModule ctor stub)
+// FUNCTION: ffxivgame 0x0000f550 — __thiscall vtable-install stub
 //
-// Asm (11 bytes @ orig RVA 0x0000f550):
-//   8b c1              MOV EAX, ECX           ; EAX = this (thiscall)
-//   c7 00 70 65 f5 00  MOV dword ptr [EAX], 0xf56570 ; *this = IModule::vftable
-//   c2 04 00           RET 0x4                ; __thiscall, callee pops 1 stack arg
+// Asm (11 bytes):
+//   8b c1              MOV EAX, ECX           ; this → EAX (return value)
+//   c7 00 70 65 f5 00  MOV dword ptr [EAX], 0xf56570 ; *this = vtbl ptr
+//   c2 04 00           RET 0x4                ; __thiscall, callee pops 1 arg
 //
-// Stores the IModule vtable pointer at offset 0 of `this`.
-// Takes one unused stack argument (cleaned by RET 4).
+// Stores the constant 0x00f56570 into the first DWORD of the object
+// pointed to by ECX (this), then returns this.  The single stack
+// argument is unused.  MSVC 2005 /O2 moves ECX→EAX first (setting up
+// the return value), uses that same EAX for the store, then RET 4.
 
-extern "C" __declspec(naked) void FUN_0040f550() {
-    __asm {
-        mov eax, ecx
-        mov dword ptr [eax], 0x00f56570
-        ret 4
-    }
+class C_0040f550 {
+public:
+    C_0040f550 *install_vtable(int unused);
+};
+
+C_0040f550 *C_0040f550::install_vtable(int) {
+    *(int *)this = 0x00f56570;
+    return this;
 }

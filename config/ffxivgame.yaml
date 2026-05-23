@@ -2664,7 +2664,7 @@
   module: _unknown
   symbol: FUN_0040f590
   type: matching
-  status: matched
+  status: unmatched
   owner: null
   section: .text
 - rva: 0x0000f5c0
@@ -2709,7 +2709,7 @@
   module: engine_memory
   symbol: FUN_0040f600
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000f610
@@ -2718,7 +2718,7 @@
   module: engine_memory
   symbol: FUN_0040f610
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000f620
@@ -2727,7 +2727,7 @@
   module: engine_memory
   symbol: FUN_0040f620
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000f630
@@ -2736,7 +2736,7 @@
   module: engine_memory
   symbol: FUN_0040f630
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000f650
@@ -2754,7 +2754,7 @@
   module: engine_memory
   symbol: FUN_0040f6b0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000f6d0
@@ -2763,7 +2763,7 @@
   module: engine_memory
   symbol: FUN_0040f6d0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x0000f700
