@@ -3384,7 +3384,7 @@
   module: _unknown
   symbol: FUN_00411c20
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00011c60
@@ -3420,7 +3420,7 @@
   module: engine_memory
   symbol: FUN_00411cf0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00011d00
