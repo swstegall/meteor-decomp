@@ -61,12 +61,11 @@
 // Reconstruction strategy: naked-asm _emit passthrough; MASM `call`
 //   mnemonic at the reloc site so the assembler emits a COFF REL32.
 
-extern "C" void __stdcall FUN_0040df70(void *param_1);
+#ifdef _MSC_VER
+// FUN_0040df70 forward declaration (MSVC-only; calling convention on the
+// declaration does not affect the emitted call instruction in naked asm).
+extern "C" void FUN_0040df70(void *param_1);
 
-#if defined(__clang__) || defined(__GNUC__)
-// clang/GCC stub for static analysis only — NOT compiled in production.
-extern "C" void FUN_00411c20() { __builtin_unreachable(); }
-#else
 extern "C" __declspec(naked) void FUN_00411c20()
 {
     __asm {
@@ -165,4 +164,7 @@ extern "C" __declspec(naked) void FUN_00411c20()
         _emit 0xc3
     }
 }
+#else
+// Non-MSVC stub — not compiled in production (MSVC-only naked asm above).
+extern "C" void FUN_00411c20() {}
 #endif
