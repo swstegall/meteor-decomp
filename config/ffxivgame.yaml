@@ -2747,7 +2747,6 @@
   type: matching
   status: matched
   owner: null
-  owner: null
   section: .text
 - rva: 0x0000f6b0
   end: 0x0000f6c8
