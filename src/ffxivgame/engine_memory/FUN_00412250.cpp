@@ -102,7 +102,9 @@
 // The #ifdef keeps the file compilable on clang/arm64 (host toolchain)
 // while the MSVC build (Wine) produces the byte-identical .obj.
 
-#if defined(_MSC_VER) && !defined(__clang__)
+#if defined(__clang__) || defined(__GNUC__)
+extern "C" void FUN_00412250() {}
+#else
 extern "C" __declspec(naked) void FUN_00412250()
 {
     __asm {
@@ -316,4 +318,4 @@ extern "C" __declspec(naked) void FUN_00412250()
         _emit 0x00
     }
 }
-#endif // _MSC_VER && !__clang__
+#endif
