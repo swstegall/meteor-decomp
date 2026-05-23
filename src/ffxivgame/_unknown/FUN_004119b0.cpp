@@ -43,10 +43,13 @@
 //   168 bytes verbatim; compare.py masks the 4-byte IAT address and reports
 //   GREEN.
 
+// clang / GCC static-analysis stub — NOT compiled in production.
 #if defined(__clang__) || defined(__GNUC__)
-// clang / GCC stub for static-analysis only — NOT compiled in production.
-extern "C" void FUN_004119b0() { __builtin_unreachable(); }
-#else
+extern "C" void FUN_004119b0() {}
+#endif
+
+// MSVC production build — byte-identical naked-asm passthrough.
+#if !defined(__clang__) && !defined(__GNUC__)
 extern "C" __declspec(naked) void FUN_004119b0()
 {
     __asm {
