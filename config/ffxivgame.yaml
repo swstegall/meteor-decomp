@@ -3731,11 +3731,11 @@
   section: .text
 - rva: 0x000125a0
   end: 0x000125fa
-  size: 0x5a
+  size: 0x5d
   module: engine_memory
   symbol: FUN_004125a0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012600
