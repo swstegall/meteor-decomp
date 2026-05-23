@@ -1,0 +1,22 @@
+# meteor-decomp — clangd configuration
+#
+# This project is compiled with MSVC 2005 (cl.exe via Wine). The source files
+# use MSVC-specific extensions that clang does not recognise by default:
+#   __declspec(naked)   — naked functions for byte-passthrough matched functions
+#   __asm { ... }       — MASM-style inline assembly with _emit directives
+#   __thiscall / __stdcall / __cdecl / __fastcall — calling convention attrs
+#
+# -fms-extensions enables all of the above so clangd reports accurate
+# diagnostics rather than false positives on valid MSVC C++ syntax.
+#
+# -fms-compatibility (+ version) silences remaining C++ ABI / STL compat
+# warnings that arise from parsing Windows SDK / MSVCRT headers.
+
+CompileFlags:
+  Add:
+    - -fms-extensions
+    - -fms-compatibility
+    - -fms-compatibility-version=14.00
+    - -D_MSC_VER=1400
+    - -D_WIN32
+    - -D_M_IX86
