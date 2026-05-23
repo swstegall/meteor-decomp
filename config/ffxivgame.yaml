@@ -3312,7 +3312,7 @@
   module: engine_memory
   symbol: FUN_00411550
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00011580
@@ -3321,7 +3321,7 @@
   module: engine_memory
   symbol: FUN_00411580
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000115c0
@@ -3339,7 +3339,7 @@
   module: _unknown
   symbol: FUN_004116d0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000117b0
@@ -3366,7 +3366,7 @@
   module: _unknown
   symbol: FUN_00411b30
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00011bc0
@@ -3393,7 +3393,7 @@
   module: engine_memory
   symbol: FUN_00411c60
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00011c70
@@ -3402,7 +3402,7 @@
   module: engine_memory
   symbol: FUN_00411c70
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00011c90
