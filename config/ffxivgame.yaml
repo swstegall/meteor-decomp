@@ -3087,7 +3087,7 @@
   module: _unknown
   symbol: FUN_004109a0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00010a00
@@ -3105,7 +3105,7 @@
   module: engine_memory
   symbol: FUN_00410a80
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00010b00
