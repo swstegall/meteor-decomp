@@ -3325,12 +3325,12 @@
   owner: null
   section: .text
 - rva: 0x000115c0
-  end: 0x000116c6
-  size: 0x106
+  end: 0x000116c8
+  size: 0x108
   module: _unknown
   symbol: FUN_004115c0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000116d0
