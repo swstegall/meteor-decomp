@@ -2979,7 +2979,7 @@
   module: _unknown
   symbol: FUN_00410630
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000106b0
