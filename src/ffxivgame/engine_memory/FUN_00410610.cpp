@@ -20,9 +20,16 @@
 
 extern "C" void FUN_004108c0();
 
+#if defined(__clang__) || defined(__GNUC__)
+// clang/GCC stub for static analysis only — NOT compiled in production.
+// The real implementation is the MSVC __declspec(naked) + __asm block below,
+// which clang cannot parse. Production builds always use cl.exe (MSVC 2005).
+extern "C" void FUN_00410610() { __builtin_unreachable(); }
+#else
 extern "C" __declspec(naked) void FUN_00410610() {
     __asm {
         sub ecx, 8
         jmp FUN_004108c0
     }
 }
+#endif
