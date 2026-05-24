@@ -4153,12 +4153,12 @@
   owner: null
   section: .text
 - rva: 0x00013570
-  end: 0x000135ca
-  size: 0x5a
+  end: 0x000135cd
+  size: 0x5d
   module: engine_memory
   symbol: FUN_00413570
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000135d0
