@@ -4086,7 +4086,7 @@
   module: engine_memory
   symbol: FUN_004134e0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000134f0
@@ -4095,7 +4095,7 @@
   module: engine_memory
   symbol: FUN_004134f0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00013500
