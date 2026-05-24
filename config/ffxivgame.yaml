@@ -3906,7 +3906,7 @@
   module: engine_memory
   symbol: FUN_00412b80
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012c30
@@ -3924,7 +3924,7 @@
   module: _unknown
   symbol: FUN_00412ca0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012d60
