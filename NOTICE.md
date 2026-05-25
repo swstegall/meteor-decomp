@@ -37,6 +37,27 @@ Project Meteor Server. Its packet structs, Blowfish helpers, and
 PE-patching scaffolding inform corresponding modules in
 `meteor-decomp`.
 
+## FFXIVLegacyClientStructs
+
+- Source: <https://github.com/Yokimitsuro/FFXIVLegacyClientStructs>
+- License: MIT (see upstream `LICENSE`)
+
+FFXIVLegacyClientStructs is an independent RTTI-driven reverse
+engineering of the same 1.23b `ffxivgame.exe`, modeled on the retail
+`FFXIVClientStructs` project. It ships ~2,572 `[StructLayout]`-explicit
+structs (RTTI mangled name, struct size, per-field offsets/names) plus
+a 4,358-row RTTI database (vtable VA / vfunc count / TypeDescriptor VA /
+mangled name). Its struct field layouts, constructor RVAs, and struct
+sizes are imported into our type catalog via
+`tools/import_legacy_structs.py`, which emits
+`config/ffxivgame.legacy_structs.json`,
+`config/ffxivgame.legacy_symbols.json`, and per-class notes under
+`decomp-notes/types/ffxivgame/`. Imported layouts are flagged
+**cross-referenced, not byte-verified** and are confirmed against our
+own asm before a match is accepted. Cross-validation against our own
+Ghidra RTTI walk agrees on 2,270 shared vtables (the few differences
+are cosmetic demangling normalization).
+
 ## LandSandBoat (referenced, not copied)
 
 - Source: <https://github.com/LandSandBoat/server>

@@ -1,0 +1,58 @@
+[
+ {
+  "rva": 1619168,
+  "rva_hex": "0x0018b4e0",
+  "name": "Application::Main::Element::Chara::CharaElement::ctor",
+  "kind": "ctor",
+  "current_name": "FUN_0058b4e0",
+  "auto_named": true
+ },
+ {
+  "rva": 2486656,
+  "rva_hex": "0x0025f180",
+  "name": "Application::Scene::Actor::Chara::CharaActor::ctor",
+  "kind": "ctor",
+  "current_name": "FUN_0065f180",
+  "auto_named": true
+ },
+ {
+  "rva": 2175680,
+  "rva_hex": "0x002132c0",
+  "name": "Application::Scene::Actor::System::BootupActor::ctor",
+  "kind": "ctor",
+  "current_name": "FUN_006132c0",
+  "auto_named": true
+ },
+ {
+  "rva": 2174912,
+  "rva_hex": "0x00212fc0",
+  "name": "Application::Scene::Actor::System::TargetActor::ctor",
+  "kind": "ctor",
+  "current_name": "FUN_00612fc0",
+  "auto_named": true
+ },
+ {
+  "rva": 2171504,
+  "rva_hex": "0x00212270",
+  "name": "Application::Scene::Actor::System::GameManagerActor::ctor",
+  "kind": "ctor",
+  "current_name": "FUN_00612270",
+  "auto_named": true
+ },
+ {
+  "rva": 2226752,
+  "rva_hex": "0x0021fa40",
+  "name": "Application::Scene::Actor::System::GameManagerActor::PostEffectController::ctor",
+  "kind": "ctor",
+  "current_name": "FUN_0061fa40",
+  "auto_named": true
+ },
+ {
+  "rva": 2226656,
+  "rva_hex": "0x0021f9e0",
+  "name": "Application::Scene::Actor::System::GameManagerActorSchedulerListener::ctor",
+  "kind": "ctor",
+  "current_name": "FUN_0061f9e0",
+  "auto_named": true
+ }
+]
