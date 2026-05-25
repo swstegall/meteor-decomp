@@ -84,7 +84,35 @@ individually; `gen` chains the first three.
   deeply-nested program by bare name, and the script's `ask*` prompts
   (`askChoice` destination FidDb, `askProjectFolder` root, LanguageID) are
   headless-finicky beyond that. This is the canonical "do it in the GUI" step.
-- `apply` — **scripted and ready** for once the `.fidb` exists (either route).
+- `apply` — **DONE/validated** (after fixing two bugs: `-scriptPath` must be one
+  `;`-joined arg; `run_headless` must export `METEOR_DECOMP_ROOT`). A plain
+  `-process` won't re-run an already-run analyzer, so `RunFidMatch.java` forces
+  a Function-ID-only pass (disable other analyzers → analyzeAll → restore), then
+  `DumpSymbolsOnly.java` re-dumps `symbols.json` (a `.s`-free variant, which also
+  side-steps a broken `asm/ffxivgame` self-symlink in the working tree).
+  `AttachFidDatabase`'s headless `.properties` key is the title + button label:
+  `Attach existing FidDb Attach`.
+
+## Result (honest): 47 functions named — modest, as the ceiling predicted
+
+The apply named **47** functions that were `FUN_xxx` — the complete core CRT
+string/mem/alloc family (`_memcpy`, `_memmove`, `_memset`, `_strlen`,
+`_strcmp`, `_strncpy`, `_strcat_s`, `_malloc`, `_free`, `_fwrite`,
+`__invalid_parameter`, …) plus a few `std::`. The fidb matched the CRT it had;
+the yield is just small **for this binary**, and that's the real answer to "is
+library matching faster than matching everything here?":
+
+- FFXIV 1.x is **engine-heavy**: the SQEX CDev/Rapture engine brings its own
+  allocators, string, and container code and links a **thin CRT**, so the
+  uniquely-matchable, not-already-named library footprint is small.
+- STL barely matches via FID (template instantiations differ from the lib's).
+- The ~60k unnamed functions are overwhelmingly that proprietary engine —
+  which FID/FLIRT structurally cannot touch (flagged from the start).
+
+So: the technique was applied correctly and the pipeline is reusable, but for
+*this* binary library-signature matching is a marginal win (47 fns), not the
+thousands it can be on a CRT/MFC-heavy app. The 47 are correctly named now and
+`make split` reclassifies them `matching → middleware-crt`.
 
 ## GUI populate (the reliable one-time step — project is already built)
 

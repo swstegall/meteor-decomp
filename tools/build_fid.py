@@ -93,6 +93,7 @@ def run_headless(gh: Path, jh: str, proj_loc: Path, proj_name: str, rest: list[s
     env = os.environ.copy()
     env["JAVA_HOME"] = jh
     env["PATH"] = f"{jh}/bin:" + env.get("PATH", "")
+    env["METEOR_DECOMP_ROOT"] = str(REPO_ROOT)  # dump scripts resolve config/ against this
     print(">>>", " ".join(cmd))
     return subprocess.run(cmd, env=env).returncode
 
@@ -192,14 +193,24 @@ def cmd_apply(args) -> int:
     if not FIDB.exists():
         print(f"ERROR: {FIDB} not found — run `build_fid.py gen` first.", file=sys.stderr)
         return 1
+    # Headless ask* key = dialog title + " " + approve-button label, i.e.
+    # askFile("Attach existing FidDb", "Attach") -> "Attach existing FidDb Attach".
     (fidscripts / "AttachFidDatabase.properties").write_text(
-        f"Attach existing FidDb = {FIDB}\n", encoding="utf-8")
-    print(">>> attaching FidDb + re-running Function ID analyzer on ffxivgame, then re-dumping")
+        f"Attach existing FidDb Attach = {FIDB}\n", encoding="utf-8")
+    print(">>> attaching FidDb + running Function ID matcher on ffxivgame, then re-dumping")
+    # -scriptPath is ONE arg: a ';'-separated list of dirs. AttachFidDatabase
+    # (+ its .properties) lives in the Ghidra FID scripts dir; RunFidMatch +
+    # DumpFunctions live in ours.
+    script_path = f"{fidscripts};{REPO_ROOT / 'tools/ghidra_scripts'}"
+    # -noanalysis + RunFidMatch (force the FID analyzer to run now that the
+    # fidb is attached — a plain -process won't re-run an already-run
+    # analyzer). RunFidMatch applies names in-memory; DumpFunctions re-dumps.
     rc = run_headless(gh, jh, proj_loc, "ffxivgame", [
-        "-process", "ffxivgame.exe",
-        "-scriptPath", str(fidscripts), str(REPO_ROOT / "tools/ghidra_scripts"),
+        "-process", "ffxivgame.exe", "-noanalysis",
+        "-scriptPath", script_path,
         "-preScript", "AttachFidDatabase.java",
-        "-postScript", "DumpFunctions.java",
+        "-postScript", "RunFidMatch.java",
+        "-postScript", "DumpSymbolsOnly.java",
     ])
     if rc == 0:
         print("\nDONE. Now run `make split BINARY=ffxivgame.exe` — build_split_yaml's\n"
