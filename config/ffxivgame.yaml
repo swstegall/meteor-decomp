@@ -5094,7 +5094,7 @@
   module: _unknown
   symbol: FUN_00415400
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00015440
