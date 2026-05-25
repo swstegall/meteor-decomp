@@ -60,8 +60,10 @@ You CANNOT open Ghidra (`*.gpr` files are GUI-only). What you have:
   `NOTICE.md`):
   - `../ffxivDecomp/docs/re/` — opcode rosters, Lua-binding, inbound
     dispatch, cutscene, and receiver findings. Grep for your subsystem.
-    Distilled in `docs/ffxivdecomp_opcode_binding_map.md` and (for the
-    cutscene/kick path) `docs/seq005_kick_gate_analysis.md`.
+    Distilled in `docs/ffxivdecomp_opcode_binding_map.md` (outbound +
+    bindings), `docs/ffxivdecomp_inbound_opcodes.md` (the ~70-entry
+    server→client inbound roster), and (for the cutscene/kick path)
+    `docs/seq005_kick_gate_analysis.md`.
   - `../FFXIVLegacyClientStructs/` — struct field layouts. Catalog in
     `config/<binary>.legacy_structs.json`; per-class notes in
     `decomp-notes/types/<binary>/`; on-demand layout for any class via
