@@ -102,8 +102,17 @@ Running totals against the 60,616 `FUN_xxx` baseline:
 | MSVC CRT/STL | VC8 (libcmt/libcpmt) | **47** | engine uses its own alloc/string/containers → thin CRT |
 | zlib | 1.2.3 | **19** | game links only the decompression subset |
 | **Lua** | **5.1.4** | **~353** | the **whole VM** — heavily used by the game |
-| OpenSSL | 1.0.0 | (pending) | full crypto suite — biggest footprint |
-| **Total** | | **419** | |
+| **OpenSSL** | **1.0.0** | **~480** | full crypto suite (ASN1/BN/EVP/RSA/DSA/DH/EC/SHA/MD5/Blowfish/X509) |
+| **Total** | | **899** | |
+
+So the final answer to "is library matching worth it here?": **yes, strongly** — 899
+functions (~1.5% of the 60,616 `FUN_xxx`, but the *right* 899: whole subsystems).
+Lua + OpenSSL are the wins; the CRT's 47 was a misleading first sample because
+the SQEX engine brings its own CRT-like code. OpenSSL build note: `perl Configure
+VC-WIN32 no-asm`, copy `e_os2.h` + all `crypto/**/*.h` into `include/openssl/`,
+then compile `crypto/**/*.c` **one file per `cl` invocation** (a multi-file
+invocation aborts the rest of the batch on the first fatal error). 562/619
+compiled; the 57 failures are platform-cap/cms stubs.
 
 The CRT's 47 was *not* representative: it's thin because this is an
 engine-heavy binary. **Lua reversed the picture** — the entire Lua 5.1 VM
