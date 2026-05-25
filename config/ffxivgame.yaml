@@ -4689,7 +4689,7 @@
   module: _unknown
   symbol: FUN_00414980
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00014a10
