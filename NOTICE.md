@@ -58,6 +58,26 @@ own asm before a match is accepted. Cross-validation against our own
 Ghidra RTTI walk agrees on 2,270 shared vtables (the few differences
 are cosmetic demangling normalization).
 
+## ffxivDecomp
+
+- Source: <https://github.com/Yokimitsuro/ffxivDecomp>
+- License: none declared (docs-only analysis repository)
+
+ffxivDecomp is an independent docs-only reverse-engineering analysis of
+the same 1.23b `ffxivgame.exe` (no decompiled function bodies — only
+finding write-ups). We ingest only **factual data** from its findings —
+function names paired with virtual addresses, outbound/inbound opcode
+numbers, and Lua-binding names — via
+`tools/import_ffxivdecomp_symbols.py`, which emits
+`config/ffxivgame.ffxivdecomp_symbols.json` and
+`docs/ffxivdecomp_opcode_binding_map.md`. Every imported (name, VA) pair
+is cross-checked against our own `config/ffxivgame.symbols.json` and is
+confirmed against our own disassembly before a match relies on it; the
+opcode set is cross-validated against our own `up_opcodes` extraction.
+These are facts present in the binary, not copyrightable expression. No
+prose is copied. As ffxivDecomp declares no license, only such factual
+data is used, with attribution here.
+
 ## LandSandBoat (referenced, not copied)
 
 - Source: <https://github.com/LandSandBoat/server>
