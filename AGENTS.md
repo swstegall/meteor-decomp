@@ -49,6 +49,23 @@ You CANNOT open Ghidra (`*.gpr` files are GUI-only). What you have:
   — what previous workers tried on this same function.
 - **Type catalog**: `decomp-notes/types/<binary>/<rva>.md` — discovered
   classes/structs from earlier matches.
+- **Name overrides** (collaborator-sourced): `config/<binary>.name_overrides.json`
+  — RVA → name for ~150 functions the binary still carries as `FUN_xxx`,
+  recovered from the FFXIVLegacyClientStructs + ffxivDecomp collaborator
+  repos. If the function you're matching is listed here, use that name.
+  Cross-checked against `symbols.json` but **not byte-verified** — confirm
+  the role against the asm as you match. (Not folded into `symbols.json`
+  to avoid forcing a work-pool re-split; this is the override layer.)
+- **Collaborator RE findings** (used with the author's permission — see
+  `NOTICE.md`):
+  - `../ffxivDecomp/docs/re/` — opcode rosters, Lua-binding, inbound
+    dispatch, cutscene, and receiver findings. Grep for your subsystem.
+    Distilled in `docs/ffxivdecomp_opcode_binding_map.md` and (for the
+    cutscene/kick path) `docs/seq005_kick_gate_analysis.md`.
+  - `../FFXIVLegacyClientStructs/` — struct field layouts. Catalog in
+    `config/<binary>.legacy_structs.json`; per-class notes in
+    `decomp-notes/types/<binary>/`; on-demand layout for any class via
+    `tools/analyze_legacy_struct.sh <Class>` (runs against our own binary).
 
 ## Don't touch what isn't yours
 

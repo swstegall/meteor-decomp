@@ -1,0 +1,1031 @@
+[
+ {
+  "rva": 1619168,
+  "rva_hex": "0x0018b4e0",
+  "name": "Application::Main::Element::Chara::CharaElement::ctor",
+  "source": "FFXIVLegacyClientStructs",
+  "current_symbol": "FUN_0058b4e0"
+ },
+ {
+  "rva": 2171504,
+  "rva_hex": "0x00212270",
+  "name": "Application::Scene::Actor::System::GameManagerActor::ctor",
+  "source": "FFXIVLegacyClientStructs",
+  "current_symbol": "FUN_00612270"
+ },
+ {
+  "rva": 2174912,
+  "rva_hex": "0x00212fc0",
+  "name": "Application::Scene::Actor::System::TargetActor::ctor",
+  "source": "FFXIVLegacyClientStructs",
+  "current_symbol": "FUN_00612fc0"
+ },
+ {
+  "rva": 2175680,
+  "rva_hex": "0x002132c0",
+  "name": "Application::Scene::Actor::System::BootupActor::ctor",
+  "source": "FFXIVLegacyClientStructs",
+  "current_symbol": "FUN_006132c0"
+ },
+ {
+  "rva": 2226656,
+  "rva_hex": "0x0021f9e0",
+  "name": "Application::Scene::Actor::System::GameManagerActorSchedulerListener::ctor",
+  "source": "FFXIVLegacyClientStructs",
+  "current_symbol": "FUN_0061f9e0"
+ },
+ {
+  "rva": 2226752,
+  "rva_hex": "0x0021fa40",
+  "name": "Application::Scene::Actor::System::GameManagerActor::PostEffectController::ctor",
+  "source": "FFXIVLegacyClientStructs",
+  "current_symbol": "FUN_0061fa40"
+ },
+ {
+  "rva": 2486656,
+  "rva_hex": "0x0025f180",
+  "name": "Application::Scene::Actor::Chara::CharaActor::ctor",
+  "source": "FFXIVLegacyClientStructs",
+  "current_symbol": "FUN_0065f180"
+ },
+ {
+  "rva": 2912992,
+  "rva_hex": "0x002c72e0",
+  "name": "WorkSyncAlt_serializePayloadAndSend_opcode_0x133",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006c72e0"
+ },
+ {
+  "rva": 2993360,
+  "rva_hex": "0x002dacd0",
+  "name": "Lua_listObjectDelete_sends_0x130_variantA",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006dacd0"
+ },
+ {
+  "rva": 2993808,
+  "rva_hex": "0x002dae90",
+  "name": "Lua_listObjectQueueAdd_sends_0x130_variantA",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006dae90"
+ },
+ {
+  "rva": 3000496,
+  "rva_hex": "0x002dc8b0",
+  "name": "Debug_executeScriptFromCutSceneTable",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006dc8b0"
+ },
+ {
+  "rva": 3023152,
+  "rva_hex": "0x002e2130",
+  "name": "Lua_send8byteStateAt0x68_via_0x130_variantB",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006e2130"
+ },
+ {
+  "rva": 3025648,
+  "rva_hex": "0x002e2af0",
+  "name": "Lua_sendByteUshortAt0x68_via_0x132",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006e2af0"
+ },
+ {
+  "rva": 3027696,
+  "rva_hex": "0x002e32f0",
+  "name": "MyPlayer_fadeInNowLoadingForNoticeEventJustInArea_impl",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006e32f0"
+ },
+ {
+  "rva": 3031776,
+  "rva_hex": "0x002e42e0",
+  "name": "Lua_listIndexSend_via_0x130_variantA",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006e42e0"
+ },
+ {
+  "rva": 3037904,
+  "rva_hex": "0x002e5ad0",
+  "name": "Lua_sendByteToggle_via_opcode_0x131",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006e5ad0"
+ },
+ {
+  "rva": 3040096,
+  "rva_hex": "0x002e6360",
+  "name": "Lua_sendChallenge_via_opcode_0x134",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006e6360"
+ },
+ {
+  "rva": 3042704,
+  "rva_hex": "0x002e6d90",
+  "name": "Lua_worldMaster__lookAtPlayerTutorial",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006e6d90"
+ },
+ {
+  "rva": 3048928,
+  "rva_hex": "0x002e85e0",
+  "name": "lua_updateWork_impl",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006e85e0"
+ },
+ {
+  "rva": 3051344,
+  "rva_hex": "0x002e8f50",
+  "name": "MyPlayer_cancelNotice_impl",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006e8f50"
+ },
+ {
+  "rva": 3124848,
+  "rva_hex": "0x002fae70",
+  "name": "CharaBase_invokeLua_onChangeSystemFlag",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fae70"
+ },
+ {
+  "rva": 3127744,
+  "rva_hex": "0x002fb9c0",
+  "name": "CutScene_invokeLua_onFinalizeClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fb9c0"
+ },
+ {
+  "rva": 3128400,
+  "rva_hex": "0x002fbc50",
+  "name": "CutScene_method_setActiveAndFinalize",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fbc50"
+ },
+ {
+  "rva": 3128512,
+  "rva_hex": "0x002fbcc0",
+  "name": "CutScene_invokeLua_onInitializationClip_PreviewSetupClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fbcc0"
+ },
+ {
+  "rva": 3128960,
+  "rva_hex": "0x002fbe80",
+  "name": "CutScene_invokeLua_onInitializationClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fbe80"
+ },
+ {
+  "rva": 3129472,
+  "rva_hex": "0x002fc080",
+  "name": "CutScene_invokeLua_onShowUIClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fc080"
+ },
+ {
+  "rva": 3129952,
+  "rva_hex": "0x002fc260",
+  "name": "CutScene_invokeLua_onHideUIClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fc260"
+ },
+ {
+  "rva": 3130272,
+  "rva_hex": "0x002fc3a0",
+  "name": "CutScene_invokeLua_onShowWidgetClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fc3a0"
+ },
+ {
+  "rva": 3130576,
+  "rva_hex": "0x002fc4d0",
+  "name": "CutScene_invokeLua_onHideWidgetClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fc4d0"
+ },
+ {
+  "rva": 3130864,
+  "rva_hex": "0x002fc5f0",
+  "name": "CutScene_invokeLua_onOpenUIClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fc5f0"
+ },
+ {
+  "rva": 3139936,
+  "rva_hex": "0x002fe960",
+  "name": "DesktopWidget_invokeLua_onTargetChanged",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fe960"
+ },
+ {
+  "rva": 3140528,
+  "rva_hex": "0x002febb0",
+  "name": "DesktopWidget_invokeLua_onTargetDecided",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006febb0"
+ },
+ {
+  "rva": 3141088,
+  "rva_hex": "0x002fede0",
+  "name": "DesktopWidget_invokeLua_onPreWarp",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fede0"
+ },
+ {
+  "rva": 3141392,
+  "rva_hex": "0x002fef10",
+  "name": "DesktopWidget_invokeLua_onPostWarp",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_006fef10"
+ },
+ {
+  "rva": 3162672,
+  "rva_hex": "0x00304230",
+  "name": "Player_handleLimitAddictedNotice",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00704230"
+ },
+ {
+  "rva": 3169968,
+  "rva_hex": "0x00305eb0",
+  "name": "Lua_queryBinding_dispatchType_sends_0x135",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00705eb0"
+ },
+ {
+  "rva": 3322944,
+  "rva_hex": "0x0032b440",
+  "name": "Functor_NpcBaseClass_buildOutputStackOperatorVector",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0072b440"
+ },
+ {
+  "rva": 3327968,
+  "rva_hex": "0x0032c7e0",
+  "name": "Functor_NpcBaseClass_buildInputStackOperatorVector",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0072c7e0"
+ },
+ {
+  "rva": 3344736,
+  "rva_hex": "0x00330960",
+  "name": "PlayerBase_registerLua_executeTalk",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00730960"
+ },
+ {
+  "rva": 3345072,
+  "rva_hex": "0x00330ab0",
+  "name": "PlayerBase_registerLua_executeEmote",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00730ab0"
+ },
+ {
+  "rva": 3345408,
+  "rva_hex": "0x00330c00",
+  "name": "PlayerBase_registerLua_canExecuteCommand",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00730c00"
+ },
+ {
+  "rva": 3345744,
+  "rva_hex": "0x00330d50",
+  "name": "PlayerBase_registerLua_canExecuteTalk",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00730d50"
+ },
+ {
+  "rva": 3346080,
+  "rva_hex": "0x00330ea0",
+  "name": "PlayerBase_registerLua_canExecuteEmote",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00730ea0"
+ },
+ {
+  "rva": 3346416,
+  "rva_hex": "0x00330ff0",
+  "name": "PlayerBase_registerLua_cancelCommand",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00730ff0"
+ },
+ {
+  "rva": 3346752,
+  "rva_hex": "0x00331140",
+  "name": "PlayerBase_registerLua_cancelTalk",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00731140"
+ },
+ {
+  "rva": 3347088,
+  "rva_hex": "0x00331290",
+  "name": "PlayerBase_registerLua_cancelNotice",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00731290"
+ },
+ {
+  "rva": 3347424,
+  "rva_hex": "0x003313e0",
+  "name": "PlayerBase_registerLua_cancelEmote",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_007313e0"
+ },
+ {
+  "rva": 3347760,
+  "rva_hex": "0x00331530",
+  "name": "PlayerBase_registerLua_cancelPush",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00731530"
+ },
+ {
+  "rva": 3348096,
+  "rva_hex": "0x00331680",
+  "name": "PlayerBase_registerLua_breakCommand",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00731680"
+ },
+ {
+  "rva": 3348432,
+  "rva_hex": "0x003317d0",
+  "name": "PlayerBase_registerLua_isEventPlaying",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_007317d0"
+ },
+ {
+  "rva": 3348768,
+  "rva_hex": "0x00331920",
+  "name": "PlayerBase_registerLua_isCommandPlaying",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00731920"
+ },
+ {
+  "rva": 3349104,
+  "rva_hex": "0x00331a70",
+  "name": "PlayerBase_registerLua_countCommandPlaying",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00731a70"
+ },
+ {
+  "rva": 3349440,
+  "rva_hex": "0x00331bc0",
+  "name": "PlayerBase_registerLua_fadeIn",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00731bc0"
+ },
+ {
+  "rva": 3349776,
+  "rva_hex": "0x00331d10",
+  "name": "PlayerBase_registerLua_fadeOut",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00731d10"
+ },
+ {
+  "rva": 3350112,
+  "rva_hex": "0x00331e60",
+  "name": "PlayerBase_registerLua_waitForFading",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00731e60"
+ },
+ {
+  "rva": 3350448,
+  "rva_hex": "0x00331fb0",
+  "name": "PlayerBase_registerLua_isFading",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00731fb0"
+ },
+ {
+  "rva": 3350784,
+  "rva_hex": "0x00332100",
+  "name": "PlayerBase_registerLua_cancelFading",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00732100"
+ },
+ {
+  "rva": 3351120,
+  "rva_hex": "0x00332250",
+  "name": "PlayerBase_registerLua_fadeInAfterWarp",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00732250"
+ },
+ {
+  "rva": 3351456,
+  "rva_hex": "0x003323a0",
+  "name": "PlayerBase_registerLua_resetFade",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_007323a0"
+ },
+ {
+  "rva": 3351792,
+  "rva_hex": "0x003324f0",
+  "name": "PlayerBase_registerLua_fadeInNowLoadingForNoticeEventJustInArea",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_007324f0"
+ },
+ {
+  "rva": 3352128,
+  "rva_hex": "0x00332640",
+  "name": "PlayerBase_registerLua_lockPlayerControl",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00732640"
+ },
+ {
+  "rva": 3352464,
+  "rva_hex": "0x00332790",
+  "name": "PlayerBase_registerLua_unlockPlayerControl",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00732790"
+ },
+ {
+  "rva": 3352800,
+  "rva_hex": "0x003328e0",
+  "name": "PlayerBase_registerLua_isPlayerControlEnabled",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_007328e0"
+ },
+ {
+  "rva": 3353136,
+  "rva_hex": "0x00332a30",
+  "name": "PlayerBase_registerLua_lockLockonControl",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00732a30"
+ },
+ {
+  "rva": 3353472,
+  "rva_hex": "0x00332b80",
+  "name": "PlayerBase_registerLua_unlockLockonControl",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00732b80"
+ },
+ {
+  "rva": 3353808,
+  "rva_hex": "0x00332cd0",
+  "name": "PlayerBase_registerLua_isLockonControlEnabled",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00732cd0"
+ },
+ {
+  "rva": 3354144,
+  "rva_hex": "0x00332e20",
+  "name": "PlayerBase_registerLua_lockCameraControl",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00732e20"
+ },
+ {
+  "rva": 3354480,
+  "rva_hex": "0x00332f70",
+  "name": "PlayerBase_registerLua_unlockCameraControl",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00732f70"
+ },
+ {
+  "rva": 3354816,
+  "rva_hex": "0x003330c0",
+  "name": "PlayerBase_registerLua_isCameraControlEnabled",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_007330c0"
+ },
+ {
+  "rva": 3355152,
+  "rva_hex": "0x00333210",
+  "name": "PlayerBase_registerLua_setLockonTarget",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00733210"
+ },
+ {
+  "rva": 3355488,
+  "rva_hex": "0x00333360",
+  "name": "PlayerBase_registerLua_getLockonTarget",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00733360"
+ },
+ {
+  "rva": 3355824,
+  "rva_hex": "0x003334b0",
+  "name": "PlayerBase_registerLua_waitForMapLoaded",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_007334b0"
+ },
+ {
+  "rva": 3356160,
+  "rva_hex": "0x00333600",
+  "name": "PlayerBase_registerLua_setMusic",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00733600"
+ },
+ {
+  "rva": 3356496,
+  "rva_hex": "0x00333750",
+  "name": "PlayerBase_registerLua_setWeather",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00733750"
+ },
+ {
+  "rva": 3370944,
+  "rva_hex": "0x00336fc0",
+  "name": "NpcBaseClass_registerLua_callServerOnTalk",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00736fc0"
+ },
+ {
+  "rva": 3371280,
+  "rva_hex": "0x00337110",
+  "name": "NpcBaseClass_registerLua_callServerOnEmote",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00737110"
+ },
+ {
+  "rva": 3371616,
+  "rva_hex": "0x00337260",
+  "name": "NpcBaseClass_registerLua_callServerOnPush",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00737260"
+ },
+ {
+  "rva": 3403904,
+  "rva_hex": "0x0033f080",
+  "name": "PlayerBase_registerLua_executeCommand",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0073f080"
+ },
+ {
+  "rva": 3404240,
+  "rva_hex": "0x0033f1d0",
+  "name": "PlayerBase_registerLua_callServerOnCommand",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0073f1d0"
+ },
+ {
+  "rva": 3404576,
+  "rva_hex": "0x0033f320",
+  "name": "PlayerBase_registerLua_doServerOnCommand",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0073f320"
+ },
+ {
+  "rva": 3489680,
+  "rva_hex": "0x00353f90",
+  "name": "PlayerBase_registerAllLuaBindings",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00753f90"
+ },
+ {
+  "rva": 3512640,
+  "rva_hex": "0x00359940",
+  "name": "ZoneIn_handler_opcode_11_CutScene_onShowWidgetClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00759940"
+ },
+ {
+  "rva": 3512800,
+  "rva_hex": "0x003599e0",
+  "name": "ZoneIn_handler_opcode_12_CutScene_onHideWidgetClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_007599e0"
+ },
+ {
+  "rva": 3512928,
+  "rva_hex": "0x00359a60",
+  "name": "ZoneIn_handler_opcode_16_Debug_scriptExec",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00759a60"
+ },
+ {
+  "rva": 3513040,
+  "rva_hex": "0x00359ad0",
+  "name": "ZoneIn_handler_opcode_17_onPreCutSceneCancel",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00759ad0"
+ },
+ {
+  "rva": 3513152,
+  "rva_hex": "0x00359b40",
+  "name": "ZoneIn_handler_opcode_18_onPostCutSceneCancel",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00759b40"
+ },
+ {
+  "rva": 3513264,
+  "rva_hex": "0x00359bb0",
+  "name": "ZoneIn_handler_opcode_20_DesktopWidget_onPreWarp",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00759bb0"
+ },
+ {
+  "rva": 3513376,
+  "rva_hex": "0x00359c20",
+  "name": "ZoneIn_handler_opcode_21_DesktopWidget_onPostWarp",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00759c20"
+ },
+ {
+  "rva": 3513488,
+  "rva_hex": "0x00359c90",
+  "name": "ZoneIn_handler_vtable_dispatch_slot21",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00759c90"
+ },
+ {
+  "rva": 3513520,
+  "rva_hex": "0x00359cb0",
+  "name": "ZoneIn_handler_vtable_dispatch_slot22",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00759cb0"
+ },
+ {
+  "rva": 3513584,
+  "rva_hex": "0x00359cf0",
+  "name": "ZoneIn_handler_vtable_dispatch_slot24",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00759cf0"
+ },
+ {
+  "rva": 3513616,
+  "rva_hex": "0x00359d10",
+  "name": "ZoneIn_handler_vtable_dispatch_slot25",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00759d10"
+ },
+ {
+  "rva": 3514064,
+  "rva_hex": "0x00359ed0",
+  "name": "ZoneIn_handler_opcode_39_internal_map_insert",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00759ed0"
+ },
+ {
+  "rva": 3514192,
+  "rva_hex": "0x00359f50",
+  "name": "ZoneIn_handler_opcode_40_timed_or_immediate_exec",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00759f50"
+ },
+ {
+  "rva": 3514464,
+  "rva_hex": "0x0035a060",
+  "name": "ZoneIn_handler_opcode_43_CharaBase_onChangeSystemFlag",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075a060"
+ },
+ {
+  "rva": 3514592,
+  "rva_hex": "0x0035a0e0",
+  "name": "ZoneIn_handler_opcode_44_MyPlayer_onReceiveLimitAddicted",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075a0e0"
+ },
+ {
+  "rva": 3528528,
+  "rva_hex": "0x0035d750",
+  "name": "ZoneIn_handler_opcode_4_DesktopWidget_onTargetChanged",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075d750"
+ },
+ {
+  "rva": 3528576,
+  "rva_hex": "0x0035d780",
+  "name": "ZoneIn_handler_opcode_5_DesktopWidget_onTargetDecided",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075d780"
+ },
+ {
+  "rva": 3528624,
+  "rva_hex": "0x0035d7b0",
+  "name": "ZoneIn_handler_opcode_6_GetCurrentTarget_query",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075d7b0"
+ },
+ {
+  "rva": 3528752,
+  "rva_hex": "0x0035d830",
+  "name": "ZoneIn_handler_opcode_7_CutScene_onInitializationClip_Preview",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075d830"
+ },
+ {
+  "rva": 3528800,
+  "rva_hex": "0x0035d860",
+  "name": "ZoneIn_handler_opcode_8_CutScene_onInitializationClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075d860"
+ },
+ {
+  "rva": 3528848,
+  "rva_hex": "0x0035d890",
+  "name": "ZoneIn_handler_opcode_9_CutScene_onShowUIClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075d890"
+ },
+ {
+  "rva": 3528912,
+  "rva_hex": "0x0035d8d0",
+  "name": "ZoneIn_handler_opcode_10_CutScene_onHideUIClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075d8d0"
+ },
+ {
+  "rva": 3528960,
+  "rva_hex": "0x0035d900",
+  "name": "ZoneIn_handler_opcode_13_CutScene_onOpenUIClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075d900"
+ },
+ {
+  "rva": 3529040,
+  "rva_hex": "0x0035d950",
+  "name": "ZoneIn_handler_opcode_14_CutScene_setActiveAndFinalize",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075d950"
+ },
+ {
+  "rva": 3531200,
+  "rva_hex": "0x0035e1c0",
+  "name": "ZoneOut_send_large_simple",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075e1c0"
+ },
+ {
+  "rva": 3531312,
+  "rva_hex": "0x0035e230",
+  "name": "ZoneOut_send_large_checksummed_v3",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075e230"
+ },
+ {
+  "rva": 3531680,
+  "rva_hex": "0x0035e3a0",
+  "name": "ZoneOut_send_large_checksummed_v1",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075e3a0"
+ },
+ {
+  "rva": 3532048,
+  "rva_hex": "0x0035e510",
+  "name": "ZoneOut_send_large_checksummed_v2",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075e510"
+ },
+ {
+  "rva": 3532400,
+  "rva_hex": "0x0035e670",
+  "name": "ZoneOut_send_opcode_0x12e_104B",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075e670"
+ },
+ {
+  "rva": 3532896,
+  "rva_hex": "0x0035e860",
+  "name": "ZoneOut_send_opcode_0x130_32B_variantA",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075e860"
+ },
+ {
+  "rva": 3533008,
+  "rva_hex": "0x0035e8d0",
+  "name": "ZoneOut_send_opcode_0x130_32B_variantB",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075e8d0"
+ },
+ {
+  "rva": 3533136,
+  "rva_hex": "0x0035e950",
+  "name": "ZoneOut_send_opcode_0x133_56B",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075e950"
+ },
+ {
+  "rva": 3533392,
+  "rva_hex": "0x0035ea50",
+  "name": "ZoneOut_send_opcode_0x131_24B_byte",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075ea50"
+ },
+ {
+  "rva": 3533504,
+  "rva_hex": "0x0035eac0",
+  "name": "ZoneOut_send_opcode_0x132_24B_byteUshort",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075eac0"
+ },
+ {
+  "rva": 3533728,
+  "rva_hex": "0x0035eba0",
+  "name": "ZoneOut_send_opcode_0x134_40B_withNonce",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075eba0"
+ },
+ {
+  "rva": 3534032,
+  "rva_hex": "0x0035ecd0",
+  "name": "ZoneOut_send_opcode_0x135_24B_dword",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0075ecd0"
+ },
+ {
+  "rva": 3588640,
+  "rva_hex": "0x0036c220",
+  "name": "ZoneIn_handler_chat_variant_C_tell",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0076c220"
+ },
+ {
+  "rva": 3596912,
+  "rva_hex": "0x0036e270",
+  "name": "ZoneOut_sendScriptError_opcode_0x12d",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0076e270"
+ },
+ {
+  "rva": 3629888,
+  "rva_hex": "0x00376340",
+  "name": "UserDataReceiver_vtable_noop_inherited",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00776340"
+ },
+ {
+  "rva": 4800656,
+  "rva_hex": "0x00494090",
+  "name": "Lua_send6argRpc_via_opcode_0x12e",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00894090"
+ },
+ {
+  "rva": 4820256,
+  "rva_hex": "0x00498d20",
+  "name": "Player_invokeLua_onTouch_proximityBegin",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00898d20"
+ },
+ {
+  "rva": 4820656,
+  "rva_hex": "0x00498eb0",
+  "name": "Player_invokeLua_onTouch_proximityEnd",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00898eb0"
+ },
+ {
+  "rva": 4835504,
+  "rva_hex": "0x0049c8b0",
+  "name": "Router_dispatch_to_MyPlayer_handleLimitAddictedNotice",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0089c8b0"
+ },
+ {
+  "rva": 4835968,
+  "rva_hex": "0x0049ca80",
+  "name": "Router_dispatch_to_CharaBase_onChangeSystemFlag",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0089ca80"
+ },
+ {
+  "rva": 4837744,
+  "rva_hex": "0x0049d170",
+  "name": "ChatBuilder_singleTarget_writeCommandTag_B",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0089d170"
+ },
+ {
+  "rva": 4837920,
+  "rva_hex": "0x0049d220",
+  "name": "ChatBuilder_singleTarget_writeCommandTag_A",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0089d220"
+ },
+ {
+  "rva": 4838208,
+  "rva_hex": "0x0049d340",
+  "name": "ChatBuilder_singleTarget_writeCommandTag_D",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0089d340"
+ },
+ {
+  "rva": 4842272,
+  "rva_hex": "0x0049e320",
+  "name": "ChatBuilder_tell_readRecipientName",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0089e320"
+ },
+ {
+  "rva": 4842480,
+  "rva_hex": "0x0049e3f0",
+  "name": "ChatBuilder_tell_thunk",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0089e3f0"
+ },
+ {
+  "rva": 4845264,
+  "rva_hex": "0x0049eed0",
+  "name": "Network_UserDataReceiver_ctor",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0089eed0"
+ },
+ {
+  "rva": 4848624,
+  "rva_hex": "0x0049fbf0",
+  "name": "Network_UserDataReceiver_multiModeDispatcher",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_0089fbf0"
+ },
+ {
+  "rva": 4860784,
+  "rva_hex": "0x004a2b70",
+  "name": "UserDataReceiver_vtable_slot23_resolveActorIntoField0x18",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a2b70"
+ },
+ {
+  "rva": 4861264,
+  "rva_hex": "0x004a2d50",
+  "name": "UserDataReceiver_vtable_slot22_appendPayloadToContainer",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a2d50"
+ },
+ {
+  "rva": 4864400,
+  "rva_hex": "0x004a3990",
+  "name": "Router_dispatch_to_CutScene_onInitializationClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a3990"
+ },
+ {
+  "rva": 4864480,
+  "rva_hex": "0x004a39e0",
+  "name": "Router_dispatch_to_CutScene_onShowUIClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a39e0"
+ },
+ {
+  "rva": 4864576,
+  "rva_hex": "0x004a3a40",
+  "name": "Router_dispatch_to_CutScene_onHideUIClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a3a40"
+ },
+ {
+  "rva": 4864672,
+  "rva_hex": "0x004a3aa0",
+  "name": "Router_dispatch_to_CutScene_method_FUN_006fc3a0",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a3aa0"
+ },
+ {
+  "rva": 4864768,
+  "rva_hex": "0x004a3b00",
+  "name": "Router_dispatch_to_CutScene_onHideWidgetClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a3b00"
+ },
+ {
+  "rva": 4864848,
+  "rva_hex": "0x004a3b50",
+  "name": "Router_dispatch_to_CutScene_onOpenUIClip",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a3b50"
+ },
+ {
+  "rva": 4865696,
+  "rva_hex": "0x004a3ea0",
+  "name": "Router_dispatch_to_DesktopWidget_onTargetChanged",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a3ea0"
+ },
+ {
+  "rva": 4865744,
+  "rva_hex": "0x004a3ed0",
+  "name": "Router_dispatch_to_DesktopWidget_onTargetDecided",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a3ed0"
+ },
+ {
+  "rva": 4867088,
+  "rva_hex": "0x004a4410",
+  "name": "Router_dispatch_to_DesktopWidget_onPreWarp",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a4410"
+ },
+ {
+  "rva": 4867280,
+  "rva_hex": "0x004a44d0",
+  "name": "Router_dispatch_to_DesktopWidget_onPostWarp",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a44d0"
+ },
+ {
+  "rva": 4867536,
+  "rva_hex": "0x004a45d0",
+  "name": "Router_dispatch_to_System_onPreCutSceneCancel",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a45d0"
+ },
+ {
+  "rva": 4867872,
+  "rva_hex": "0x004a4720",
+  "name": "Router_dispatch_to_System_onPostCutSceneCancel",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_008a4720"
+ },
+ {
+  "rva": 10179328,
+  "rva_hex": "0x009b5300",
+  "name": "ProtoChannel_dispatchPacketById",
+  "source": "ffxivDecomp",
+  "current_symbol": "FUN_00db5300"
+ }
+]
