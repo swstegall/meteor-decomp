@@ -3,9 +3,18 @@
 `meteor-decomp` is a clean-room decompilation of the FINAL FANTASY XIV
 v1.23b Windows client binaries (`ffxivgame.exe`, `ffxivboot.exe`,
 `ffxivlogin.exe`, `ffxivupdater.exe`, `ffxivconfig.exe`). Source code
-recovered here is original work of this project's contributors,
-written by reading disassembled output of binaries that the
-contributor obtained from a legitimate retail install.
+recovered here is written by reading disassembled output of binaries
+that the contributor obtained from a legitimate retail install. It is
+**clean-room** in the sense that matters — no original Square Enix
+source code is used; everything is reconstructed from the binary.
+
+The work is **collaborative**, not the sole authorship of one
+contributor: it incorporates reverse-engineering findings from the
+`FFXIVLegacyClientStructs` and `ffxivDecomp` projects
+(github.com/Yokimitsuro), used with their author's express permission.
+Those projects are themselves clean-room (RE'd from the same retail
+binary, not from SE source), so incorporating them does not introduce
+any Square Enix source. See the per-project sections below.
 
 The original `.exe` binaries themselves are copyright Square Enix
 Holdings Co., Ltd. and are NOT distributed with this repository. They
@@ -40,9 +49,10 @@ PE-patching scaffolding inform corresponding modules in
 ## FFXIVLegacyClientStructs
 
 - Source: <https://github.com/Yokimitsuro/FFXIVLegacyClientStructs>
-- License: MIT (see upstream `LICENSE`)
+- License: MIT (see upstream `LICENSE`) — also used with the author's
+  express permission as a collaborator
 
-FFXIVLegacyClientStructs is an independent RTTI-driven reverse
+FFXIVLegacyClientStructs is a separate RTTI-driven reverse
 engineering of the same 1.23b `ffxivgame.exe`, modeled on the retail
 `FFXIVClientStructs` project. It ships ~2,572 `[StructLayout]`-explicit
 structs (RTTI mangled name, struct size, per-field offsets/names) plus
@@ -65,22 +75,21 @@ from our binary.
 ## ffxivDecomp
 
 - Source: <https://github.com/Yokimitsuro/ffxivDecomp>
-- License: none declared (docs-only analysis repository)
+- Usage: incorporated with the author's express permission
 
-ffxivDecomp is an independent docs-only reverse-engineering analysis of
-the same 1.23b `ffxivgame.exe` (no decompiled function bodies — only
-finding write-ups). We ingest only **factual data** from its findings —
-function names paired with virtual addresses, outbound/inbound opcode
-numbers, and Lua-binding names — via
-`tools/import_ffxivdecomp_symbols.py`, which emits
+ffxivDecomp is a docs-only reverse-engineering analysis of the same
+1.23b `ffxivgame.exe` (finding write-ups; no decompiled function
+bodies). Its findings — function names paired with virtual addresses,
+opcode rosters, Lua-binding names, dispatch structure, and the
+accompanying analysis — are incorporated into meteor-decomp with the
+author's (Yokimitsuro's) express permission. The structured import
+(`tools/import_ffxivdecomp_symbols.py`) emits
 `config/ffxivgame.ffxivdecomp_symbols.json` and
-`docs/ffxivdecomp_opcode_binding_map.md`. Every imported (name, VA) pair
-is cross-checked against our own `config/ffxivgame.symbols.json` and is
-confirmed against our own disassembly before a match relies on it; the
-opcode set is cross-validated against our own `up_opcodes` extraction.
-These are facts present in the binary, not copyrightable expression. No
-prose is copied. As ffxivDecomp declares no license, only such factual
-data is used, with attribution here.
+`docs/ffxivdecomp_opcode_binding_map.md`; imported (name, VA) pairs are
+cross-checked against our own `config/ffxivgame.symbols.json` and
+confirmed against our own disassembly as a **correctness** practice (so
+a match doesn't inherit an upstream error), and the opcode set is
+cross-validated against our own `up_opcodes` extraction.
 
 ## LandSandBoat (referenced, not copied)
 
