@@ -30,6 +30,26 @@ already produced enough wire-level ground truth to validate
 
 ### Recent milestones
 
+- **2026-05-25** — **Library-signature naming (Ghidra Function ID)**:
+  built a FidDb from the statically-linked libraries (compiled from
+  source with the VC8 toolchain) and applied it — **899 functions named**
+  in `ffxivgame.exe`: MSVC CRT 47 + zlib 1.2.3 19 + **Lua 5.1.4 ~353** +
+  **OpenSSL 1.0.0 ~480**. The whole Lua VM and OpenSSL crypto layer are
+  now named (defs + call sites). Autonomous pipeline: `tools/build_fid.py`
+  + `tools/ghidra_scripts/PopulateFidLibrary.java`; full write-up in
+  **[docs/fid_signature_matching.md](docs/fid_signature_matching.md)**.
+  (DirectX 9 — `d3d9`/`d3dx9_41` — is dynamically linked, already named
+  via imports; no other static third-party libs are present.)
+- **2026-05-25** — **Collaborator imports** from FFXIVLegacyClientStructs
+  + ffxivDecomp (used with permission — see NOTICE.md): RTTI struct
+  layouts → `config/<bin>.legacy_structs.json` + per-class notes under
+  `decomp-notes/types/`; **140 ffxivDecomp-named functions** + the full
+  Zone in/out opcode rosters → `config/<bin>.ffxivdecomp_symbols.json`,
+  `docs/ffxivdecomp_opcode_binding_map.md`,
+  `docs/ffxivdecomp_inbound_opcodes.md`; all 39 PlayerBase Lua bindings
+  mapped to MyPlayer vtable member-fn bodies; a name-override layer
+  (`config/<bin>.name_overrides.json`) wired into the work pool inputs.
+  SEQ-005 kick-gate lead in `docs/seq005_kick_gate_analysis.md`.
 - **2026-05-02** — Phase 4 sqpack-cat exit criterion **complete**:
   `tools/sqpack_cat.py 0x<rid> --root <game> --inflate` resolves a
   resource_id to its DAT path, opens the file, walks PackRead-format
@@ -49,9 +69,18 @@ already produced enough wire-level ground truth to validate
 - **2026-05-01** — chara-make 4 patches landed in garlemald (face_cheek
   / face_jaw rename, current_class split, initial_bonus_item `[u32;4]`).
 
-### Headline numbers (2026-05-02)
+### Headline numbers
 
-`make progress` summary:
+> **2026-05-02 snapshot below.** The work pool (`config/<bin>.yaml`) is
+> currently mid-regeneration by the agent orchestrator, so its "matched"
+> status column is transiently reset — **run `make progress` for live
+> numbers**. The durable measure is the `_rosetta/*.cpp` count, which as
+> of **2026-05-25** stands at **67,525 files / 716,925 B (3.78 %)** across
+> all five binaries (up from 65,595 / 683,986 B). Separately, FID has now
+> *named* 899 library functions in `ffxivgame.exe` (see milestone above) —
+> a distinct metric from byte-matching.
+
+`make progress` summary (2026-05-02):
 
 | Binary | YAML matched | `_rosetta/*.cpp` files |
 |---|---:|---:|

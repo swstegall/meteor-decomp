@@ -106,6 +106,16 @@ Our hybrid:
 - **Excluded** middleware: Miles Sound System (`MSSMIXER` + linked
   `mss32.dll`), DirectX 9 wrappers, MSVC C/C++ runtime, ATL/MFC
   fragments, RSA/CryptoAPI shims, CRT zlib. Identified and skipped.
+  **Update (2026-05-25):** these are now not just skipped but *named*.
+  A Ghidra FidDb built from the statically-linked libraries (compiled
+  from source with the VC8 toolchain) named **899** functions in
+  `ffxivgame.exe`: MSVC CRT (47), **zlib 1.2.3** (19), **Lua 5.1.4 VM**
+  (~353 — the scripting host's interpreter is off-the-shelf Lua), and
+  **OpenSSL 1.0.0** (~480 — the binary statically links a *full* crypto
+  suite, not just RSA/CryptoAPI shims). DirectX 9 (`d3d9`/`d3dx9_41`) is
+  dynamically linked, so it's already named via the import table — no
+  static D3DX to match. Pipeline + per-library results:
+  `docs/fid_signature_matching.md`.
 - **Renderer**: deferred. We document the call-graph + buffer
   layouts so `garlemald-client` could, if it ever wants, re-implement
   on Vulkan/Metal.
