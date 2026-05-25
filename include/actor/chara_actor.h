@@ -277,6 +277,29 @@ namespace OFFSET {
     static const size_t field_2b9c                 = 0x2b9c;  // dword, init = 0
     static const size_t field_2ba0                 = 0x2ba0;  // dword, init = 0 (last observed field)
 
+    // ---- Cross-reference: field names from FFXIVLegacyClientStructs ----
+    //
+    // Semantic names recovered by the FFXIVLegacyClientStructs collaborator
+    // (github.com/Yokimitsuro; used with permission — see NOTICE.md and
+    // config/ffxivgame.legacy_structs.json). These are ALIASES for offsets
+    // already cataloged above — added (not renamed) so existing references
+    // to the field_*/value_* constants keep working. Names are
+    // cross-referenced, not byte-verified; confirm before relying on one.
+    static const size_t position_x        = 0x0154;  // = field_0154
+    static const size_t position_y        = 0x0158;  // = field_0158
+    static const size_t rotation_packed   = 0x015c;  // = field_015c_w
+    static const size_t transform_flags   = 0x0160;  // = field_0160
+    static const size_t handle            = 0x0138;  // = some_ptr_138; FFXIVLECS reads
+                                                      //   init -1 (INVALID_HANDLE) — note our
+                                                      //   ctor pass recorded init 0; reconcile
+    static const size_t enabled           = 0x0169;  // = flag_0169 (both sources agree: init 1)
+    static const size_t texture_manager   = 0x0250;  // RaptureTextureManager (vt 0xfb6d94); not
+                                                      //   previously cataloged here
+    static const size_t cutscene_manager  = 0x118c;  // = field_118c (CutSceneManager vt 0xfbeb1c)
+    static const size_t cutscene_state    = 0x11b8;  // = field_11b8
+    static const size_t stat_property_id_1 = 0x1170; // = value_1170 (FFXIVLECS: StatPropertyId1)
+    static const size_t stat_property_id_3 = 0x1178; // = value_1178 (FFXIVLECS: StatPropertyId3)
+
 }  // namespace OFFSET
 
 }  // namespace chara_actor
