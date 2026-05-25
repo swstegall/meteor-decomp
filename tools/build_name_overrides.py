@@ -46,17 +46,24 @@ def main() -> int:
 
     syms = {s["rva"]: s["name"] for s in json.loads((cfg / f"{args.binary}.symbols.json").read_text())}
 
+    # (file, source-label, confidence-filter) — the MyPlayer slot map is
+    # only folded in for validated/high entries; its "inferred" slots stay
+    # in myplayer_bindings.json (available, but not asserted as overrides).
     sidecars = [
-        (f"{args.binary}.legacy_symbols.json", "FFXIVLegacyClientStructs"),
-        (f"{args.binary}.ffxivdecomp_symbols.json", "ffxivDecomp"),
+        (f"{args.binary}.legacy_symbols.json", "FFXIVLegacyClientStructs", None),
+        (f"{args.binary}.ffxivdecomp_symbols.json", "ffxivDecomp", None),
+        (f"{args.binary}.myplayer_bindings.json", "MyPlayer-vtable-map", {"validated", "high"}),
     ]
     rows: dict[int, dict] = {}
-    conflicts, skipped_named = [], 0
-    for fname, src in sidecars:
+    conflicts, skipped_named, skipped_lowconf = [], 0, 0
+    for fname, src, conf_ok in sidecars:
         p = cfg / fname
         if not p.exists():
             continue
         for e in json.loads(p.read_text()):
+            if conf_ok is not None and e.get("confidence") not in conf_ok:
+                skipped_lowconf += 1
+                continue
             rva = e["rva"]
             name = e["name"]
             cur = syms.get(rva)
@@ -78,7 +85,8 @@ def main() -> int:
     out.write_text(json.dumps(merged, indent=1), encoding="utf-8")
 
     print(f"wrote config/{out.name}: {len(merged)} name overrides")
-    print(f"  (skipped {skipped_named} already-human-named; {len(conflicts)} conflicts)")
+    print(f"  (skipped {skipped_named} already-human-named; {skipped_lowconf} low-confidence; "
+          f"{len(conflicts)} conflicts)")
     for rva, a, b, src in conflicts:
         print(f"  CONFLICT 0x{rva:08x}: {a!r} vs {b!r} (from {src})")
     return 0

@@ -77,6 +77,13 @@
   "current_symbol": "FUN_006dc8b0"
  },
  {
+  "rva": 3019296,
+  "rva_hex": "0x002e1220",
+  "name": "MyPlayer::_breakCommand",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_006e1220"
+ },
+ {
   "rva": 3023152,
   "rva_hex": "0x002e2130",
   "name": "Lua_send8byteStateAt0x68_via_0x130_variantB",
@@ -91,10 +98,38 @@
   "current_symbol": "FUN_006e2af0"
  },
  {
+  "rva": 3027296,
+  "rva_hex": "0x002e3160",
+  "name": "MyPlayer::_waitForFading",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_006e3160"
+ },
+ {
+  "rva": 3027504,
+  "rva_hex": "0x002e3230",
+  "name": "MyPlayer::_cancelFading",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_006e3230"
+ },
+ {
+  "rva": 3027552,
+  "rva_hex": "0x002e3260",
+  "name": "MyPlayer::_fadeInAfterWarp",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_006e3260"
+ },
+ {
+  "rva": 3027616,
+  "rva_hex": "0x002e32a0",
+  "name": "MyPlayer::_resetFade",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_006e32a0"
+ },
+ {
   "rva": 3027696,
   "rva_hex": "0x002e32f0",
-  "name": "MyPlayer_fadeInNowLoadingForNoticeEventJustInArea_impl",
-  "source": "ffxivDecomp",
+  "name": "MyPlayer::_fadeInNowLoadingForNoticeEventJustInArea",
+  "source": "MyPlayer-vtable-map",
   "current_symbol": "FUN_006e32f0"
  },
  {
@@ -110,6 +145,20 @@
   "name": "Lua_sendByteToggle_via_opcode_0x131",
   "source": "ffxivDecomp",
   "current_symbol": "FUN_006e5ad0"
+ },
+ {
+  "rva": 3038432,
+  "rva_hex": "0x002e5ce0",
+  "name": "MyPlayer::_fadeIn",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_006e5ce0"
+ },
+ {
+  "rva": 3038544,
+  "rva_hex": "0x002e5d50",
+  "name": "MyPlayer::_fadeOut",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_006e5d50"
  },
  {
   "rva": 3040096,
@@ -135,9 +184,23 @@
  {
   "rva": 3051344,
   "rva_hex": "0x002e8f50",
-  "name": "MyPlayer_cancelNotice_impl",
-  "source": "ffxivDecomp",
+  "name": "MyPlayer::_cancelNotice",
+  "source": "MyPlayer-vtable-map",
   "current_symbol": "FUN_006e8f50"
+ },
+ {
+  "rva": 3051568,
+  "rva_hex": "0x002e9030",
+  "name": "MyPlayer::_cancelEmote",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_006e9030"
+ },
+ {
+  "rva": 3051792,
+  "rva_hex": "0x002e9110",
+  "name": "MyPlayer::_cancelPush",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_006e9110"
  },
  {
   "rva": 3124848,
@@ -243,6 +306,34 @@
   "name": "Player_handleLimitAddictedNotice",
   "source": "ffxivDecomp",
   "current_symbol": "FUN_00704230"
+ },
+ {
+  "rva": 3165616,
+  "rva_hex": "0x00304db0",
+  "name": "MyPlayer::_isEventPlaying",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_00704db0"
+ },
+ {
+  "rva": 3165760,
+  "rva_hex": "0x00304e40",
+  "name": "MyPlayer::_isCommandPlaying",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_00704e40"
+ },
+ {
+  "rva": 3166112,
+  "rva_hex": "0x00304fa0",
+  "name": "MyPlayer::_countCommandPlaying",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_00704fa0"
+ },
+ {
+  "rva": 3166448,
+  "rva_hex": "0x003050f0",
+  "name": "MyPlayer::_isFading",
+  "source": "MyPlayer-vtable-map",
+  "current_symbol": "FUN_007050f0"
  },
  {
   "rva": 3169968,

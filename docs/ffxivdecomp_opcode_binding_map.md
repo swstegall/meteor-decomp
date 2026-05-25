@@ -16,13 +16,11 @@ Machine form: `config/ffxivgame.ffxivdecomp_symbols.json`.
 | `0x002dc8b0` | `Debug_executeScriptFromCutSceneTable` | named |  |  | `FUN_006dc8b0` |
 | `0x002e2130` | `Lua_send8byteStateAt0x68_via_0x130_variantB` | lua_impl | 0x130 | _sendMovementState | `FUN_006e2130` |
 | `0x002e2af0` | `Lua_sendByteUshortAt0x68_via_0x132` | lua_impl | 0x132 | _sendCompoundState | `FUN_006e2af0` |
-| `0x002e32f0` | `MyPlayer_fadeInNowLoadingForNoticeEventJustInArea_impl` | lua_impl |  | _fadeInNowLoadingForNoticeEventJustInArea | `FUN_006e32f0` |
 | `0x002e42e0` | `Lua_listIndexSend_via_0x130_variantA` | lua_impl | 0x130 | _sendListIndex | `FUN_006e42e0` |
 | `0x002e5ad0` | `Lua_sendByteToggle_via_opcode_0x131` | lua_impl | 0x131 | _sendByteToggle | `FUN_006e5ad0` |
 | `0x002e6360` | `Lua_sendChallenge_via_opcode_0x134` | lua_impl | 0x134 | _sendChallenge | `FUN_006e6360` |
 | `0x002e6d90` | `Lua_worldMaster__lookAtPlayerTutorial` | lua_impl |  | _lookAtPlayerTutorial | `FUN_006e6d90` |
 | `0x002e85e0` | `lua_updateWork_impl` | lua_impl | 0x12f | _updateWork | `FUN_006e85e0` |
-| `0x002e8f50` | `MyPlayer_cancelNotice_impl` | lua_impl |  | _cancelNotice | `FUN_006e8f50` |
 | `0x002fae70` | `CharaBase_invokeLua_onChangeSystemFlag` | inbound_invoker |  |  | `FUN_006fae70` |
 | `0x002fb9c0` | `CutScene_invokeLua_onFinalizeClip` | inbound_invoker |  |  | `FUN_006fb9c0` |
 | `0x002fbc50` | `CutScene_method_setActiveAndFinalize` | named |  |  | `FUN_006fbc50` |

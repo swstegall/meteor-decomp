@@ -77,11 +77,13 @@ the kick itself is what arms that flow, via this receiver.
    - `FUN_006E32F0` = `MyPlayer::_fadeInNowLoadingForNoticeEventJustInArea`
      — **the kick-dispatcher clearer body; decompile this** for the hang.
    - `FUN_006E8F50` = `MyPlayer::_cancelNotice`.
-   Both are seeded into `config/ffxivgame.ffxivdecomp_symbols.json`. Note
-   the neighbours `0x006E3160/3230/3260/32A0/32F0` form a tight cluster —
-   likely the rest of the fade/notice family; the full 39-binding →
-   MyPlayer-vtable-slot map is recoverable from the same vtable dump
-   (linear from the two fixed points) as a follow-up.
+   The **full 39-binding → MyPlayer-vtable-slot map is now done**:
+   `config/ffxivgame.myplayer_bindings.json` (via
+   `tools/map_playerbase_vtable_slots.py`, which asserts both anchors so it
+   can't silently mislabel). Bodies named `MyPlayer::_<binding>` — 2
+   validated, 13 high (bracketed by the anchors, slots 52–66), 24 inferred
+   (same thunk-order mechanism, anchored one side — verify before relying).
+   The validated + high subset is folded into the name-override layer.
 3. **`FUN_006fb9c0` = `CutScene_invokeLua_onFinalizeClip`** (opcode 14,
    dual-pass Preview+Personage). The finalize is what the working warp
    path reaches and the hung path may not. Cross-check against the

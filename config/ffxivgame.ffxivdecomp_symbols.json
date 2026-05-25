@@ -70,17 +70,6 @@
   "auto_named": true
  },
  {
-  "rva": 3027696,
-  "rva_hex": "0x002e32f0",
-  "va_hex": "0x006e32f0",
-  "name": "MyPlayer_fadeInNowLoadingForNoticeEventJustInArea_impl",
-  "kind": "lua_impl",
-  "source": "finding_lua_api_to_zone_opcode_systematic_xref.md",
-  "lua_binding": "_fadeInNowLoadingForNoticeEventJustInArea",
-  "current_name": "FUN_006e32f0",
-  "auto_named": true
- },
- {
   "rva": 3031776,
   "rva_hex": "0x002e42e0",
   "va_hex": "0x006e42e0",
@@ -137,17 +126,6 @@
   "opcode": "0x12f",
   "lua_binding": "_updateWork",
   "current_name": "FUN_006e85e0",
-  "auto_named": true
- },
- {
-  "rva": 3051344,
-  "rva_hex": "0x002e8f50",
-  "va_hex": "0x006e8f50",
-  "name": "MyPlayer_cancelNotice_impl",
-  "kind": "lua_impl",
-  "source": "finding_lua_api_to_zone_opcode_systematic_xref.md",
-  "lua_binding": "_cancelNotice",
-  "current_name": "FUN_006e8f50",
   "auto_named": true
  },
  {

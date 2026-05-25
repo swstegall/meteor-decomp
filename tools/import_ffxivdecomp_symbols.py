@@ -74,17 +74,11 @@ HAND_SEED = [
     # FUN_0089e200 (setter of receiver+0x80). See the SEQ-005 synthesis note.
     ("0x0089eed0", "Network_UserDataReceiver_ctor", "receiver", None, None),
     ("0x0089fbf0", "Network_UserDataReceiver_multiModeDispatcher", "dispatcher", None, None),
-    # MyPlayer vtable member-fn bodies for two SEQ-005-critical bindings,
-    # located by dumping MyPlayer's vtable (tools/analyze_legacy_struct.sh
-    # --vtable Client::Control::MyPlayer): slot 52 + slot 66. The 14-slot
-    # span matches the PlayerBase registrar order (_cancelNotice -> 14
-    # bindings -> _fadeInNowLoadingForNoticeEventJustInArea), cross-
-    # validating the slot IDs. FUN_006e32f0 is the kick-dispatcher CLEARER
-    # body — the decompile target for the SEQ-005 hang. See
-    # docs/seq005_kick_gate_analysis.md.
-    ("0x006e8f50", "MyPlayer_cancelNotice_impl", "lua_impl", None, "_cancelNotice"),
-    ("0x006e32f0", "MyPlayer_fadeInNowLoadingForNoticeEventJustInArea_impl", "lua_impl", None,
-     "_fadeInNowLoadingForNoticeEventJustInArea"),
+    # NOTE: the MyPlayer vtable member-fn bodies for the Lua bindings
+    # (incl. the SEQ-005 clearer FUN_006e32f0 = _fadeInNowLoadingForNotice...
+    # and FUN_006e8f50 = _cancelNotice) are owned by the dedicated
+    # tools/map_playerbase_vtable_slots.py (all 39 bindings, anchored +
+    # self-validating), not hand-seeded here.
 ]
 
 RE_HEX = re.compile(r"0x[0-9a-fA-F]{6,8}")

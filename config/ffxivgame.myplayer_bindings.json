@@ -1,0 +1,353 @@
+[
+ {
+  "slot": 42,
+  "rva": 3186704,
+  "rva_hex": "0x0030a010",
+  "name": "MyPlayer::_executeCommand",
+  "lua_binding": "_executeCommand",
+  "confidence": "inferred",
+  "current_symbol": "FUN_0070a010"
+ },
+ {
+  "slot": 43,
+  "rva": 3164256,
+  "rva_hex": "0x00304860",
+  "name": "MyPlayer::_executeTalk",
+  "lua_binding": "_executeTalk",
+  "confidence": "inferred",
+  "current_symbol": "FUN_00704860"
+ },
+ {
+  "slot": 44,
+  "rva": 3164560,
+  "rva_hex": "0x00304990",
+  "name": "MyPlayer::_executeEmote",
+  "lua_binding": "_executeEmote",
+  "confidence": "inferred",
+  "current_symbol": "FUN_00704990"
+ },
+ {
+  "slot": 45,
+  "rva": 3050288,
+  "rva_hex": "0x002e8b30",
+  "name": "MyPlayer::_callServerOnCommand",
+  "lua_binding": "_callServerOnCommand",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e8b30"
+ },
+ {
+  "slot": 46,
+  "rva": 3050640,
+  "rva_hex": "0x002e8c90",
+  "name": "MyPlayer::_doServerOnCommand",
+  "lua_binding": "_doServerOnCommand",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e8c90"
+ },
+ {
+  "slot": 47,
+  "rva": 3164832,
+  "rva_hex": "0x00304aa0",
+  "name": "MyPlayer::_canExecuteCommand",
+  "lua_binding": "_canExecuteCommand",
+  "confidence": "inferred",
+  "current_symbol": "FUN_00704aa0"
+ },
+ {
+  "slot": 48,
+  "rva": 3165024,
+  "rva_hex": "0x00304b60",
+  "name": "MyPlayer::_canExecuteTalk",
+  "lua_binding": "_canExecuteTalk",
+  "confidence": "inferred",
+  "current_symbol": "FUN_00704b60"
+ },
+ {
+  "slot": 49,
+  "rva": 3165312,
+  "rva_hex": "0x00304c80",
+  "name": "MyPlayer::_canExecuteEmote",
+  "lua_binding": "_canExecuteEmote",
+  "confidence": "inferred",
+  "current_symbol": "FUN_00704c80"
+ },
+ {
+  "slot": 50,
+  "rva": 3050896,
+  "rva_hex": "0x002e8d90",
+  "name": "MyPlayer::_cancelCommand",
+  "lua_binding": "_cancelCommand",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e8d90"
+ },
+ {
+  "slot": 51,
+  "rva": 3051120,
+  "rva_hex": "0x002e8e70",
+  "name": "MyPlayer::_cancelTalk",
+  "lua_binding": "_cancelTalk",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e8e70"
+ },
+ {
+  "slot": 52,
+  "rva": 3051344,
+  "rva_hex": "0x002e8f50",
+  "name": "MyPlayer::_cancelNotice",
+  "lua_binding": "_cancelNotice",
+  "confidence": "validated",
+  "current_symbol": "FUN_006e8f50"
+ },
+ {
+  "slot": 53,
+  "rva": 3051568,
+  "rva_hex": "0x002e9030",
+  "name": "MyPlayer::_cancelEmote",
+  "lua_binding": "_cancelEmote",
+  "confidence": "high",
+  "current_symbol": "FUN_006e9030"
+ },
+ {
+  "slot": 54,
+  "rva": 3051792,
+  "rva_hex": "0x002e9110",
+  "name": "MyPlayer::_cancelPush",
+  "lua_binding": "_cancelPush",
+  "confidence": "high",
+  "current_symbol": "FUN_006e9110"
+ },
+ {
+  "slot": 55,
+  "rva": 3019296,
+  "rva_hex": "0x002e1220",
+  "name": "MyPlayer::_breakCommand",
+  "lua_binding": "_breakCommand",
+  "confidence": "high",
+  "current_symbol": "FUN_006e1220"
+ },
+ {
+  "slot": 56,
+  "rva": 3165616,
+  "rva_hex": "0x00304db0",
+  "name": "MyPlayer::_isEventPlaying",
+  "lua_binding": "_isEventPlaying",
+  "confidence": "high",
+  "current_symbol": "FUN_00704db0"
+ },
+ {
+  "slot": 57,
+  "rva": 3165760,
+  "rva_hex": "0x00304e40",
+  "name": "MyPlayer::_isCommandPlaying",
+  "lua_binding": "_isCommandPlaying",
+  "confidence": "high",
+  "current_symbol": "FUN_00704e40"
+ },
+ {
+  "slot": 58,
+  "rva": 3166112,
+  "rva_hex": "0x00304fa0",
+  "name": "MyPlayer::_countCommandPlaying",
+  "lua_binding": "_countCommandPlaying",
+  "confidence": "high",
+  "current_symbol": "FUN_00704fa0"
+ },
+ {
+  "slot": 59,
+  "rva": 3038432,
+  "rva_hex": "0x002e5ce0",
+  "name": "MyPlayer::_fadeIn",
+  "lua_binding": "_fadeIn",
+  "confidence": "high",
+  "current_symbol": "FUN_006e5ce0"
+ },
+ {
+  "slot": 60,
+  "rva": 3038544,
+  "rva_hex": "0x002e5d50",
+  "name": "MyPlayer::_fadeOut",
+  "lua_binding": "_fadeOut",
+  "confidence": "high",
+  "current_symbol": "FUN_006e5d50"
+ },
+ {
+  "slot": 61,
+  "rva": 3027296,
+  "rva_hex": "0x002e3160",
+  "name": "MyPlayer::_waitForFading",
+  "lua_binding": "_waitForFading",
+  "confidence": "high",
+  "current_symbol": "FUN_006e3160"
+ },
+ {
+  "slot": 62,
+  "rva": 3166448,
+  "rva_hex": "0x003050f0",
+  "name": "MyPlayer::_isFading",
+  "lua_binding": "_isFading",
+  "confidence": "high",
+  "current_symbol": "FUN_007050f0"
+ },
+ {
+  "slot": 63,
+  "rva": 3027504,
+  "rva_hex": "0x002e3230",
+  "name": "MyPlayer::_cancelFading",
+  "lua_binding": "_cancelFading",
+  "confidence": "high",
+  "current_symbol": "FUN_006e3230"
+ },
+ {
+  "slot": 64,
+  "rva": 3027552,
+  "rva_hex": "0x002e3260",
+  "name": "MyPlayer::_fadeInAfterWarp",
+  "lua_binding": "_fadeInAfterWarp",
+  "confidence": "high",
+  "current_symbol": "FUN_006e3260"
+ },
+ {
+  "slot": 65,
+  "rva": 3027616,
+  "rva_hex": "0x002e32a0",
+  "name": "MyPlayer::_resetFade",
+  "lua_binding": "_resetFade",
+  "confidence": "high",
+  "current_symbol": "FUN_006e32a0"
+ },
+ {
+  "slot": 66,
+  "rva": 3027696,
+  "rva_hex": "0x002e32f0",
+  "name": "MyPlayer::_fadeInNowLoadingForNoticeEventJustInArea",
+  "lua_binding": "_fadeInNowLoadingForNoticeEventJustInArea",
+  "confidence": "validated",
+  "current_symbol": "FUN_006e32f0"
+ },
+ {
+  "slot": 67,
+  "rva": 3052016,
+  "rva_hex": "0x002e91f0",
+  "name": "MyPlayer::_lockPlayerControl",
+  "lua_binding": "_lockPlayerControl",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e91f0"
+ },
+ {
+  "slot": 68,
+  "rva": 3027776,
+  "rva_hex": "0x002e3340",
+  "name": "MyPlayer::_unlockPlayerControl",
+  "lua_binding": "_unlockPlayerControl",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e3340"
+ },
+ {
+  "slot": 69,
+  "rva": 3027808,
+  "rva_hex": "0x002e3360",
+  "name": "MyPlayer::_isPlayerControlEnabled",
+  "lua_binding": "_isPlayerControlEnabled",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e3360"
+ },
+ {
+  "slot": 70,
+  "rva": 3166512,
+  "rva_hex": "0x00305130",
+  "name": "MyPlayer::_lockLockonControl",
+  "lua_binding": "_lockLockonControl",
+  "confidence": "inferred",
+  "current_symbol": "FUN_00705130"
+ },
+ {
+  "slot": 71,
+  "rva": 3027840,
+  "rva_hex": "0x002e3380",
+  "name": "MyPlayer::_unlockLockonControl",
+  "lua_binding": "_unlockLockonControl",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e3380"
+ },
+ {
+  "slot": 72,
+  "rva": 3027872,
+  "rva_hex": "0x002e33a0",
+  "name": "MyPlayer::_isLockonControlEnabled",
+  "lua_binding": "_isLockonControlEnabled",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e33a0"
+ },
+ {
+  "slot": 73,
+  "rva": 3166576,
+  "rva_hex": "0x00305170",
+  "name": "MyPlayer::_lockCameraControl",
+  "lua_binding": "_lockCameraControl",
+  "confidence": "inferred",
+  "current_symbol": "FUN_00705170"
+ },
+ {
+  "slot": 74,
+  "rva": 3027904,
+  "rva_hex": "0x002e33c0",
+  "name": "MyPlayer::_unlockCameraControl",
+  "lua_binding": "_unlockCameraControl",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e33c0"
+ },
+ {
+  "slot": 75,
+  "rva": 3027936,
+  "rva_hex": "0x002e33e0",
+  "name": "MyPlayer::_isCameraControlEnabled",
+  "lua_binding": "_isCameraControlEnabled",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e33e0"
+ },
+ {
+  "slot": 76,
+  "rva": 3166640,
+  "rva_hex": "0x003051b0",
+  "name": "MyPlayer::_setLockonTarget",
+  "lua_binding": "_setLockonTarget",
+  "confidence": "inferred",
+  "current_symbol": "FUN_007051b0"
+ },
+ {
+  "slot": 77,
+  "rva": 3038656,
+  "rva_hex": "0x002e5dc0",
+  "name": "MyPlayer::_getLockonTarget",
+  "lua_binding": "_getLockonTarget",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e5dc0"
+ },
+ {
+  "slot": 78,
+  "rva": 3166704,
+  "rva_hex": "0x003051f0",
+  "name": "MyPlayer::_waitForMapLoaded",
+  "lua_binding": "_waitForMapLoaded",
+  "confidence": "inferred",
+  "current_symbol": "FUN_007051f0"
+ },
+ {
+  "slot": 79,
+  "rva": 3038896,
+  "rva_hex": "0x002e5eb0",
+  "name": "MyPlayer::_setMusic",
+  "lua_binding": "_setMusic",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e5eb0"
+ },
+ {
+  "slot": 80,
+  "rva": 3039184,
+  "rva_hex": "0x002e5fd0",
+  "name": "MyPlayer::_setWeather",
+  "lua_binding": "_setWeather",
+  "confidence": "inferred",
+  "current_symbol": "FUN_006e5fd0"
+ }
+]
