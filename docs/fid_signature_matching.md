@@ -71,12 +71,24 @@ make split BINARY=ffxivgame.exe         # std::/CRT patterns -> middleware-*
 Sub-steps (`extract` / `import` / `populate` / `apply`) can be run
 individually; `gen` chains the first three.
 
-## GUI fallback for the populate step
+## Empirical status (2026-05-25)
 
-FidDb *population* via the stock `CreateMultipleLibraries.java` is driven
-headlessly through a generated `.properties` file. Headless `ask*` is
-finicky; if `populate` balks, do this one step in the Ghidra GUI instead
-(the import + apply remain scripted):
+- `extract` — **DONE/validated.** `llvm-ar x` → 882 `.obj`.
+- `import` — **DONE/validated.** 761 programs imported into `build/fid/proj`
+  (project `FidLibs`, folder `/MSVC/8.0/x86`); 121 non-code members failed to
+  load (import descriptors / data blobs — expected), 31 data-only objs have no
+  functions. ~730 function-bearing programs — a solid FidDb input.
+- `populate` — **use the GUI (below).** The headless `build_fid.py populate`
+  hit Ghidra 12.1 friction: `-process <anchor>` (the trick to run the
+  once-only `CreateMultipleLibraries` exactly once) doesn't resolve a
+  deeply-nested program by bare name, and the script's `ask*` prompts
+  (`askChoice` destination FidDb, `askProjectFolder` root, LanguageID) are
+  headless-finicky beyond that. This is the canonical "do it in the GUI" step.
+- `apply` — **scripted and ready** for once the `.fidb` exists (either route).
+
+## GUI populate (the reliable one-time step — project is already built)
+
+The import already produced `build/fid/proj`; populate is 3 clicks:
 
 1. Open the `build/fid/proj` project (it holds the imported `.obj` under
    `/MSVC/8.0/x86`).

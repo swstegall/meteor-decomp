@@ -167,9 +167,19 @@ def cmd_populate(args) -> int:
     if FIDB.exists():
         FIDB.unlink()
     _write_properties(fidscripts)
-    # run on the imported project: create empty fidb (attaches it), then populate
-    return run_headless(gh, jh, proj_loc, "FidLibs", [
-        "-process", "-noanalysis", "-scriptPath", str(fidscripts),
+    # CreateMultipleLibraries must run EXACTLY ONCE (it walks the whole
+    # /MSVC/8.0/x86 folder itself). analyzeHeadless runs scripts once per
+    # -process'd program, so target a single program (--anchor, read-only,
+    # no re-analysis). The script ignores currentProgram and populates from
+    # the root folder.
+    anchor = args.anchor
+    # analyzeHeadless -process searches the named project folder; the anchor
+    # lives deep under /MSVC/8.0/x86, so scope the project to that subtree so
+    # -process resolves. CreateMultipleLibraries still walks from root "/".
+    proj_scoped = f"FidLibs/{LIB_FAMILY}/{LIB_VERSION}/{LIB_VARIANT}"
+    return run_headless(gh, jh, proj_loc, proj_scoped, [
+        "-process", anchor, "-readOnly", "-noanalysis",
+        "-scriptPath", str(fidscripts),
         "-preScript", "CreateEmptyFidDatabase.java",
         "-postScript", "CreateMultipleLibraries.java",
     ])
@@ -202,8 +212,15 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     pe = sub.add_parser("extract"); pe.add_argument("--libs", nargs="+", default=DEFAULT_LIBS)
-    sub.add_parser("import"); sub.add_parser("populate"); sub.add_parser("apply")
-    pg = sub.add_parser("gen"); pg.add_argument("--libs", nargs="+", default=DEFAULT_LIBS)
+    sub.add_parser("import")
+    pp = sub.add_parser("populate")
+    pp.add_argument("--anchor", default="crt0dat.obj",
+                    help="a single (unique) imported program name to -process so the "
+                         "once-only CreateMultipleLibraries script runs exactly once")
+    sub.add_parser("apply")
+    pg = sub.add_parser("gen")
+    pg.add_argument("--libs", nargs="+", default=DEFAULT_LIBS)
+    pg.add_argument("--anchor", default="crt0dat.obj")
     args = ap.parse_args()
 
     if args.cmd == "extract":
