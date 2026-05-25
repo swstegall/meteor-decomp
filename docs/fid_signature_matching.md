@@ -93,26 +93,51 @@ individually; `gen` chains the first three.
   `AttachFidDatabase`'s headless `.properties` key is the title + button label:
   `Attach existing FidDb Attach`.
 
-## Result (honest): 47 functions named — modest, as the ceiling predicted
+## Results — 419 functions named so far (the CRT was a misleading sample)
 
-The apply named **47** functions that were `FUN_xxx` — the complete core CRT
-string/mem/alloc family (`_memcpy`, `_memmove`, `_memset`, `_strlen`,
-`_strcmp`, `_strncpy`, `_strcat_s`, `_malloc`, `_free`, `_fwrite`,
-`__invalid_parameter`, …) plus a few `std::`. The fidb matched the CRT it had;
-the yield is just small **for this binary**, and that's the real answer to "is
-library matching faster than matching everything here?":
+Running totals against the 60,616 `FUN_xxx` baseline:
 
-- FFXIV 1.x is **engine-heavy**: the SQEX CDev/Rapture engine brings its own
-  allocators, string, and container code and links a **thin CRT**, so the
-  uniquely-matchable, not-already-named library footprint is small.
-- STL barely matches via FID (template instantiations differ from the lib's).
-- The ~60k unnamed functions are overwhelmingly that proprietary engine —
-  which FID/FLIRT structurally cannot touch (flagged from the start).
+| Library | Version | Functions named | Why |
+|---|---|---|---|
+| MSVC CRT/STL | VC8 (libcmt/libcpmt) | **47** | engine uses its own alloc/string/containers → thin CRT |
+| zlib | 1.2.3 | **19** | game links only the decompression subset |
+| **Lua** | **5.1.4** | **~353** | the **whole VM** — heavily used by the game |
+| OpenSSL | 1.0.0 | (pending) | full crypto suite — biggest footprint |
+| **Total** | | **419** | |
 
-So: the technique was applied correctly and the pipeline is reusable, but for
-*this* binary library-signature matching is a marginal win (47 fns), not the
-thousands it can be on a CRT/MFC-heavy app. The 47 are correctly named now and
-`make split` reclassifies them `matching → middleware-crt`.
+The CRT's 47 was *not* representative: it's thin because this is an
+engine-heavy binary. **Lua reversed the picture** — the entire Lua 5.1 VM
+(`luaD_precall`, `luaV_execute`, `luaC_*` GC, `luaF_*` closures, `luaG_*`,
+`luaH_*` tables, `luaopen_*`, the std libs) is now named. That's the exact
+subsystem the quest / SEQ-005 / Lua-binding work sits on top of, so it's
+high-value, not just count. The Lua hit rate also confirms the `/O2 /Oy /Gy
+/GS /MT` flags are right (Lua 5.1.4, not 5.1.5 — 5.1.5 postdates the 2010
+client). All named functions reclassify out of the work pool on the next
+`make split` (std::/CRT/zlib/lua patterns already exist; FID just supplies
+the names).
+
+## Adding a library — the autonomous flow (no GUI)
+
+The GUI-only populate was replaced by `tools/ghidra_scripts/PopulateFidLibrary.java`
+(env-driven, uses the `FidService` API directly — no `ask*`). To add library X:
+
+```sh
+# 1. compile the lib's source with VC8 (C: /TC; same /O2 /Oy /Gy /GS /MT)
+tools/cl-wine.sh /c /O2 /Oy /Gy /GS /MT /TC <lib>/*.c        # -> *.obj
+# 2. import the .obj into the FID project under /<Family>/<Ver>/x86 (FID/LID off)
+#    analyzeHeadless build/fid/proj "FidLibs/<Family>/<Ver>/x86" -import <objdir> -recursive \
+#      -preScript FunctionIDHeadlessPrescript.java -postScript FunctionIDHeadlessPostscript.java
+# 3. populate it into the shared fidb (one .fidb holds all libraries)
+#    analyzeHeadless build/fid/proj "FidLibs/<Family>/<Ver>/x86/<objdir>" \
+#      -process <anchor>.obj -readOnly -noanalysis \
+#      -postScript PopulateFidLibrary.java     # env: FID_DB/FID_FAMILY/FID_VERSION/FID_VARIANT/FID_LANG/FID_ROOT
+# 4. apply (re-matches all libraries in the fidb at once)
+python3 tools/build_fid.py apply
+```
+
+Lua/zlib were built exactly this way. (The original GUI-populate fallback for
+the CRT library is still documented below for reference, but is no longer
+needed.)
 
 ## GUI populate (the reliable one-time step — project is already built)
 
