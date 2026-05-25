@@ -36,6 +36,16 @@
   "auto_named": true
  },
  {
+  "rva": 3000496,
+  "rva_hex": "0x002dc8b0",
+  "va_hex": "0x006dc8b0",
+  "name": "Debug_executeScriptFromCutSceneTable",
+  "kind": "named",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_006dc8b0",
+  "auto_named": true
+ },
+ {
   "rva": 3023152,
   "rva_hex": "0x002e2130",
   "va_hex": "0x006e2130",
@@ -57,6 +67,17 @@
   "opcode": "0x132",
   "lua_binding": "_sendCompoundState",
   "current_name": "FUN_006e2af0",
+  "auto_named": true
+ },
+ {
+  "rva": 3027696,
+  "rva_hex": "0x002e32f0",
+  "va_hex": "0x006e32f0",
+  "name": "MyPlayer_fadeInNowLoadingForNoticeEventJustInArea_impl",
+  "kind": "lua_impl",
+  "source": "finding_lua_api_to_zone_opcode_systematic_xref.md",
+  "lua_binding": "_fadeInNowLoadingForNoticeEventJustInArea",
+  "current_name": "FUN_006e32f0",
   "auto_named": true
  },
  {
@@ -119,6 +140,167 @@
   "auto_named": true
  },
  {
+  "rva": 3051344,
+  "rva_hex": "0x002e8f50",
+  "va_hex": "0x006e8f50",
+  "name": "MyPlayer_cancelNotice_impl",
+  "kind": "lua_impl",
+  "source": "finding_lua_api_to_zone_opcode_systematic_xref.md",
+  "lua_binding": "_cancelNotice",
+  "current_name": "FUN_006e8f50",
+  "auto_named": true
+ },
+ {
+  "rva": 3124848,
+  "rva_hex": "0x002fae70",
+  "va_hex": "0x006fae70",
+  "name": "CharaBase_invokeLua_onChangeSystemFlag",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_opcodes_39_to_44_named.md",
+  "current_name": "FUN_006fae70",
+  "auto_named": true
+ },
+ {
+  "rva": 3127744,
+  "rva_hex": "0x002fb9c0",
+  "va_hex": "0x006fb9c0",
+  "name": "CutScene_invokeLua_onFinalizeClip",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_006fb9c0",
+  "auto_named": true
+ },
+ {
+  "rva": 3128400,
+  "rva_hex": "0x002fbc50",
+  "va_hex": "0x006fbc50",
+  "name": "CutScene_method_setActiveAndFinalize",
+  "kind": "named",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_006fbc50",
+  "auto_named": true
+ },
+ {
+  "rva": 3128512,
+  "rva_hex": "0x002fbcc0",
+  "va_hex": "0x006fbcc0",
+  "name": "CutScene_invokeLua_onInitializationClip_PreviewSetupClip",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_006fbcc0",
+  "auto_named": true
+ },
+ {
+  "rva": 3128960,
+  "rva_hex": "0x002fbe80",
+  "va_hex": "0x006fbe80",
+  "name": "CutScene_invokeLua_onInitializationClip",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_006fbe80",
+  "auto_named": true
+ },
+ {
+  "rva": 3129472,
+  "rva_hex": "0x002fc080",
+  "va_hex": "0x006fc080",
+  "name": "CutScene_invokeLua_onShowUIClip",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_006fc080",
+  "auto_named": true
+ },
+ {
+  "rva": 3129952,
+  "rva_hex": "0x002fc260",
+  "va_hex": "0x006fc260",
+  "name": "CutScene_invokeLua_onHideUIClip",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_006fc260",
+  "auto_named": true
+ },
+ {
+  "rva": 3130272,
+  "rva_hex": "0x002fc3a0",
+  "va_hex": "0x006fc3a0",
+  "name": "CutScene_invokeLua_onShowWidgetClip",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_006fc3a0",
+  "auto_named": true
+ },
+ {
+  "rva": 3130576,
+  "rva_hex": "0x002fc4d0",
+  "va_hex": "0x006fc4d0",
+  "name": "CutScene_invokeLua_onHideWidgetClip",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_006fc4d0",
+  "auto_named": true
+ },
+ {
+  "rva": 3130864,
+  "rva_hex": "0x002fc5f0",
+  "va_hex": "0x006fc5f0",
+  "name": "CutScene_invokeLua_onOpenUIClip",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_006fc5f0",
+  "auto_named": true
+ },
+ {
+  "rva": 3139936,
+  "rva_hex": "0x002fe960",
+  "va_hex": "0x006fe960",
+  "name": "DesktopWidget_invokeLua_onTargetChanged",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_006fe960",
+  "auto_named": true
+ },
+ {
+  "rva": 3140528,
+  "rva_hex": "0x002febb0",
+  "va_hex": "0x006febb0",
+  "name": "DesktopWidget_invokeLua_onTargetDecided",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_006febb0",
+  "auto_named": true
+ },
+ {
+  "rva": 3141088,
+  "rva_hex": "0x002fede0",
+  "va_hex": "0x006fede0",
+  "name": "DesktopWidget_invokeLua_onPreWarp",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_006fede0",
+  "auto_named": true
+ },
+ {
+  "rva": 3141392,
+  "rva_hex": "0x002fef10",
+  "va_hex": "0x006fef10",
+  "name": "DesktopWidget_invokeLua_onPostWarp",
+  "kind": "inbound_invoker",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_006fef10",
+  "auto_named": true
+ },
+ {
+  "rva": 3162672,
+  "rva_hex": "0x00304230",
+  "va_hex": "0x00704230",
+  "name": "Player_handleLimitAddictedNotice",
+  "kind": "named",
+  "source": "exe/finding_opcodes_39_to_44_named.md",
+  "current_name": "FUN_00704230",
+  "auto_named": true
+ },
+ {
   "rva": 3169968,
   "rva_hex": "0x00305eb0",
   "va_hex": "0x00705eb0",
@@ -128,6 +310,26 @@
   "opcode": "0x135",
   "lua_binding": "_queryBinding",
   "current_name": "FUN_00705eb0",
+  "auto_named": true
+ },
+ {
+  "rva": 3322944,
+  "rva_hex": "0x0032b440",
+  "va_hex": "0x0072b440",
+  "name": "Functor_NpcBaseClass_buildOutputStackOperatorVector",
+  "kind": "functor",
+  "source": "correlation/finding_execute_parameters_marshalling.md",
+  "current_name": "FUN_0072b440",
+  "auto_named": true
+ },
+ {
+  "rva": 3327968,
+  "rva_hex": "0x0032c7e0",
+  "va_hex": "0x0072c7e0",
+  "name": "Functor_NpcBaseClass_buildInputStackOperatorVector",
+  "kind": "functor",
+  "source": "correlation/finding_execute_parameters_marshalling.md",
+  "current_name": "FUN_0072c7e0",
   "auto_named": true
  },
  {
@@ -603,6 +805,246 @@
   "auto_named": true
  },
  {
+  "rva": 3512640,
+  "rva_hex": "0x00359940",
+  "va_hex": "0x00759940",
+  "name": "ZoneIn_handler_opcode_11_CutScene_onShowWidgetClip",
+  "kind": "opcode_handler",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_00759940",
+  "auto_named": true
+ },
+ {
+  "rva": 3512800,
+  "rva_hex": "0x003599e0",
+  "va_hex": "0x007599e0",
+  "name": "ZoneIn_handler_opcode_12_CutScene_onHideWidgetClip",
+  "kind": "opcode_handler",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_007599e0",
+  "auto_named": true
+ },
+ {
+  "rva": 3512928,
+  "rva_hex": "0x00359a60",
+  "va_hex": "0x00759a60",
+  "name": "ZoneIn_handler_opcode_16_Debug_scriptExec",
+  "kind": "opcode_handler",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_00759a60",
+  "auto_named": true
+ },
+ {
+  "rva": 3513040,
+  "rva_hex": "0x00359ad0",
+  "va_hex": "0x00759ad0",
+  "name": "ZoneIn_handler_opcode_17_onPreCutSceneCancel",
+  "kind": "opcode_handler",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_00759ad0",
+  "auto_named": true
+ },
+ {
+  "rva": 3513152,
+  "rva_hex": "0x00359b40",
+  "va_hex": "0x00759b40",
+  "name": "ZoneIn_handler_opcode_18_onPostCutSceneCancel",
+  "kind": "opcode_handler",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_00759b40",
+  "auto_named": true
+ },
+ {
+  "rva": 3513264,
+  "rva_hex": "0x00359bb0",
+  "va_hex": "0x00759bb0",
+  "name": "ZoneIn_handler_opcode_20_DesktopWidget_onPreWarp",
+  "kind": "opcode_handler",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_00759bb0",
+  "auto_named": true
+ },
+ {
+  "rva": 3513376,
+  "rva_hex": "0x00359c20",
+  "va_hex": "0x00759c20",
+  "name": "ZoneIn_handler_opcode_21_DesktopWidget_onPostWarp",
+  "kind": "opcode_handler",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_00759c20",
+  "auto_named": true
+ },
+ {
+  "rva": 3513488,
+  "rva_hex": "0x00359c90",
+  "va_hex": "0x00759c90",
+  "name": "ZoneIn_handler_vtable_dispatch_slot21",
+  "kind": "opcode_handler",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_00759c90",
+  "auto_named": true
+ },
+ {
+  "rva": 3513520,
+  "rva_hex": "0x00359cb0",
+  "va_hex": "0x00759cb0",
+  "name": "ZoneIn_handler_vtable_dispatch_slot22",
+  "kind": "opcode_handler",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_00759cb0",
+  "auto_named": true
+ },
+ {
+  "rva": 3513584,
+  "rva_hex": "0x00359cf0",
+  "va_hex": "0x00759cf0",
+  "name": "ZoneIn_handler_vtable_dispatch_slot24",
+  "kind": "opcode_handler",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_00759cf0",
+  "auto_named": true
+ },
+ {
+  "rva": 3513616,
+  "rva_hex": "0x00359d10",
+  "va_hex": "0x00759d10",
+  "name": "ZoneIn_handler_vtable_dispatch_slot25",
+  "kind": "opcode_handler",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_00759d10",
+  "auto_named": true
+ },
+ {
+  "rva": 3514064,
+  "rva_hex": "0x00359ed0",
+  "va_hex": "0x00759ed0",
+  "name": "ZoneIn_handler_opcode_39_internal_map_insert",
+  "kind": "opcode_handler",
+  "source": "exe/finding_opcodes_39_to_44_named.md",
+  "current_name": "FUN_00759ed0",
+  "auto_named": true
+ },
+ {
+  "rva": 3514192,
+  "rva_hex": "0x00359f50",
+  "va_hex": "0x00759f50",
+  "name": "ZoneIn_handler_opcode_40_timed_or_immediate_exec",
+  "kind": "opcode_handler",
+  "source": "exe/finding_opcodes_39_to_44_named.md",
+  "current_name": "FUN_00759f50",
+  "auto_named": true
+ },
+ {
+  "rva": 3514464,
+  "rva_hex": "0x0035a060",
+  "va_hex": "0x0075a060",
+  "name": "ZoneIn_handler_opcode_43_CharaBase_onChangeSystemFlag",
+  "kind": "opcode_handler",
+  "source": "exe/finding_opcodes_39_to_44_named.md",
+  "current_name": "FUN_0075a060",
+  "auto_named": true
+ },
+ {
+  "rva": 3514592,
+  "rva_hex": "0x0035a0e0",
+  "va_hex": "0x0075a0e0",
+  "name": "ZoneIn_handler_opcode_44_MyPlayer_onReceiveLimitAddicted",
+  "kind": "opcode_handler",
+  "source": "exe/finding_opcodes_39_to_44_named.md",
+  "current_name": "FUN_0075a0e0",
+  "auto_named": true
+ },
+ {
+  "rva": 3528528,
+  "rva_hex": "0x0035d750",
+  "va_hex": "0x0075d750",
+  "name": "ZoneIn_handler_opcode_4_DesktopWidget_onTargetChanged",
+  "kind": "opcode_handler",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_0075d750",
+  "auto_named": true
+ },
+ {
+  "rva": 3528576,
+  "rva_hex": "0x0035d780",
+  "va_hex": "0x0075d780",
+  "name": "ZoneIn_handler_opcode_5_DesktopWidget_onTargetDecided",
+  "kind": "opcode_handler",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_0075d780",
+  "auto_named": true
+ },
+ {
+  "rva": 3528624,
+  "rva_hex": "0x0035d7b0",
+  "va_hex": "0x0075d7b0",
+  "name": "ZoneIn_handler_opcode_6_GetCurrentTarget_query",
+  "kind": "opcode_handler",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_0075d7b0",
+  "auto_named": true
+ },
+ {
+  "rva": 3528752,
+  "rva_hex": "0x0035d830",
+  "va_hex": "0x0075d830",
+  "name": "ZoneIn_handler_opcode_7_CutScene_onInitializationClip_Preview",
+  "kind": "opcode_handler",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_0075d830",
+  "auto_named": true
+ },
+ {
+  "rva": 3528800,
+  "rva_hex": "0x0035d860",
+  "va_hex": "0x0075d860",
+  "name": "ZoneIn_handler_opcode_8_CutScene_onInitializationClip",
+  "kind": "opcode_handler",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_0075d860",
+  "auto_named": true
+ },
+ {
+  "rva": 3528848,
+  "rva_hex": "0x0035d890",
+  "va_hex": "0x0075d890",
+  "name": "ZoneIn_handler_opcode_9_CutScene_onShowUIClip",
+  "kind": "opcode_handler",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_0075d890",
+  "auto_named": true
+ },
+ {
+  "rva": 3528912,
+  "rva_hex": "0x0035d8d0",
+  "va_hex": "0x0075d8d0",
+  "name": "ZoneIn_handler_opcode_10_CutScene_onHideUIClip",
+  "kind": "opcode_handler",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_0075d8d0",
+  "auto_named": true
+ },
+ {
+  "rva": 3528960,
+  "rva_hex": "0x0035d900",
+  "va_hex": "0x0075d900",
+  "name": "ZoneIn_handler_opcode_13_CutScene_onOpenUIClip",
+  "kind": "opcode_handler",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_0075d900",
+  "auto_named": true
+ },
+ {
+  "rva": 3529040,
+  "rva_hex": "0x0035d950",
+  "va_hex": "0x0075d950",
+  "name": "ZoneIn_handler_opcode_14_CutScene_setActiveAndFinalize",
+  "kind": "opcode_handler",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_0075d950",
+  "auto_named": true
+ },
+ {
   "rva": 3531200,
   "rva_hex": "0x0035e1c0",
   "va_hex": "0x0075e1c0",
@@ -735,6 +1177,16 @@
   "auto_named": true
  },
  {
+  "rva": 3588640,
+  "rva_hex": "0x0036c220",
+  "va_hex": "0x0076c220",
+  "name": "ZoneIn_handler_chat_variant_C_tell",
+  "kind": "opcode_handler",
+  "source": "exe/finding_chat_block_command_notifications.md",
+  "current_name": "FUN_0076c220",
+  "auto_named": true
+ },
+ {
   "rva": 3596912,
   "rva_hex": "0x0036e270",
   "va_hex": "0x0076e270",
@@ -743,6 +1195,16 @@
   "source": "finding_zone_outbound_opcode_roster.md",
   "opcode": "0x12d",
   "current_name": "FUN_0076e270",
+  "auto_named": true
+ },
+ {
+  "rva": 3629888,
+  "rva_hex": "0x00376340",
+  "va_hex": "0x00776340",
+  "name": "UserDataReceiver_vtable_noop_inherited",
+  "kind": "receiver_slot",
+  "source": "exe/finding_polymorphic_block_userdataReceiver.md",
+  "current_name": "FUN_00776340",
   "auto_named": true
  },
  {
@@ -755,6 +1217,256 @@
   "opcode": "0x12e",
   "lua_binding": "_send6argRpc",
   "current_name": "FUN_00894090",
+  "auto_named": true
+ },
+ {
+  "rva": 4820256,
+  "rva_hex": "0x00498d20",
+  "va_hex": "0x00898d20",
+  "name": "Player_invokeLua_onTouch_proximityBegin",
+  "kind": "inbound_invoker",
+  "source": "correlation/finding_onTouch_is_gathering_proximity.md",
+  "current_name": "FUN_00898d20",
+  "auto_named": true
+ },
+ {
+  "rva": 4820656,
+  "rva_hex": "0x00498eb0",
+  "va_hex": "0x00898eb0",
+  "name": "Player_invokeLua_onTouch_proximityEnd",
+  "kind": "inbound_invoker",
+  "source": "correlation/finding_onTouch_is_gathering_proximity.md",
+  "current_name": "FUN_00898eb0",
+  "auto_named": true
+ },
+ {
+  "rva": 4835504,
+  "rva_hex": "0x0049c8b0",
+  "va_hex": "0x0089c8b0",
+  "name": "Router_dispatch_to_MyPlayer_handleLimitAddictedNotice",
+  "kind": "router",
+  "source": "exe/finding_opcodes_39_to_44_named.md",
+  "current_name": "FUN_0089c8b0",
+  "auto_named": true
+ },
+ {
+  "rva": 4835968,
+  "rva_hex": "0x0049ca80",
+  "va_hex": "0x0089ca80",
+  "name": "Router_dispatch_to_CharaBase_onChangeSystemFlag",
+  "kind": "router",
+  "source": "exe/finding_opcodes_39_to_44_named.md",
+  "current_name": "FUN_0089ca80",
+  "auto_named": true
+ },
+ {
+  "rva": 4837744,
+  "rva_hex": "0x0049d170",
+  "va_hex": "0x0089d170",
+  "name": "ChatBuilder_singleTarget_writeCommandTag_B",
+  "kind": "chat",
+  "source": "exe/finding_chat_block_command_notifications.md",
+  "current_name": "FUN_0089d170",
+  "auto_named": true
+ },
+ {
+  "rva": 4837920,
+  "rva_hex": "0x0049d220",
+  "va_hex": "0x0089d220",
+  "name": "ChatBuilder_singleTarget_writeCommandTag_A",
+  "kind": "chat",
+  "source": "exe/finding_chat_block_command_notifications.md",
+  "current_name": "FUN_0089d220",
+  "auto_named": true
+ },
+ {
+  "rva": 4838208,
+  "rva_hex": "0x0049d340",
+  "va_hex": "0x0089d340",
+  "name": "ChatBuilder_singleTarget_writeCommandTag_D",
+  "kind": "chat",
+  "source": "exe/finding_chat_block_command_notifications.md",
+  "current_name": "FUN_0089d340",
+  "auto_named": true
+ },
+ {
+  "rva": 4842272,
+  "rva_hex": "0x0049e320",
+  "va_hex": "0x0089e320",
+  "name": "ChatBuilder_tell_readRecipientName",
+  "kind": "chat",
+  "source": "exe/finding_chat_block_command_notifications.md",
+  "current_name": "FUN_0089e320",
+  "auto_named": true
+ },
+ {
+  "rva": 4842480,
+  "rva_hex": "0x0049e3f0",
+  "va_hex": "0x0089e3f0",
+  "name": "ChatBuilder_tell_thunk",
+  "kind": "chat",
+  "source": "exe/finding_chat_block_command_notifications.md",
+  "current_name": "FUN_0089e3f0",
+  "auto_named": true
+ },
+ {
+  "rva": 4845264,
+  "rva_hex": "0x0049eed0",
+  "va_hex": "0x0089eed0",
+  "name": "Network_UserDataReceiver_ctor",
+  "kind": "receiver",
+  "source": "finding_lua_api_to_zone_opcode_systematic_xref.md",
+  "current_name": "FUN_0089eed0",
+  "auto_named": true
+ },
+ {
+  "rva": 4848624,
+  "rva_hex": "0x0049fbf0",
+  "va_hex": "0x0089fbf0",
+  "name": "Network_UserDataReceiver_multiModeDispatcher",
+  "kind": "dispatcher",
+  "source": "finding_lua_api_to_zone_opcode_systematic_xref.md",
+  "current_name": "FUN_0089fbf0",
+  "auto_named": true
+ },
+ {
+  "rva": 4860784,
+  "rva_hex": "0x004a2b70",
+  "va_hex": "0x008a2b70",
+  "name": "UserDataReceiver_vtable_slot23_resolveActorIntoField0x18",
+  "kind": "receiver_slot",
+  "source": "exe/finding_polymorphic_block_userdataReceiver.md",
+  "current_name": "FUN_008a2b70",
+  "auto_named": true
+ },
+ {
+  "rva": 4861264,
+  "rva_hex": "0x004a2d50",
+  "va_hex": "0x008a2d50",
+  "name": "UserDataReceiver_vtable_slot22_appendPayloadToContainer",
+  "kind": "receiver_slot",
+  "source": "exe/finding_polymorphic_block_userdataReceiver.md",
+  "current_name": "FUN_008a2d50",
+  "auto_named": true
+ },
+ {
+  "rva": 4864400,
+  "rva_hex": "0x004a3990",
+  "va_hex": "0x008a3990",
+  "name": "Router_dispatch_to_CutScene_onInitializationClip",
+  "kind": "router",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_008a3990",
+  "auto_named": true
+ },
+ {
+  "rva": 4864480,
+  "rva_hex": "0x004a39e0",
+  "va_hex": "0x008a39e0",
+  "name": "Router_dispatch_to_CutScene_onShowUIClip",
+  "kind": "router",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_008a39e0",
+  "auto_named": true
+ },
+ {
+  "rva": 4864576,
+  "rva_hex": "0x004a3a40",
+  "va_hex": "0x008a3a40",
+  "name": "Router_dispatch_to_CutScene_onHideUIClip",
+  "kind": "router",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_008a3a40",
+  "auto_named": true
+ },
+ {
+  "rva": 4864672,
+  "rva_hex": "0x004a3aa0",
+  "va_hex": "0x008a3aa0",
+  "name": "Router_dispatch_to_CutScene_method_FUN_006fc3a0",
+  "kind": "router",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_008a3aa0",
+  "auto_named": true
+ },
+ {
+  "rva": 4864768,
+  "rva_hex": "0x004a3b00",
+  "va_hex": "0x008a3b00",
+  "name": "Router_dispatch_to_CutScene_onHideWidgetClip",
+  "kind": "router",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_008a3b00",
+  "auto_named": true
+ },
+ {
+  "rva": 4864848,
+  "rva_hex": "0x004a3b50",
+  "va_hex": "0x008a3b50",
+  "name": "Router_dispatch_to_CutScene_onOpenUIClip",
+  "kind": "router",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_008a3b50",
+  "auto_named": true
+ },
+ {
+  "rva": 4865696,
+  "rva_hex": "0x004a3ea0",
+  "va_hex": "0x008a3ea0",
+  "name": "Router_dispatch_to_DesktopWidget_onTargetChanged",
+  "kind": "router",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_008a3ea0",
+  "auto_named": true
+ },
+ {
+  "rva": 4865744,
+  "rva_hex": "0x004a3ed0",
+  "va_hex": "0x008a3ed0",
+  "name": "Router_dispatch_to_DesktopWidget_onTargetDecided",
+  "kind": "router",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_008a3ed0",
+  "auto_named": true
+ },
+ {
+  "rva": 4867088,
+  "rva_hex": "0x004a4410",
+  "va_hex": "0x008a4410",
+  "name": "Router_dispatch_to_DesktopWidget_onPreWarp",
+  "kind": "router",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_008a4410",
+  "auto_named": true
+ },
+ {
+  "rva": 4867280,
+  "rva_hex": "0x004a44d0",
+  "va_hex": "0x008a44d0",
+  "name": "Router_dispatch_to_DesktopWidget_onPostWarp",
+  "kind": "router",
+  "source": "exe/finding_inbound_routers_named_opcodes_round2.md",
+  "current_name": "FUN_008a44d0",
+  "auto_named": true
+ },
+ {
+  "rva": 4867536,
+  "rva_hex": "0x004a45d0",
+  "va_hex": "0x008a45d0",
+  "name": "Router_dispatch_to_System_onPreCutSceneCancel",
+  "kind": "router",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_008a45d0",
+  "auto_named": true
+ },
+ {
+  "rva": 4867872,
+  "rva_hex": "0x004a4720",
+  "va_hex": "0x008a4720",
+  "name": "Router_dispatch_to_System_onPostCutSceneCancel",
+  "kind": "router",
+  "source": "exe/finding_cutscene_block_complete_opcodes_4_to_18.md",
+  "current_name": "FUN_008a4720",
   "auto_named": true
  },
  {

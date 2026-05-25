@@ -67,9 +67,63 @@ HAND_SEED = [
     ("0x00737260", "NpcBaseClass_registerLua_callServerOnPush", "registrar", None, "_callServerOnPush"),
     # Channel dispatcher (shared across all 3 channels)
     ("0x00db5300", "ProtoChannel_dispatchPacketById", "dispatcher", None, None),
+    # Inbound data-packet receiver region (0x0089exxx) — SEQ-005 kick-gate
+    # neighbourhood. Named in ffxivDecomp prose (finding_polymorphic_block_
+    # userdataReceiver.md), not a rename block, so hand-seeded. This is the
+    # same cluster as meteor-decomp's kick-gate FUN_0089f180 (parser) /
+    # FUN_0089e200 (setter of receiver+0x80). See the SEQ-005 synthesis note.
+    ("0x0089eed0", "Network_UserDataReceiver_ctor", "receiver", None, None),
+    ("0x0089fbf0", "Network_UserDataReceiver_multiModeDispatcher", "dispatcher", None, None),
+    # MyPlayer vtable member-fn bodies for two SEQ-005-critical bindings,
+    # located by dumping MyPlayer's vtable (tools/analyze_legacy_struct.sh
+    # --vtable Client::Control::MyPlayer): slot 52 + slot 66. The 14-slot
+    # span matches the PlayerBase registrar order (_cancelNotice -> 14
+    # bindings -> _fadeInNowLoadingForNoticeEventJustInArea), cross-
+    # validating the slot IDs. FUN_006e32f0 is the kick-dispatcher CLEARER
+    # body — the decompile target for the SEQ-005 hang. See
+    # docs/seq005_kick_gate_analysis.md.
+    ("0x006e8f50", "MyPlayer_cancelNotice_impl", "lua_impl", None, "_cancelNotice"),
+    ("0x006e32f0", "MyPlayer_fadeInNowLoadingForNoticeEventJustInArea_impl", "lua_impl", None,
+     "_fadeInNowLoadingForNoticeEventJustInArea"),
 ]
 
 RE_HEX = re.compile(r"0x[0-9a-fA-F]{6,8}")
+# curated "RENAMES" annotation lines across all docs: `- 0xVA -> Name`
+RE_RENAME = re.compile(r"^\s*-\s*(0x[0-9a-fA-F]{6,8})\s*->\s*([A-Za-z_]\w+)")
+
+
+def classify(name: str) -> str:
+    """Infer a kind from the ffxivDecomp Ghidra name prefix."""
+    if "_invokeLua_" in name:
+        return "inbound_invoker"
+    if "_registerLua_" in name or name.endswith("registerAllLuaBindings"):
+        return "registrar"
+    if name.startswith("ZoneIn_handler") or name.startswith("ZoneOut_"):
+        return "opcode_handler"
+    if name.startswith("Router_"):
+        return "router"
+    if "vtable_slot" in name or name.endswith("_noop_inherited"):
+        return "receiver_slot"
+    if name.startswith("ChatBuilder") or "Chat" in name:
+        return "chat"
+    if name.startswith("Functor_"):
+        return "functor"
+    if "dispatch" in name.lower() or "Dispatcher" in name:
+        return "dispatcher"
+    return "named"
+
+
+def parse_renames(re_root: Path):
+    """Yield (va, name, kind, opcode, lua, src) from every `- 0xVA -> Name`
+    annotation line across all finding docs under docs/re/."""
+    for md in sorted(re_root.rglob("*.md")):
+        for line in md.read_text(encoding="utf-8", errors="replace").splitlines():
+            m = RE_RENAME.match(line)
+            if m:
+                va, name = m.group(1), m.group(2)
+                mo = re.search(r"opcode_(0x[0-9a-fA-F]+)", name)
+                yield va, name, classify(name), (mo.group(1) if mo else None), None, \
+                    md.relative_to(re_root).as_posix()
 # roster "Ghidra Annotations Made": `0xVA  Name`
 RE_ROSTER = re.compile(r"^\s*(0x[0-9a-fA-F]{6,8})\s+([A-Za-z_]\w+)\s*$")
 # PlayerBase family tables: `_luaName   0xVA   LAB_xxx|0xthunk   notes`
@@ -151,6 +205,9 @@ def main() -> int:
         "finding_playerbase_lua_bindings_39_of_94_named.md")
     for va, name, kind, op, lua in HAND_SEED:
         add(va, name, kind, op, lua, "finding_lua_api_to_zone_opcode_systematic_xref.md")
+    # bulk harvest: every curated `- 0xVA -> Name` rename across all docs
+    for va, name, kind, op, lua, src in parse_renames(re_root):
+        add(va, name, kind, op, lua, src)
 
     # cross-check vs symbols.json: keep only RVAs that resolve to a function
     kept, dropped = [], []
