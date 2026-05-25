@@ -56,7 +56,11 @@ sizes are imported into our type catalog via
 **cross-referenced, not byte-verified** and are confirmed against our
 own asm before a match is accepted. Cross-validation against our own
 Ghidra RTTI walk agrees on 2,270 shared vtables (the few differences
-are cosmetic demangling normalization).
+are cosmetic demangling normalization). Its bundled
+`FFXIVClientStructs.Tools.CLI` is also wrapped by
+`tools/analyze_legacy_struct.sh` for on-demand layout recovery — run
+against our own `orig/ffxivgame.exe`, so the recovered offsets are facts
+from our binary.
 
 ## ffxivDecomp
 
