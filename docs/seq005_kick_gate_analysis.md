@@ -182,3 +182,23 @@ EndEvent ≈ LuaActorImpl vtable slot 58, same 0x0089exxx cluster); OR (b) the
 empirical experiment #8a proposed, now well-motivated: have garlemald emit the
 EndEvent (and/or pmeteor's 5 extra pre-kick SetEventStatus) after the synthetic
 noticeEvent and test whether Now Loading clears via fresh-start-gridania.sh.
+
+## EndEvent dispatch chain (2026-05-25) — fully mapped client-side
+
+`EndClientOrderEventReceiver` (vftable `0xc57348`, 5 slots) is the EndEvent
+sibling of the kick's `KickClientOrderEventReceiver`. Slot 3 = `FUN_0089e2d0`
+(thin wrapper; reads receiver `+0x8` payload, `+0xc/+0xd/+0x10`) → calls the
+dispatcher `FUN_008a13a0`:
+- 2-level switch: first on the event **category** (`*param_1`), cases 0–5 fall
+  through to a second switch on the **sub-type** (`*puVar1`, from `param_2+0x18`);
+  categories `0x32–0x37` go elsewhere (`FUN_008a10c0`); default returns.
+- sub-type switch cases `0→FUN_006e1080`, `1→FUN_006e10a0`, `4→FUN_006e10c0`,
+  `5→FUN_006e10e0` — all thin thunks into the `FUN_00893xxx` event-end
+  subsystem (`8934a0/893520/8935b0/893800`), which run the event-end Lua.
+
+So the **client fades in only when it receives the `EndClientOrderEvent`
+packet** that drives `FUN_008a13a0` to the noticeEvent end-handler, which runs
+the end-script that calls the Lua clearer `_fadeInNowLoadingForNoticeEventJustInArea`.
+**Pivotal garlemald question:** does `apply_do_zone_change_content` actually
+send `EndClientOrderEvent` for its synthetic noticeEvent (with a category/
+sub-type that hits a real case, not `default`)? If not, that's the fix.
