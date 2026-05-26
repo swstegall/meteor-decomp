@@ -224,3 +224,22 @@ become `*param_1`/`*puVar1` — i.e. EndClientOrderEvent receiver fields
 values, and re-test via `fresh-start-gridania.sh` with packet logging. If the
 body offsets are unclear, decompile `FUN_0089e2d0`'s param setup + `FUN_00cc7a50`
 to map receiver field → switch selector.
+
+## Static-decomp limit reached (2026-05-25) — pivot to empirical body read
+
+Tried to pin the exact EndEvent body offsets statically and hit the floor:
+- `FUN_00cc7a50` (category selector source) is a **generic container accessor**
+  (`FUN_00cd80f0` discriminant → `FUN_00cd8160`/`FUN_00cd81d0` getter → deref),
+  so the category = "first element of the receiver `+0x8` payload container,"
+  not a fixed wire offset.
+- No static refs to the `EndClientOrderEventReceiver` vftable `0xc57348` — the
+  receiver is built by a template/factory, so there is no single parser to read
+  the packet→field mapping from.
+
+Conclusion: the **mechanism + selectors are fully mapped** (category = payload
+container head; sub-type = receiver `+0xc`; dispatcher `FUN_008a13a0`
+category×sub-type → end-handler → end-script → clearer → fade-in). The exact
+noticeEvent category/sub-type **values** are now best read empirically from the
+captures — extract pmeteor's `0x0131 EndEvent` body for its noticeEvent and
+compare to garlemald's, then set garlemald's body to match. That is task #24
+prep, not more decomp.
