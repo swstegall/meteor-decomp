@@ -26,4 +26,6 @@ The join gives every one of those classes a concrete vtable RVA in this binary, 
 | `Application::Scene::Actor::Chara::CharaCutVisualCtrl` | 7 | 80 | 0xc4447c |
 | `SQEX::CDev::Engine::Fw::SceneObject::Actor` | 2 | 256 | 0xc9ca94 |
 
-Generated 7 header(s). The full join (all 1058 classes, with vtable RVAs + sizes) is in `config/ffxivgame.struct_layouts.json` — the durable artifact a future Ghidra session can import to apply these layouts wholesale.
+Generated 6 header(s). The full join (all 1058 classes, with vtable RVAs + sizes) is in `config/ffxivgame.struct_layouts.json` — the durable artifact a future Ghidra session can import to apply these layouts wholesale.
+
+Skipped 1 field-rich class(es) that already have a richer hand-written catalog under `include/` (`Application::Scene::Actor::Chara::CharaActor`) — kept in the JSON, header not regenerated.

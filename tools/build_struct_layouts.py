@@ -199,11 +199,41 @@ def _cpp_type(t: str) -> tuple[str, int, str]:
     return cpp, sz, ""
 
 
+def _curated_vtable_rvas() -> set[str]:
+    """vtable RVAs already documented by a hand-written header under include/
+    (outside include/structs/). Such classes have a richer curated catalog —
+    we must NOT emit a competing auto-generated header for them."""
+    rvas: set[str] = set()
+    inc = REPO_ROOT / "include"
+    if not inc.exists():
+        return rvas
+    rx = re.compile(r"VTABLE_RVA\s*=\s*0x([0-9a-fA-F]+)")
+    for h in inc.rglob("*.h"):
+        if INCLUDE in h.parents:  # skip our own generated dir
+            continue
+        try:
+            for m in rx.finditer(h.read_text(errors="ignore")):
+                rvas.add("0x" + m.group(1).lower())
+        except OSError:
+            pass
+    return rvas
+
+
 def emit_headers(data: dict, binary: str) -> list[str]:
     out_dir = INCLUDE / binary
+    # Clear previously-generated headers so the output is idempotent (a class
+    # that becomes curated / drops below MIN_FIELDS leaves no stale file).
+    if out_dir.exists():
+        for stale in out_dir.glob("*.h"):
+            stale.unlink()
+    curated = _curated_vtable_rvas()
     written = []
+    skipped_curated = []
     for row in data["classes"]:
         if row["n_fields"] < MIN_FIELDS:
+            continue
+        if any(v.lower() in curated for v in row["vtable_rvas"]):
+            skipped_curated.append(row["name"])
             continue
         stem = sanitise(row["name"])
         # offset-sort; drop fields with no parseable offset
@@ -244,6 +274,7 @@ def emit_headers(data: dict, binary: str) -> list[str]:
         path = out_dir / f"{stem}.h"
         path.write_text(hdr)
         written.append(str(path.relative_to(REPO_ROOT)))
+    data["stats"]["skipped_curated"] = skipped_curated
     return written
 
 
@@ -284,6 +315,7 @@ def emit_doc(data: dict, headers: list[str], binary: str) -> str:
             f"| `{r['name']}` | {r['n_fields']} | "
             f"{r['size']} | {', '.join(r['vtable_rvas'])} |"
         )
+    skipped = s.get("skipped_curated", [])
     lines += [
         "",
         f"Generated {len(headers)} header(s). The full join (all "
@@ -292,6 +324,14 @@ def emit_doc(data: dict, headers: list[str], binary: str) -> str:
         "Ghidra session can import to apply these layouts wholesale.",
         "",
     ]
+    if skipped:
+        lines += [
+            f"Skipped {len(skipped)} field-rich class(es) that already have a "
+            "richer hand-written catalog under `include/` "
+            f"({', '.join('`'+c+'`' for c in skipped)}) — kept in the JSON, "
+            "header not regenerated.",
+            "",
+        ]
     return "\n".join(lines)
 
 
@@ -312,8 +352,11 @@ def main() -> int:
     print(f"struct-layouts [{binary}]:")
     print(f"  joined {s['joined']}/{s['lecs_classes']} classes "
           f"({s['ambiguous_multi_vtable']} multi-vtable)")
+    skipped = s.get("skipped_curated", [])
     print(f"  field-rich (>= {MIN_FIELDS}): {s['field_rich']} "
-          f"-> {len(headers)} headers; {s['total_named_fields']} total fields")
+          f"-> {len(headers)} headers"
+          f"{f' ({len(skipped)} skipped — curated header exists: {skipped})' if skipped else ''}"
+          f"; {s['total_named_fields']} total fields")
     print(f"  wrote config/{binary}.struct_layouts.json, docs/struct_layouts.md")
     return 0
 
