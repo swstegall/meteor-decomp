@@ -97,3 +97,44 @@ event_type-0x05 gate, `npc+0x128` priming, or why the same-zone path
 hangs. The most recent garlemald diagnosis points at the warp not
 completing client-side (the "Now Loading" hang), which may be upstream of
 the gate entirely. Treat the above as sharpened anchors, not a solution.
+
+## Decompiled bodies (2026-05-25, post-reimport) — mechanism mapped
+
+The fresh Ghidra 12.1 project + the applied names made the cluster
+decompilable (`tools/ghidra_scripts/DecompileToText.java`, `DECOMP_VAS=`).
+
+**`FUN_006E32F0` = `MyPlayer::_fadeInNowLoadingForNoticeEventJustInArea`
+(the clearer):**
+```c
+void __fastcall clearer(int this) {
+  if (*(int*)(this+0x128) != SENTINEL || *(int*)(this+0x12c) != SENTINEL) {
+    FUN_00cc7510();      // fade-in / hide "Now Loading"
+    FUN_0075b510();
+    *(int*)(this+0x128) = SENTINEL;   // reset notice-event state
+    *(int*)(this+0x12c) = SENTINEL;   // (SENTINEL = DAT_0130c778)
+  }
+}
+```
+So `MyPlayer+0x128`/`+0x12c` ARE the notice-event state (the `npc+0x128`
+priming field from #8c, on MyPlayer); this resets them AND clears the
+"Now Loading" overlay. **The SEQ-005 hang is precisely this clearer never
+running for the same-area path** — the overlay stays up. It's a Lua
+binding, so the notice-event script is what must call it.
+
+**`FUN_0089e200` (gate setter):** `*(byte*)(LuaParamsContainer+0x14) = 1`
+then memsets + seeds the LuaParams buffer (first byte = 1). Arms the gate.
+
+**`FUN_0089f180` (kick parser):** builds `KickClientOrderEventReceiver`,
+stores event_type at `+0x68`; iff `event_type == tag` AND `FUN_0078f840`
+returns true, calls the gate setter. Confirms the event_type-0x05 gate
+(now with the extra `FUN_0078f840` secondary condition surfaced).
+
+**Next concrete step (fix path):** the clearer is invoked from Lua, so the
+question is which notice-event script call reaches it and why garlemald's
+same-zone `DoZoneChangeContent` flow never does. Cross-reference against
+the #8c finding (garlemald never makes the client fire the trigger event —
+missing `SetPushEventCondition*` packets). Trace: who calls the clearer
+binding (script side) → what server event/packet arms that script path for
+the JustInArea (same-zone) case → emit it from garlemald's
+`DoZoneChangeContent`. Also decompile `FUN_00cc7510`/`FUN_0075b510` (what
+the clearer calls) + `FUN_0078f840` (the gate's secondary condition).
