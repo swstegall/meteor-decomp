@@ -3042,7 +3042,7 @@
   module: engine_memory
   symbol: FUN_004107d0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00010800
@@ -3096,7 +3096,7 @@
   module: engine_memory
   symbol: FUN_00410a00
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00010a80
@@ -3348,7 +3348,7 @@
   module: _unknown
   symbol: FUN_004117b0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000119b0
@@ -3357,7 +3357,7 @@
   module: _unknown
   symbol: FUN_004119b0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00011b30
@@ -3411,7 +3411,7 @@
   module: _unknown
   symbol: FUN_00411c90
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00011cf0
@@ -3582,7 +3582,7 @@
   module: _unknown
   symbol: FUN_00412150
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012230
@@ -3690,7 +3690,7 @@
   module: engine_memory
   symbol: FUN_00412540
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012550
@@ -3699,7 +3699,7 @@
   module: engine_memory
   symbol: FUN_00412550
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012560
@@ -3996,7 +3996,7 @@
   module: engine_memory
   symbol: FUN_00412f90
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012fa0
@@ -4149,7 +4149,7 @@
   module: engine_memory
   symbol: FUN_00413550
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00013570
@@ -4275,7 +4275,7 @@
   module: engine_memory
   symbol: FUN_00413a70
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00013a80
@@ -4302,7 +4302,7 @@
   module: engine_memory
   symbol: FUN_00413aa0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00013ab0
@@ -4356,7 +4356,7 @@
   module: engine_memory
   symbol: FUN_00413d90
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00013da0
@@ -4428,7 +4428,7 @@
   module: _unknown
   symbol: FUN_004140e0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00014140
@@ -4446,7 +4446,7 @@
   module: engine_memory
   symbol: FUN_00414210
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00014290
@@ -4518,7 +4518,7 @@
   module: engine_memory
   symbol: FUN_00414450
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00014460
@@ -4572,7 +4572,7 @@
   module: engine_memory
   symbol: FUN_004144b0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000144e0
@@ -4662,7 +4662,7 @@
   module: engine_memory
   symbol: FUN_00414850
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000148e0
@@ -4752,7 +4752,7 @@
   module: engine_memory
   symbol: FUN_00414b30
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00014b50
@@ -4932,7 +4932,7 @@
   module: _unknown
   symbol: FUN_00414d80
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00014de0
@@ -5022,7 +5022,7 @@
   module: _unknown
   symbol: FUN_00415160
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00015290
@@ -5103,7 +5103,7 @@
   module: _unknown
   symbol: FUN_00415440
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000154f0
@@ -5184,7 +5184,7 @@
   module: _unknown
   symbol: FUN_00415c40
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00015c90
