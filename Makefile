@@ -44,6 +44,7 @@ help:
 	@echo "  make emit-gam-header      Phase 3: include/net/gam_registry.h from GAM"
 	@echo "  make extract-paramnames   Phase 3: dereference per-class PARAMNAME dispatchers"
 	@echo "  make extract-gam-types-rtti Phase 3: enrich gam_params.json with RTTI types"
+	@echo "  make struct-layouts       Phase 3: join FFXIVLECS struct layouts onto RTTI vtables (headers + JSON)"
 	@echo "  make validate-chara-make  Phase 3: garlemald parse_new_char_request ↔ GAM CharaMakeData"
 	@echo "  make validate-chara-list  Phase 3: garlemald build_for_chara_list ↔ GAM ClientSelectData"
 	@echo "  make validate-murmur2     Phase 3: MurmurHash2 vectors (FUN_00d31490 ↔ garlemald)"
@@ -175,7 +176,7 @@ decompile-headless:
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 
-.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam extract-gam-types-rtti emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes extract-up-opcodes extract-crypt-engine
+.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam struct-layouts extract-gam-types-rtti emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes extract-up-opcodes extract-crypt-engine
 
 # Walk the RTTI dump for net-relevant classes; emit class→slot→fn_rva map.
 extract-net:
@@ -185,6 +186,13 @@ extract-net:
 # strings; emit the structured (id, namespace, type, decorator) registry.
 extract-gam:
 	$(PY) $(TOOLS)/extract_gam_params.py $(or $(BINARY),ffxivgame)
+
+# Join FFXIVLegacyClientStructs class layouts onto our RTTI vtables (by
+# demangled name — FFXIVLECS addresses are from a different build). Emits
+# config/<bin>.struct_layouts.json + offset-correct struct headers under
+# include/structs/<bin>/ for the field-rich classes + docs/struct_layouts.md.
+struct-layouts:
+	$(PY) $(TOOLS)/build_struct_layouts.py $(or $(BINARY),ffxivgame)
 
 # Emit include/net/gam_registry.h from the GAM extraction. Pulls
 # extract-paramnames first so the header carries property names.
