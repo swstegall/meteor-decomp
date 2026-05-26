@@ -1,6 +1,6 @@
 # Garlemald Lua-binding coverage report — index
 
-> Last updated: 2026-05-03 — auto-generated coverage report at
+> Last updated: 2026-05-25 — auto-generated coverage report at
 > `build/wire/garlemald_lua_coverage.md`. Re-run via
 > `make garlemald-lua-coverage`.
 
@@ -42,17 +42,23 @@ make garlemald-lua-coverage
 # → build/wire/garlemald_lua_coverage.{json,md}
 ```
 
-## Headline numbers (2026-05-03 snapshot)
+## Headline numbers (2026-05-25 snapshot)
 
 - 19 UserData types observed
-- 251 bindings (`add_method` calls)
-- 200 distinct method calls in scripts
-- **87 TRUE gaps** — called but bound nowhere (high-priority fixes)
+- 343 bindings (`add_method` calls)
+- 198 distinct method calls in scripts
+- **0 TRUE gaps** — every method scripts call is now bound (was 87 on
+  2026-05-03; closed across the +113-binding sweep)
 - 4 cross-type calls (bound elsewhere, reaches via composition)
-- 142 dead bindings (bound but never called — cleanup candidates)
-- 37 unmapped variable names
+- 149 dead bindings (bound but never called — cleanup candidates)
 
-## Top gaps by class
+> **The gap analysis in the sections below is historical (2026-05-03).**
+> It records the 87 TRUE gaps that originally motivated the binding
+> sweep — all of which have since been closed (current TRUE gaps = 0).
+> It's retained as a record of what was fixed; re-run
+> `make garlemald-lua-coverage` for the live report.
+
+## Top gaps by class (historical — 2026-05-03)
 
 | Class | True gaps | Notes |
 |---|---:|---|
