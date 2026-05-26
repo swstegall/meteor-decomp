@@ -243,3 +243,30 @@ noticeEvent category/sub-type **values** are now best read empirically from the
 captures — extract pmeteor's `0x0131 EndEvent` body for its noticeEvent and
 compare to garlemald's, then set garlemald's body to match. That is task #24
 prep, not more decomp.
+
+## PINNED (2026-05-25) — garlemald never ENDS the synthetic noticeEvent
+
+Targeted body-comparison result (code + decomp; pmeteor capture inconclusive
+on exact bytes — it sends 0 `0x12f` kicks, a different start mechanism, and its
+`0x131` bodies don't expose the noticeEvent end at garlemald's offsets):
+
+garlemald `apply_do_zone_change_content` (map-server/src/processor.rs ~3185)
+opens the noticeEvent — sets `event_session.current_event_{name="noticeEvent",
+type=5}` and calls `dispatch_event_start_to_content_director(...,"noticeEvent",
+type 5,...)` — but there is **NO `build_end_event` call anywhere in the content
+path**. `build_end_event` is only reached via the Lua `EndEvent` command,
+journal qtdata, and post-zone-in — none of which the synthetic noticeEvent
+triggers (it has no real client script to call `player:EndEvent()`).
+
+Decomp says the client fades in (clears `MyPlayer+0x12c`, hides "Now Loading")
+ONLY on receiving the `0x0131 EndClientOrderEvent` whose category routes to the
+noticeEvent case. So: started, never ended → hang.
+
+**FIX (task #24):** after the synthetic noticeEvent EventStart + content
+warp/zone-in, garlemald must send `build_end_event(player, director,
+"noticeEvent", event_type=5)` to close the event so the client's
+`FUN_008a13a0` dispatcher (category=5) runs the end-handler → end-script →
+`_fadeInNowLoadingForNoticeEventJustInArea` → fade-in. event_type=5 matches the
+open session the kick created (the client takes owner/sub-type from that
+session, per build_end_event's own doc-comment). Confirm timing + body via the
+live `fresh-start-gridania.sh` test.
