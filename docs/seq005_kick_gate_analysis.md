@@ -202,3 +202,25 @@ the end-script that calls the Lua clearer `_fadeInNowLoadingForNoticeEventJustIn
 **Pivotal garlemald question:** does `apply_do_zone_change_content` actually
 send `EndClientOrderEvent` for its synthetic noticeEvent (with a category/
 sub-type that hits a real case, not `default`)? If not, that's the fix.
+
+## Actionable conclusion (2026-05-25) — the testable garlemald hypothesis
+
+garlemald already sends `0x0131 EndEvent` (`map-server/.../send/events.rs
+build_end_event`); `0x0133` is its GenericData/GroupCreated. The client's
+fade-in dispatcher `FUN_008a13a0` switches on the EndEvent **body** bytes —
+category `*param_1` (cases 0–5 reach the sub-switch; 0x32–0x37 elsewhere;
+**default = return, no fade-in**) then sub-type `*puVar1` (cases 0/1/4/5 →
+the `FUN_00893xxx` end-handlers that run the end-script → the clearer).
+
+**Hypothesis to test:** garlemald's `0x0131 EndEvent` for the synthetic
+noticeEvent carries category/sub-type body bytes that hit `default` (or no
+end-handler), so `FUN_008a13a0` no-ops, the end-script never runs, the Lua
+clearer is never called, `MyPlayer+0x12c` stays set, and "Now Loading" hangs.
+
+**Fix (task #24, live):** compare garlemald's `0x0131` EndEvent body for the
+noticeEvent against pmeteor's in the gridania captures (the body offsets that
+become `*param_1`/`*puVar1` — i.e. EndClientOrderEvent receiver fields
+`+0xc/+0xd/+0x10`, set in `FUN_0089e2d0`), set garlemald's to the noticeEvent
+values, and re-test via `fresh-start-gridania.sh` with packet logging. If the
+body offsets are unclear, decompile `FUN_0089e2d0`'s param setup + `FUN_00cc7a50`
+to map receiver field → switch selector.
