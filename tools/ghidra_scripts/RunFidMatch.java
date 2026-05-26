@@ -59,6 +59,29 @@ public class RunFidMatch extends GhidraScript {
 		if (opts.contains(FID)) {
 			opts.setBoolean(FID, true);
 		}
+
+		// Diagnostics + tuning: print every Function ID sub-option with its
+		// value, and (if FID_MIN_INSTR is set) lower the instruction-count
+		// threshold so small CRT/Lua/zlib functions become matchable. Ghidra
+		// 12.1's default is more conservative than the run that first hit 899.
+		String minEnv = System.getenv("FID_MIN_INSTR");
+		for (String name : opts.getOptionNames()) {
+			if (!name.startsWith(FID + ".")) {
+				continue;
+			}
+			println("RunFidMatch: opt " + name + " = " + opts.getValueAsString(name)
+				+ " [" + opts.getType(name) + "]");
+			if (minEnv != null && name.toLowerCase().contains("instruction")) {
+				if (opts.getType(name) == OptionType.FLOAT_TYPE) {
+					opts.setFloat(name, Float.parseFloat(minEnv));
+				} else if (opts.getType(name) == OptionType.DOUBLE_TYPE) {
+					opts.setDouble(name, Double.parseDouble(minEnv));
+				} else if (opts.getType(name) == OptionType.INT_TYPE) {
+					opts.setInt(name, Integer.parseInt(minEnv));
+				}
+				println("RunFidMatch: SET " + name + " -> " + minEnv);
+			}
+		}
 		println("RunFidMatch: disabled " + disabled + " analyzers; running Function ID over "
 			+ currentProgram.getFunctionManager().getFunctionCount() + " functions");
 
