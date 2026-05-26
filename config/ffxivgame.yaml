@@ -3717,7 +3717,7 @@
   module: engine_memory
   symbol: FUN_00412570
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012580
@@ -3942,7 +3942,7 @@
   module: engine_memory
   symbol: FUN_00412de0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00012e00
@@ -4041,7 +4041,7 @@
   module: engine_memory
   symbol: FUN_00413140
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000131d0
@@ -4185,7 +4185,7 @@
   module: _unknown
   symbol: FUN_00413640
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000136c0
@@ -4221,7 +4221,7 @@
   module: _unknown
   symbol: FUN_00413940
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x000139a0
@@ -4293,7 +4293,7 @@
   module: engine_memory
   symbol: FUN_00413a90
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00013aa0
@@ -4347,7 +4347,7 @@
   module: engine_memory
   symbol: FUN_00413d80
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00013d90
@@ -4383,7 +4383,7 @@
   module: engine_memory
   symbol: FUN_00413f00
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00013f80
@@ -4482,7 +4482,7 @@
   module: _unknown
   symbol: FUN_004143f0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00014420
@@ -4545,7 +4545,7 @@
   module: engine_memory
   symbol: FUN_00414480
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00014490
@@ -4707,7 +4707,7 @@
   module: _unknown
   symbol: FUN_00414980
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00014a10
@@ -4797,7 +4797,7 @@
   module: _unknown
   symbol: FUN_00414bf0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00014c10
@@ -4977,7 +4977,7 @@
   module: _unknown
   symbol: FUN_00414e40
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00014e60
@@ -5121,7 +5121,7 @@
   module: _unknown
   symbol: FUN_00415650
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00015790
@@ -5265,7 +5265,7 @@
   module: _unknown
   symbol: FUN_004162c0
   type: matching
-  status: unmatched
+  status: matched
   owner: null
   section: .text
 - rva: 0x00016310
