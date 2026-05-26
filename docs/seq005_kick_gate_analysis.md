@@ -138,3 +138,22 @@ binding (script side) → what server event/packet arms that script path for
 the JustInArea (same-zone) case → emit it from garlemald's
 `DoZoneChangeContent`. Also decompile `FUN_00cc7510`/`FUN_0075b510` (what
 the clearer calls) + `FUN_0078f840` (the gate's secondary condition).
+
+## Trace conclusion (2026-05-25) — the fix is server-side
+
+`FindCallers` on the clearer `FUN_006E32F0`: **exactly one reference — a DATA
+ref from the MyPlayer vftable at `0x00fd7964` (slot 66). No static call
+sites.** So it is invoked only via virtual dispatch / the Lua binding
+`_fadeInNowLoadingForNoticeEventJustInArea` — i.e. a **script** calls it after
+zone-in completes. Callees: `FUN_0075b510 → FUN_004d70b0(1)` (render/scene
+enable — the un-hide behind the fade-in); `FUN_00cc7510` (paired UI op).
+
+Therefore the SEQ-005 "Now Loading" hang is NOT a missing client function —
+it's that garlemald's same-zone `DoZoneChangeContent` never drives the client
+to the zone-in-complete state whose script calls the clearer. This matches the
+earlier garlemald diagnosis (client sends RX `0x0007` zone-in-complete after
+working cross-zone warps but never after the same-zone one; same-zone path
+skipped the `do_zone_change_with_private_area` helper — `is_updates_locked`
+bracket + spatial-grid re-insert). **Fix lives in garlemald**, not the client:
+make `DoZoneChangeContent` run the full cross-zone zone-in completion so the
+client reaches the script path that fires the clearer.
