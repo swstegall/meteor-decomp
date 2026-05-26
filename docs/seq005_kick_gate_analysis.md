@@ -157,3 +157,28 @@ skipped the `do_zone_change_with_private_area` helper — `is_updates_locked`
 bracket + spatial-grid re-insert). **Fix lives in garlemald**, not the client:
 make `DoZoneChangeContent` run the full cross-zone zone-in completion so the
 client reaches the script path that fires the clearer.
+
+## Convergence: the gap is the CLEAR side (EndEvent), not arming (2026-05-25)
+
+- `FUN_0078f840` (gate secondary condition): reads the next kick-stream byte
+  and sets the flag = `(byte == 3)`. So the gate arms iff `event_type == tag`
+  AND that byte == 3. garlemald's kick body is byte-identical to pmeteor (#8a),
+  so **arming is fine** — Now Loading does come up.
+- The clearer `FUN_006E32F0` resets `MyPlayer+0x128` AND `+0x12c` and fades in.
+  **`+0x12c` is exactly the `context_root[+0x12c]` that #8a said must be
+  cleared** via "EndEvent slot 3's 102-case dispatcher." Two independent
+  threads converge: the clearer IS the function that clears `+0x12c`, and it
+  runs on the noticeEvent **ending**, not starting.
+
+**Therefore:** garlemald (`apply_do_zone_change_content`) already arms the
+notice event (synthetic noticeEvent EventStart, byte-identical kick, the
+`do_zone_change_with_private_area` helper, zone-in replay) — but never drives
+the **EndEvent** path whose noticeEvent case fires the clearer, so `+0x12c`
+stays set and "Now Loading" never fades. The fix is on the END side.
+
+**Next:** (a) decompile the EndEvent receiver's 102-case dispatcher to find the
+noticeEvent-end case + the packet field that selects it (need its address —
+EndEvent ≈ LuaActorImpl vtable slot 58, same 0x0089exxx cluster); OR (b) the
+empirical experiment #8a proposed, now well-motivated: have garlemald emit the
+EndEvent (and/or pmeteor's 5 extra pre-kick SetEventStatus) after the synthetic
+noticeEvent and test whether Now Loading clears via fresh-start-gridania.sh.
