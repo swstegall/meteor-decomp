@@ -353,11 +353,12 @@ surface we expect to recover for each:
   pointers, two-pointer w/ both deref, count > 0 vs != 0)
   is in
   `~/.claude/projects/-Users-swstegall-Documents-Programming-server-workspace/memory/reference_meteor_decomp_rosetta_match.md`.
-- ✅ **Matching at scale** — by 2026-05-02, **38,400 GREEN-
-  status functions in YAML across 5 binaries** + **65,595
-  `_rosetta/*.cpp` files** (1.86 % by YAML status, 3.61 % by
-  rosetta count). The jump came from the
-  template-derivation pipeline (Phase 2.5 below), not from
+- ✅ **Matching at scale** — by 2026-05-25, **67,677
+  `_rosetta/*.cpp` files across 5 binaries (3.88 % by file
+  coverage)**; the YAML `status:` GREEN count collapsed to
+  15,618 (0.91 %) during the orchestrator teardown and is no
+  longer maintained — see `docs/decomp-status.md`. The jump came
+  from the template-derivation pipeline (Phase 2.5 below), not from
   hand-writing one function at a time.
 - **Note on RTM vs SP1**: cl.exe `.42` is RTM, not SP1
   (`.762`). The FFXIV binary's linker version 8.0 is
@@ -402,8 +403,9 @@ Pipeline stages (full detail in [`docs/decomp-status.md`](docs/decomp-status.md)
   candidates (smallest unmatched function with the most cross-binary
   copies, fewest relocations).
 
-Cumulative effect through 2026-05-02: from ~10 hand-matched functions
-to 38,400 GREEN-status functions in YAML across all 5 binaries. The
+Cumulative effect through 2026-05-25: from ~10 hand-matched functions
+to 67,677 durable `_rosetta/*.cpp` files across all 5 binaries (15,618
+GREEN in the post-teardown YAML). The
 single largest landings: 1,552-sibling stamped cluster (`780c628c3`)
 and the auto-template pass that emitted 10,577 GREEN templates in one
 go (`d9f64cf19`).

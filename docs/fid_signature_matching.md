@@ -93,7 +93,7 @@ individually; `gen` chains the first three.
   `AttachFidDatabase`'s headless `.properties` key is the title + button label:
   `Attach existing FidDb Attach`.
 
-## Results — 419 functions named so far (the CRT was a misleading sample)
+## Results — 899 functions named (the CRT was a misleading sample)
 
 Running totals against the 60,616 `FUN_xxx` baseline:
 

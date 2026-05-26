@@ -71,25 +71,27 @@ already produced enough wire-level ground truth to validate
 
 ### Headline numbers
 
-> **2026-05-02 snapshot below.** The work pool (`config/<bin>.yaml`) is
-> currently mid-regeneration by the agent orchestrator, so its "matched"
-> status column is transiently reset — **run `make progress` for live
-> numbers**. The durable measure is the `_rosetta/*.cpp` count, which as
-> of **2026-05-25** stands at **67,525 files / 716,925 B (3.78 %)** across
-> all five binaries (up from 65,595 / 683,986 B). Separately, FID has now
-> *named* 899 library functions in `ffxivgame.exe` (see milestone above) —
-> a distinct metric from byte-matching.
+> **Live numbers — run `make progress`.** The work pool's `status:` column
+> (`config/<bin>.yaml`) collapsed during the agent orchestrator's work-pool
+> regeneration (the run is now concluded and torn down) and is no longer
+> maintained, so it badly under-reports `matched` — most heavily for
+> `ffxivgame.exe` (320 vs. ~39 k actual files). The durable, authoritative
+> measure is the `_rosetta/*.cpp` file count, which as of **2026-05-25**
+> stands at **67,677 files / 735,338 B (3.88 %)** across all five binaries
+> (up from 65,595 / 683,986 B). Separately, FID has *named* 899 library
+> functions in `ffxivgame.exe` (see milestone above) — a distinct metric
+> from byte-matching.
 
-`make progress` summary (2026-05-02):
+`make progress` summary (2026-05-25):
 
 | Binary | YAML matched | `_rosetta/*.cpp` files |
 |---|---:|---:|
-| `ffxivgame.exe` | 23,106 / 210,648 B | 38,593 |
-| `ffxivboot.exe` | 14,330 / 125,304 B | 26,103 |
-| `ffxivlogin.exe` | 357 / 8,326 B | 281 |
-| `ffxivupdater.exe` | 431 / 5,975 B | 433 |
-| `ffxivconfig.exe` | 176 / 1,715 B | 185 |
-| **Total** | **38,400 / 351,968 B (1.86 %)** | **65,595 / 683,986 B (3.61 %)** |
+| `ffxivgame.exe` | 320 / 31,385 B | 39,765 |
+| `ffxivboot.exe` | 14,330 / 125,304 B | 26,970 |
+| `ffxivlogin.exe` | 361 / 8,362 B | 291 |
+| `ffxivupdater.exe` | 431 / 5,975 B | 451 |
+| `ffxivconfig.exe` | 176 / 1,715 B | 200 |
+| **Total** | **15,618 / 172,741 B (0.91 %)** | **67,677 / 735,338 B (3.88 %)** |
 
 ### Phase 3 — what's been recovered
 

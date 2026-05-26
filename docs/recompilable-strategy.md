@@ -267,7 +267,7 @@ output that `cmp` confirms is byte-identical to orig.
   symbols (`int the_global`, `void target()`, `void operator_delete`)
   to make cl.exe emit the right shape — they're validation-only,
   not link-ready. The high-yield rosettas are in ffxivgame
-  (38,593 _rosetta files including hand-written matches like
+  (39,765 _rosetta files including hand-written matches like
   `Utf8StringFree`, `PackRead` methods, CRT helpers).
 - Each swap is wrapped in a per-RVA C++ namespace (`namespace
   swap_<rva> { ... }`) so cluster-derived sources reusing names
@@ -331,7 +331,9 @@ new categories of input.
   every binary using the comment-hint matcher + extern neutraliser
   improvements from Stage H.
 - Per-binary swap totals after fan-out (each relink remains
-  byte-identical to orig):
+  byte-identical to orig). *Snapshot from one `swap-source-all` run; the
+  `Candidates` column is the `_rosetta` count at that run — current totals
+  are higher (`make progress`: ffxivgame 39,765, ffxivboot 26,970):*
 
   | Binary             | Candidates | Accepted | byte_mismatch | prefilter_extern |
   |--------------------|-----------:|---------:|--------------:|-----------------:|

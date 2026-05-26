@@ -2,24 +2,36 @@
 
 A running record of what's been recovered from `ffxivgame.exe`, what's
 been validated against `garlemald-server` (the Rust port), and where
-the open questions are. Last update: 2026-05-02.
+the open questions are. Last update: 2026-05-25.
 
 For the strategic plan and exit criteria, see [PLAN.md](../PLAN.md).
 For per-subsystem detail, see the auto-generated reports under
 `build/wire/<binary>.*.md` (regenerable via `make`).
 
-## Headline numbers (2026-05-02)
+## Headline numbers (2026-05-25)
 
 `make progress` summary across all five binaries:
 
 | Binary | YAML matched (count / bytes) | _rosetta/*.cpp files | Notes |
 |---|---|---|---|
-| `ffxivgame.exe` | 23,106 / 210,648 B | 38,593 | Primary target |
-| `ffxivboot.exe` | 14,330 / 125,304 B | 26,103 | Cross-binary template multiplier |
-| `ffxivlogin.exe` | 357 / 8,326 B | 281 | |
-| `ffxivupdater.exe` | 431 / 5,975 B | 433 | ZiPatch home |
-| `ffxivconfig.exe` | 176 / 1,715 B | 185 | |
-| **Overall** | **38,400 / 351,968 B (1.86 %)** | **65,595 files / 683,986 B (3.61 %)** | |
+| `ffxivgame.exe` | 320 / 31,385 B | 39,765 | Primary target |
+| `ffxivboot.exe` | 14,330 / 125,304 B | 26,970 | Cross-binary template multiplier |
+| `ffxivlogin.exe` | 361 / 8,362 B | 291 | |
+| `ffxivupdater.exe` | 431 / 5,975 B | 451 | ZiPatch home |
+| `ffxivconfig.exe` | 176 / 1,715 B | 200 | |
+| **Overall** | **15,618 / 172,741 B (0.91 %)** | **67,677 files / 735,338 B (3.88 %)** | |
+
+> **On the "YAML matched" column:** this counts only `config/<bin>.yaml`
+> rows whose `status:` field reads `matched`. That field collapsed during
+> the agent orchestrator's work-pool regeneration (now concluded and torn
+> down) — most visibly for `ffxivgame.exe`, which dropped from 23,106 to
+> 320 even as its `_rosetta/*.cpp` file count *rose* to 39,765. Match state
+> was tracked via file presence + the orchestrator's SQLite coordination DB
+> (now archived), not the YAML `status:` field, and there is no longer a
+> running pipeline to re-sync it (`update_yaml_status` needs
+> `build/easy_wins/*.validate_results.json`, which the teardown removed). So
+> the **`_rosetta/*.cpp` file count is the authoritative recovered-match
+> metric**; the YAML column is retained only for continuity.
 
 The jump from "single-digit functions matched" to "tens of thousands"
 came from the **template-derivation pipeline** (§ Phase 2.5 below)
@@ -168,9 +180,10 @@ Pipeline stages:
     drops that would otherwise let a bogus template "match" against
     truncated bytes.
 
-Cumulative effect (commit history through 2026-05-02): going from ~10
-hand-matched functions to **38,400 GREEN-status functions in YAML
-across 5 binaries** + **65,595 durable `_rosetta/*.cpp` files**. The
+Cumulative effect (through 2026-05-25): going from ~10 hand-matched
+functions to **67,677 durable `_rosetta/*.cpp` files across 5 binaries**
+(15,618 still flagged GREEN in the post-teardown YAML — see the caveat
+above on why that field under-reports). The
 single largest individual landings were the 1,552-sibling stamped
 cluster (`780c628c3`) and the auto-template pass that emitted 10,577
 GREEN templates in one go (`d9f64cf19`).
