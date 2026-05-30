@@ -268,10 +268,75 @@ into higher-level operations:
 
 | Method | Purpose |
 |---|---|
-| `_onTouch(self, ...)` | Touch event |
+| `_onTouch(self, ...)` | Touch event (see correction below) |
 | `_onMoveAtSit(self, ...)` | Movement-while-sitting |
 | `_onChocoboRentalRide(self, ...)` / `_onChocoboWarpRide(self, ...)` | Chocobo-mounting events |
 | `_onGetGoobbue(self, ...)` | Goobbue-pet acquisition |
+
+#### Correction: `_onTouch` is gathering-proximity, NOT a generic touch event (ffxivDecomp 2026-05-28)
+
+> Sourced from **ffxivDecomp** (github.com/Yokimitsuro/ffxivDecomp), an independent
+> docs-only RE of FFXIV 1.23b `ffxivgame.exe`, used with permission (see `NOTICE.md`).
+> **Cross-referenced, not byte-verified** by meteor-decomp's own decompilation —
+> confirm against the asm before relying on offsets for a code change.
+> Captured 2026-05-30 from the ffxivDecomp 2026-05-27/28 session.
+
+The "Touch event" label above is a placeholder from the original
+`_u`-based inventory. ffxivDecomp's walk of the actual `_onTouch` handler
+in PlayerBaseClass (`uy9l5s89r57y9rr.lua` lines 1502–1593) shows it is the
+**proximity-driven contextual-command activation** system, not a physical
+contact / collision event. It is the client end of inbound opcodes **0 / 1**
+(the most-frequent opcode pair in 1.x by traffic — players constantly cross
+interaction-point proximity boundaries while moving). The server pushes
+opcode 0 (enter) when the player walks into range of a fishing spot, harvest
+point, chair, or instance-raid service NPC, and opcode 1 (leave) when they
+exit. The client merely mirrors activation/deactivation — the place-driven
+command state lives server-side.
+
+Signature is `_onTouch(self, touchKind, touchEnter)`. The `touchKind` enum
+dispatches to different contextual commands:
+
+| `touchKind` | Meaning | Behaviour on enter |
+|---:|---|---|
+| `1` | Gathering / harvest proximity | Probes `searchReadyCommand(22004 = "Fish")`; if equipped & ready, `setPlaceDrivenCommandVariation(30003, …, 5)` (slot priority 5). Likely also reused for Mine/Botany/Log/Herd (`22005 = "Herd"`). |
+| `2` | Sit-chair proximity | `setEmoteSitCommandVariation(10002)` on enter, `(nil)` on leave. |
+| `5` | Instance-raid service | Only when `areaMaster:isInstanceRaid()`; runs `_executeCommand(cmdName, _getStaticActor(24301), 30004, 5, 1)` (or `…, 2` on leave) against the static raid-service actor **24301**. |
+
+Touch kinds `3`, `4`, `6+` fall through silently in PlayerBaseClass (likely
+handled by sub-classes or reserved for other harvest types / hamlet supply
+caches — TBD per ffxivDecomp).
+
+The activation writes into a **4-slot** parallel-array contextual-command
+state on `playerWork` (schema declared in the same file, lines 427–461):
+
+| `playerWork` field | Type | Holds |
+|---|---|---|
+| `variableCommandPlaceDriven[4]` | `int16` | command id |
+| `variableCommandPlaceDrivenSub[4]` | `int32` | sub-command |
+| `variableCommandPlaceDrivenTarget[4]` | actor ref | target actor |
+| `variableCommandPlaceDrivenPriority[4]` | `int8` | priority / slot |
+
+So up to 4 proximity commands can be active at once (the `5` passed to
+`setPlaceDrivenCommandVariation` is the slot-priority index). The same 4-slot
+array is *also* populated by NPC-push events (`NpcBaseClass._onPushRequest`'s
+`pushCommandIn` / `pushCommandOut`) — both funnel into the same
+`setPlaceDrivenCommandVariation` API, so the two subsystems share the slots.
+
+This connects to the `setPlaceDrivenCommandVariation` /
+`resetPlaceDrivenCommandVariation` and `setEmoteSitCommandVariation` methods
+documented in the "Content command / content widget" and "Command system"
+sections above, and to the `getPlaceDrivenCommandVariation` /
+`getEmoteSitCommandVariation` `_cliprog` accessors. ffxivDecomp annotated the
+two engine entry points in Ghidra as `Player_invokeLua_onTouch_proximityBegin`
+(`0x00898d20`, opcode 0) and `Player_invokeLua_onTouch_proximityEnd`
+(`0x00898eb0`, opcode 1). The short-form note already lives in
+`docs/ffxivdecomp_inbound_opcodes.md`; this is the detailed correction.
+
+**Caveat:** command ids (`22004 Fish`, `22005 Herd`, `30003`/`30004`
+place-driven variations, `10002` sit) come from FFXIVTool `Command.csv` and
+the deciphered Lua, cross-referenced not byte-verified here; the static raid
+actor `24301`, the engine VAs `0x00898d20` / `0x00898eb0`, and `playerWork`
+offsets should be confirmed against the asm before any code change.
 
 ### Login / event lifecycle (10)
 

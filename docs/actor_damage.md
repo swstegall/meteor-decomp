@@ -3,6 +3,13 @@
 > Last updated: 2026-05-02 — class hierarchy mapped; clip-factory
 > dispatch is virtual so the upstream packet → clip path is one
 > indirection deeper than the others.
+>
+> For the **numeric combat formulas** (potencial curve, sqrt level
+> adjust, magic/physical stat tables, 4-param command scaling, party
+> multipliers, battle WorkSync schema) the client computes and the
+> server validates against, see **`docs/actor_combat_formulas.md`**
+> (cross-referenced from ffxivDecomp). This file (the damage *display*
+> path) carries no formula text.
 
 ## The "floating popup" family in `App::Main::Element::Chara::*`
 

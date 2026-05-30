@@ -327,3 +327,168 @@ formatting), separate from the dispatcher's per-id name table.
   mangled names (filter by `kind: "string"` and `value.contains
   "PARAMNAME"`), 491 lower-level strings hinting at field names
   (`loginCount`, `loginFlag`, `name.fullname`, etc.).
+
+## Transport / session layer — call-site grounding (ffxivDecomp, 2026-05-28)
+
+> Sourced from **ffxivDecomp** (github.com/Yokimitsuro/ffxivDecomp), an independent
+> docs-only RE of FFXIV 1.23b `ffxivgame.exe`, used with permission (see `NOTICE.md`).
+> **Cross-referenced, not byte-verified** by meteor-decomp's own decompilation —
+> confirm against the asm before relying on offsets for a code change.
+> Captured 2026-05-30 from the ffxivDecomp 2026-05-27/28 session.
+
+The "Transport is RUDP2" line in the TL;DR above is the **RTTI-and-vtable**
+view — the `Sqex::Socket::RUDP2::*Segment` classes are real and present. The
+ffxivDecomp session adds the **call-site-grounded** picture, which refines
+(does *not* contradict) it: at the bottom of the stack the client drives a
+**plain Winsock `select()` loop over a generic `Socket` wrapper class**, and
+the RUDP2 *segments* are framed by code sitting **above** that generic
+socket. So the live socket is just a TCP/UDP descriptor with stats counters;
+"RUDP2" is a framing/reliability layer layered on top, not a property of the
+socket object itself.
+
+### The generic Socket layer (Winsock select-driven)
+
+(Source: `finding_net_event_loop.md`.) The Socket class has a **vtable at
+`0x01113340`** (slot `+0x0c` = `on_error` / `on_close`). The thin Winsock
+shims are tiny — they pull a `SOCKET` from `Socket+0x04`, call the import,
+and normalise `WSAEWOULDBLOCK` (`0x2733` = 10035) to "no data":
+
+| Function (RVA) | Role | Winsock import |
+|---|---|---|
+| `FUN_00d43140` | `Socket_recv_thin` — recv into buffer, `WSAEWOULDBLOCK → -2` | `recv` |
+| `FUN_00d430d0` | `Socket_send_thin` — send, `WSAEWOULDBLOCK → 0` | `send` |
+| `FUN_00d57530` | `NetIo_SelectWait` — the I/O loop's wait | `select` |
+| `FUN_00d42d90` / `FUN_00d43060` / `FUN_00d432a0` | socket / connect / WSAStartup shims | `socket` / `connect` / `WSAStartup` |
+
+The event loop is `FUN_00d514f0` (one tick): `select()` → on ready,
+`FUN_00d511c0` walks a vector of 12-byte ready-descriptor entries and calls
+`FUN_00d44ae0(sock, r, w, x)`, the per-socket state machine. **Socket state
+field is at `Socket+0x98`** (atomic), with these values:
+
+| State | Meaning | recv path |
+|---|---|---|
+| 2 | `LISTENING_OR_ACCEPTING` | accept-path (`FUN_00d44370`) |
+| 3 | `CONNECTING` | connect-complete (`FUN_00d438e0`) |
+| 4 | `CONNECTED_TCP` | `FUN_00d447e0` → `recv()` |
+| 5 | `CONNECTED_UDP` | `FUN_00d44950` → `recvfrom()` |
+
+The same Socket class therefore has **both a TCP recv path (state 4) and a
+UDP recvfrom path (state 5)** — consistent with RUDP2 running over UDP but
+the launcher's `ws2_32` shim tunnelling over TCP (state 4). Raw bytes reach
+user code via a per-socket callback installed at **`Socket+0x38`**
+(`on_recv_tcp(ctx, buf, len)`; the UDP twin at `+0x3c` also gets a
+`sockaddr*`), with the channel object installed as the context at
+`Socket+0x90`. **Framing happens in that callback, not in the recv worker**
+— the client hands its parser arbitrary-length `recv()` chunks, so frames
+may arrive split or coalesced (the per-channel `PacketBufferBase` reassembles
+them; see "IPC channel framing" below).
+
+This grounds the existing TL;DR caveat: a TCP-via-shim server (what
+`garlemald-server` and Project Meteor implement) hits the **state-4** path
+cleanly; a native RUDP2-over-UDP server would drive **state 5**.
+
+### IPC channel framing sits above the socket
+
+(Source: `finding_ipc_channel_framing.md`.) The three channels
+(`Lobby` / `Zone` / `Chat`) are **independent TCP connections**, each owning
+its own `PacketBufferTmpl<TXxxProtoDown>` (recv) and `…Up` (send). They are
+**not multiplexed onto one socket** — so a compatible server must serve three
+separate connections per session, and **opcode spaces are per-channel** (the
+same opcode value means different things on Lobby vs Zone vs Chat). The
+boundary between byte-stream and typed packet is `tryGetNextPacket`
+(`FUN_00db6140` base; `FUN_00db6d20` typed); per-packet dispatch is virtual
+through the primary processor at `PacketBufferBase+0x08` (vtable `+0x14`),
+with an optional secondary processor at `+0x78` (vtable `+0x20`) that matches
+the `Lua::Script::Client::Group::PacketProcessor` RTTI — i.e. the Lua bridge,
+consulted only after the primary processor runs.
+
+### Segment-level (transport) opcode roster
+
+These are the **RUDP2 segment / session opcodes**, distinct from the
+game-message opcodes in the IPC payload. The zone session sub-tick
+(`FUN_004e20a0` / `ZoneClient_mainLoopTick`, driven from the master tick
+below) emits the outbound ones; `FUN_004dc690`
+(`Zone_MAIN_inbound_opcode_dispatcher`) handles the inbound ones in its
+**low-opcode session range** (cf. `finding_outbound_complete_lobby_zone_chat.md`
+and `finding_spawn_wire_side_…0x17c…md`).
+
+Outbound (client → server, session/transport level):
+
+| Op | Size | Role |
+|---|---|---|
+| `0x01` | — | latency ping (≈ every 1 s) |
+| `0x02` | 56B | handshake (carries the version constant; see below) |
+| `0x03` | 560B | large-state push |
+| `0x04` | — | disconnect-ack |
+| `0x06` | 24B | heartbeat |
+
+Inbound (server → client, session/transport level) recognised by the
+dispatcher's low-opcode arm: `0x01`, `0x02`, `0x0E`, `0x11` (plus the
+`0x08`/`0x09`/`0x0A`/`0x0B` bulk-state-push 1/16/32/64 size variants).
+
+> **SEQ-005 disambiguation — read this before touching the zone-in handshake.**
+> ffxivDecomp's `FUN_004dc690` decodes a **DOWN-side** (server→client) case
+> `0x07` as a *resync* handshake ("resync loop"). This is **NOT** the same
+> thing as the **UP-side** (client→server) `0x0007` zone-in-complete that
+> garlemald fails to send in the SEQ-005 "Now Loading" hang (see
+> `MEMORY.md` → *garlemald SEQ_005 Now Loading hang*). One is a server-driven
+> down-side resync; the other is a client-driven up-side zone-in-complete
+> acknowledgement. They share the byte value `0x07` but live on opposite
+> directions of opposite-layer dispatchers — do not conflate them when
+> diagnosing the warp-completion gap.
+
+### Master tick that owns Lobby + Zone
+
+(Source: `finding_network_client_module.md`.) `NetworkClientModule::tick`
+(`FUN_004e30a0`) is the singleton 6-state master state machine (state field
+at `+0x250`) that owns both the `LobbyClient` (`+0x240`) and the `ZoneClient`
+(`+0x234`) and drives the lobby→zone handoff:
+
+| State | Meaning |
+|---|---|
+| 0 | IDLE / connect-requested — allocates `LobbyClient` (0x4A8 bytes), wires + starts TCP |
+| 1 | LOBBY ACTIVE — runs the 4-phase login sub-tick (`FUN_004e2d00`) |
+| 2 / 3 | transient → state 4 (lobby torn down, switch to zone) |
+| 4 | ZONE STEADY — `ZoneClient_mainLoopTick` (`FUN_004e20a0`); emits the session opcodes above |
+| 5 | LOBBY CLEANUP COMPLETE — finishes any leftover teardown; keeps ticking the zone |
+
+The lobby login sub-tick advances through `0x1f5` (lobby login) → `0x05`
+(service login) → `0x06` (game login) → world-server info, then the
+`RaptureLobbyCallback::switchToWorld` slot instantiates the
+`ZoneProtoChannel::ServiceConsumerConnectionManager` and raises the
+"switch to zone" flag at `+0x24c`.
+
+### Version constants a server must accept
+
+(Source: `finding_outbound_complete_lobby_zone_chat.md`; corroborated by
+`finding_client_version_identification.md` for build provenance.)
+
+| Constant | Decimal | Where | Field |
+|---|---:|---|---|
+| `0x3C6B` | 15467 | Zone + Chat handshake (`0x02`) | version word at `+0x00` |
+| `0x6E` | 110 | Lobby `0x05` ServiceLogin / `0x06` GameLogin | `clientVer1` (1 byte @ `+0x0a`) |
+| `0x1347` | 4935 | Lobby `0x05` / `0x06` | `clientVer2` (2 bytes @ `+0x0c`) |
+| `0x14C` | 332 | — | sub-proto threshold |
+
+A version-tolerant test server must accept these exact values **or** relax
+the version check. (Provenance note: the binary self-identifies as the FFXIV
+1.x Crystal Tools-era unified client — `CDev.Engine.Dw.RenderInterface`
+banner `build at Sep 5 2012`, between 1.23a and 1.23b — consistent with the
+1.23b target but not proven from a literal in-binary `1.23b` string; see
+`finding_client_version_identification.md`.)
+
+### Spawn / actor replication is layered above all of this
+
+(Source: `finding_spawn_wire_side_CLOSED_opcode_0x17c_zone_main_inbound_dispatcher.md`.)
+For completeness on where game-message opcodes sit relative to the transport:
+the Zone inbound dispatcher `FUN_004dc690` also covers a **high-opcode
+game-protocol range** (`0x143`–`0x1a8`, 40+ cases) in addition to the
+session arm above. Wire opcode **`0x17c`** (380) is the SPAWN packet — it
+routes through `FUN_00576250` → `FUN_006cc620` → the
+`SpawnPipeline_FACTORY` (`FUN_006cc070`), keyed by a TYPE_TAG at payload
+`+0x10` (`0` = `EntryBuilder`/spawn, `0xe` = `OnlineStatusUpdater`) and a
+null-terminated **class-name string at payload `+0x44`**, with the `0x2711`
+(10001) list-object signature gating the notification chain. The client
+ACKs a spawn with **2× `0x130` + 1× `0x133`**. These are the *Group::* typed
+replication packets, well above the segment/session layer documented in this
+section.

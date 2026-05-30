@@ -12,6 +12,15 @@ to drive client behaviour (the outbound/client→server family 0x12d–0x135
 is in `docs/ffxivdecomp_opcode_binding_map.md`). Opcode numbers here are
 the **dispatch-table index**, not the wire opcode word.
 
+> **Two-table architecture** (2026-05-28 session): the *real* wire opcode a
+> server emits is read at `packet[+2]` and switched by the **primary** Zone
+> dispatcher `FUN_004dc690` (`Zone_MAIN_inbound_opcode_dispatcher_50plus_handlers`)
+> over the `0x143`–`0x1a8` range (+ session `0x02`–`0x11`). This `0x00fdfb80`
+> table is the **downstream** CommandUpdater per-event sub-table that the
+> primary dispatcher feeds — its 0–60 indices are **not** wire opcodes a server
+> sends. See `finding_zone_inbound_opcodes_COVERAGE_COMPLETE.md` /
+> `finding_inbound_dispatch_100_percent_coverage.md`.
+
 ## Lua-hook opcodes (~30) — server push → client `_on*` hook
 
 | Op | Lua hook | Actor class | Notes |
@@ -91,11 +100,16 @@ meteor-decomp's Receiver→LuaActorImpl-slot work; the 0x0089exxx /
 
 ## Chat opcodes (4) — Command-update notifications
 
+> **2026-05-30 correction** (`finding_inbound_chat_handlers_3_variants_decompiled.md`):
+> entries 36 and 37 were previously **swapped** here. Entry **36 is `/tell`**
+> (two names: sender + recipient), entry **37 is simple chat** (one name, no
+> recipient). Corrected below.
+
 | Op | Variant | Notes |
 |----|---------|-------|
-| 35 | chat A | single-name Command update |
-| 36 | chat B | 40-char name |
-| 37 | chat C | recipient-targeted (/tell-style) |
+| 35 | chat A (System/Say) | substitution params; single-name Command update — writer `FUN_007858c0` |
+| 36 | chat B (`/tell`) | recipient-targeted: sender `@+9`, recipient `@+0x29`, body `@+0x49` (~137B) — writer `FUN_007859b0` |
+| 37 | chat C (simple) | one name + 2 flag/lang bytes, **no recipient** — writer `FUN_00785aa0` |
 | 57 | chat D | variant D |
 
 ## No-op / reserved (10)

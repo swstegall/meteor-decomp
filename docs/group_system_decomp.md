@@ -638,3 +638,176 @@ wrapper.
 - Memory: `project_garlemald_seq005_now_loading_hang.md` — the SEQ_005
   same-zone DoZoneChangeContent hang (current open blocker; Phase 8
   item #7+#8 directly address its root cause)
+
+## ffxivDecomp cross-reference — typed-packet wire opcodes + CommandUpdate records + opcode→Lua-callback→bindWork triple (2026-05-30)
+
+> Sourced from **ffxivDecomp** (github.com/Yokimitsuro/ffxivDecomp), an independent
+> docs-only RE of FFXIV 1.23b `ffxivgame.exe`, used with permission (see `NOTICE.md`).
+> **Cross-referenced, not byte-verified** by meteor-decomp's own decompilation —
+> confirm against the asm before relying on offsets for a code change.
+> Captured 2026-05-30 from the ffxivDecomp 2026-05-27/28 session.
+
+The ffxivDecomp session adds three pieces of semantic intel that the
+993-symbol name import doesn't carry: (1) the `Group::PacketRequestBase`
+hierarchy this doc inventories is **the same machinery as the actor
+spawn/despawn wire pipeline** (not a separate party/lobby system); (2)
+the three distinct CommandUpdate record sizes + their two-record
+outbound shape; and (3) the per-opcode → Lua-callback → `_bindWork`-id
+mapping that ties the wire side to the `scripts/lua/group/` corpus.
+
+### 1. Group:: hierarchy IS the actor spawn(0x17c)/despawn(0x143) pipeline
+
+ffxivDecomp confirms `PacketRequestBase` / `EntryBuilderBase` /
+`BreakupBuilder` (the same three this doc maps via RTTI) are the
+**typed-packet object system** that drives actor lifecycle — they are
+not a party-only subsystem. Phase 8's "Group work" and the actor-spawn
+analysis are the **same code paths**. The 6 `Group::` subclasses all
+land in **one shared ring buffer at instance+0x20**, drained by a
+per-frame **6-stage pipeline (T0→T5)**:
+
+| Stage | RVA | Role |
+|---|---|---|
+| T0 | `0x6cdd20` | per-tick pump (runs when queue size at `+0x2c > 0` AND busy flag `+0xea == 0`; processes ≤2 entries/tick) |
+| T1 | `0x6cda80` | ring-buffer consumer; `___RTDynamicCast(entry, PacketRequestBase → EntryBuilderBase)` (storage `+0x20`, capacity `+0x24`, head `+0x28`, size `+0x2c`) |
+| T2 | `0x6cd8e0` | builds local list object, emits the **2× outbound 0x130 pair** (`listObjectQueueAdd` + `listObjectDelete`) |
+| T3 | `0x6db9a0` | dispatch 2+N actor slots |
+| T4 | `0x6cbc90` | class-registry lookup; allocates a **0x48 / 72-byte WorkRecord** if the class has any work fields |
+| T5 | `0x6c8cf0` | `operator_new(0x54)` = **84-byte actor instance**, ctor, fires `actor:_onInit()`, then **0x133 WorkSync init ACK** if `+0x18 != 0` |
+
+**Spawn vs despawn** share the pipeline because `EntryBuilder` (spawn)
+and `BreakupBuilder` (despawn) both inherit from `EntryBuilderBase`; T5
+behaves polymorphically (allocator path vs dtor path) per subclass
+vtable:
+
+| | SPAWN | DESPAWN |
+|---|---|---|
+| Wire opcode | `0x17c` (380) | `0x143` (323) |
+| Wire size | ~120 B (carries class name @ `+0x44`) | ~32 B (id only) |
+| Subclass | `EntryBuilder` (`0x40` + `0xf8` child) | `BreakupBuilder` (`0x38`) |
+| Inbound forwarder | — | `0x576240` → `0x6c5de0` → `0x6c5150` (`operator_new(0x38)` + ringbuffer enqueue) |
+| T5 action | `new(0x54)` actor + ctor | dtor / despawn callback |
+| Outbound ACK | 2× `0x130` + 1× `0x133` | `0x130` subset (TBD) |
+
+This is the principled backing for the empirical
+`(GroupHeader, Begin, X08, End)` trio + 0x133 init-reply that the
+"Why this phase" section above describes: the trio drives the same ring
+buffer/pipeline the engine uses for *every* actor spawn, so getting the
+sub-packet shape wrong stalls the same `+0xea`/`sub*_complete` gate
+documented in "Group::PacketProcessor dispatch pattern."
+
+ffxivDecomp sources: `finding_spawn_pipeline_typed_packet_ring_buffer_6_stage_architecture.md`
+(T0–T5, 84 B actor, 0x130 pair, 0x133 ACK), `finding_opcode_0x143_DESPAWN_packet_breakupBuilder_path.md`
+(0x143 → BreakupBuilder, shared ring buffer, 2-path construction).
+
+### 2. Three CommandUpdate record sizes + two-record outbound architecture
+
+The WorkSyncUpdater 0xa0 (160 B) child the 0x187 path allocates is the
+state-replication payload that flows into a CommandUpdate record. There
+are **three distinct record sizes** — getting them confused is an easy
+trap (ffxivDecomp explicitly corrects a prior "0x48-byte CommandUpdate"
+mislabel):
+
+| Record | Size | RVA / location | Direction / role |
+|---|---|---|---|
+| **CommandUpdate (outbound)** | `0x118` / 280 B | ring buffer @ **CommandUpdater+8**; alloc `0x76b3d0`, ctor `0x776690` | server→client outbound notification record |
+| **BehaviorLogger listener** | `0x48` / 72 B | `operator_new(0x48)`, ctor `0x789cd0` | name-resolution back-channel, back-linked @ record `+0xa8` |
+| **inbound transient** | `0xc8` / 200 B | ctor `FUN_00768260` | transient parse container for server-pushed updates |
+
+Every `CommandUpdater_send_*` helper allocates **both** the 280 B record
+A and the 72 B listener B, then back-links A`+0xa8 = B`. CommandUpdate
+(record A) wire-relevant fields:
+
+| Offset | Size | Field |
+|---|---|---|
+| `+0x000` / `+0x054` / `+0x0b0` | 0x54 each | three **CLIENT-FILLED** string buffers (sender / recipient display name, log/format text) — the server sends actor IDs, the client resolves names via listener B |
+| `+0x104` | 4 B | **command id / opcode** (`param_1`) |
+| `+0x108` | 4 B | **caster wire id** (written via `record[0x42] = id`; `-1` sentinel → `0`) |
+| `+0x10e` | 2 B | **event id / sub-opcode** (e.g. `0xcf1c` for achievements) |
+| `+0x110` | 1 B | **channel / sub-id byte** (e.g. `0x20`) |
+| `+0x111` | 1 B | **flag / mode byte** |
+
+Listener B (`BehaviorLogger::SourceDisplayNameResolverListener`, dual
+vtable for the `GetNameListenerInterface` MI edge): `+0x08` = back-ptr to
+record A; fires asynchronously when the target actor's display name
+resolves, populating A's three string buffers.
+
+Practical note for garlemald: a CommandUpdate broadcast must carry the
+4 numeric fields + caster id; it must **not** push string bytes into the
+three buffers (those are client-resolved). The 16-byte SharedWork member
+stride documented in this doc's "Wire vs runtime" section is unaffected.
+
+ffxivDecomp sources: `finding_commandupdate_record_layout_280B.md`
+(280 B + 72 B layout, all field offsets), `finding_worksync_inbound_wire_to_record_bridge_FULL_CHAIN.md`
+(the 0xc8 / 200 B inbound transient ctor `FUN_00768260`).
+
+### 3. opcode → Lua-callback → `_bindWork`-id triple
+
+The wire opcodes resolve to script-facing Lua callbacks, which the
+`scripts/lua/group/` classes register against fixed `_bindWork` ids.
+The full triple:
+
+| Wire opcode | Engine factory class | Lua callback fired | `_bindWork` id (Lua-side) |
+|---|---|---|---|
+| `0x187` (391) | `WorkSyncUpdater` (`0xa0`/160 B child; forwarder `0x6c8340`, factory `0x6c6b20`) | `_onUpdateWork` | — (WorkSync state batch; see §2) |
+| `0x18b` (395) | `MemberInfoUpdater` (forwarder `0x6c5df0`, factory `0x6c5240`) | `_onUpdateMemberInformation` | per-class (e.g. CompanyGroup `300001` `_memberSave[*].rank`) |
+| `0x188` (single) / `0x189` (batch, stride `0x40`, count byte @ `+0x200`) | `EntryLinkShellBuilder` (`0x40` + `0xf8` child; factory `0x6cc390`) | `_onUpdateMember` | linkshell roster |
+
+Inbound `_onUpdateWork` dispatch has two engine variants:
+`CommandUpdater_invokeLua_onUpdateWork_clipObj` (`0x773d90`, cutscene
+clip-obj updates) and `_complex` (`0x773f10`, most regular state). The
+`_complex` variant runs a filter chain (`+0x8..+0xc`) and applies the
+**field-index `+1` conversion** (inverse of the outbound `-1`), so a
+script's `_onUpdateWork(category, field, subIdx, listIdx)` receives the
+same 1-based indices the sender passed to `_updateWork` — the round trip
+is symmetric.
+
+The `_bindWork` ids confirmed in the `scripts/lua/group/` corpus:
+
+| Group family | `_bindWork` id | Field |
+|---|---|---|
+| `RelationGroup` (Trade / GroupInvitation / Bazaar / ExecuteCommand) | **200001** | `work._globalTemp.host` (initiator actor ref) |
+| `RelationGroup` | **200002** | `work._globalTemp.variableCommand` (uint32 action discriminator) |
+| `CompanyGroup` (Grand Company — Maelstrom/Twin Adder/Immortal Flames) | **300001** | `work._memberSave[*].rank` (per-member GC rank; dynamic-size via `_bindWorkNestingArray`, N = `_getProperty(0)`) |
+| `PartyGroup` (`PartyGroupBaseClass`) | **400001** | `partyGroupWork._globalTemp.owner` (party leader actor ref) |
+
+So a `RelationGroup` is the generic **2-actor confirmation dialog**
+(trade / invite / bazaar / rez prompt) keyed by `variableCommand`; all
+subclasses share the byte-identical 200001/200002 schema and differ only
+in their `desktopWidget` hook. `CompanyGroup` (note: 1.x **Grand
+Company**, NOT ARR Free Company; category id `20002`) splits sync into a
+`baseInfo` tag (master/crest/rank) and a `memberRank` wildcard tag.
+`PartyGroupBaseClass` syncs only 400001 + the member array; its party-
+size combat multiplier (1.0/1.5/1.4/1.3/1.2/1.1 for sizes 1–6+) is
+**client-side only** — the server pushes membership, the client computes
+the bonus.
+
+**Two negatives worth pinning** (both correct earlier guesses):
+
+- **`0x18a` is NOT a linkshell variant.** ffxivDecomp's linkshell
+  closure shows only `0x188`/`0x189` map to `EntryLinkShellBuilder`;
+  `0x18a` (and `0x186`) are left as "possible other Group:: dispatchers,
+  not confirmed" — do not assume a linkshell semantic for them.
+- **`PropertyUpdater` has no dedicated wire opcode.** It is constructed
+  as a side effect of `EntryLinkShellBuilder` via that builder's
+  **vftable slot 12** (`PropertyUpdater_FACTORY` @ `0x6c5750`, DATA xref
+  at `0x00fd44ac`). I.e. a linkshell name/icon/owner change fires
+  PropertyUpdater internally; there is no server-pushed
+  `PropertyUpdater` packet to implement. If garlemald needs to push
+  property updates, it uses `WorkSyncUpdater` (0x187) instead.
+
+ffxivDecomp sources: `finding_group_typed_packets_remaining_opcodes_0x187_0x18b.md`
+(0x187 WorkSyncUpdater, 0x18b MemberInfoUpdater, PropertyUpdater =
+vtable-only), `finding_linkshell_wire_opcodes_0x188_0x189_CLOSED.md`
+(0x188/0x189 EntryLinkShellBuilder, vftable[12] = PropertyUpdater_FACTORY,
+0x18a not confirmed), `finding_commandupdater_inbound_handlers_onUpdateWork_callback.md`
+(`_onUpdateWork` clipObj/complex + ±1 index symmetry),
+`finding_relation_group_family.md` (200001/200002),
+`finding_party_group_system.md` (400001 + size multiplier),
+`finding_company_group_freecompany.md` (300001 + Grand Company correction).
+
+> **Caveat:** all RVAs/offsets above are ffxivDecomp's, cross-referenced
+> against this doc's existing RTTI map but **not byte-verified** by
+> meteor-decomp. The `_bindWork` ids come from the Lua corpus (high
+> confidence); the wire-opcode↔factory edges are xref-pinned in
+> ffxivDecomp but the per-field record offsets should be re-confirmed
+> against the asm before driving a garlemald wire change.

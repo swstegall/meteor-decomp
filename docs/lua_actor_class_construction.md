@@ -259,3 +259,184 @@ the construction sweep surfaced something **useful**:
 - `docs/receiver_classes_inventory.md` — Phase 9 #1 (the receiver
   inventory + #8b's "Lua actor class hierarchy" section refined
   here with confirmed inheritance edges)
+
+---
+
+## The async actor-spawn model (ffxivDecomp cross-reference, 2026-05-30)
+
+> Sourced from **ffxivDecomp** (github.com/Yokimitsuro/ffxivDecomp), an independent
+> docs-only RE of FFXIV 1.23b `ffxivgame.exe`, used with permission (see `NOTICE.md`).
+> **Cross-referenced, not byte-verified** by meteor-decomp's own decompilation —
+> confirm against the asm before relying on offsets for a code change.
+> Captured 2026-05-30 from the ffxivDecomp 2026-05-27/28 session.
+
+The preceding sections walked the **ctor/dtor** of each script-binding base
+class. ffxivDecomp's 2026-05-27/28 session walked the **factory + registry +
+type-check + wire pipeline** that drive those ctors at runtime. The two views
+join at `vtable[0x6c]`: the per-class ctor whose vtable RVAs this doc tabulated
+is exactly the slot the factory dispatches into.
+
+### The 4-thunk Lua class system
+
+ffxivDecomp confirms a complete, self-contained Lua class system exposed to
+script code via four `global:` thunks (no further class-management thunks exist
+in the searched function space):
+
+| Lua binding | C++ thunk | Role |
+|---|---|---|
+| `_defineClass(child, parent)` | `global_cpp_defineClass_thunk` | Register a Lua-side class derived from a parent (C++ or Lua) |
+| `_createActor(class, name)` | `global_cpp_createActor_thunk` | Instantiate via `vtable[0x6c]`, return an async resume handle |
+| `_isInstanceOf(inst, class)` | `global_isInstanceOf_thunk_dualDispatch_7rtti_plus_luaChain` | Type-check via dual dispatch (RTTI fast-path + Lua chain walk) |
+| `_canCreateActorByName(class)` | `global_canCreateActorByName_thunk_creatabilityCheck` @ `0x006ff1a0` | Creatability pre-check (inverts the 3-tag non-creatable test) |
+
+> ⚠ **Cross-doc address variance.** ffxivDecomp's `_createActor` finding cites
+> the thunk at `0x00709640`; its own class-system family table (in the
+> `_canCreateActorByName` finding) lists `_createActor` at `0x006e1700` and
+> `_defineClass` at `0x006e4d20`, while the `_defineClass` finding cites
+> `0x006dcc30` for that thunk. These do not all reconcile across the ffxivDecomp
+> docs themselves — treat every VA here as a lead to confirm against the asm,
+> not a settled address.
+
+### `_createActor` is ASYNC — `vtable[0x6c]` slot 27, returns a resume checker
+
+`_createActor` does **not** return a fully-initialized actor. Its full-create
+branch:
+
+1. Looks up the class's vtable, then calls **`vtable[0x6c]`** — byte offset 108
+   = the **27th entry (0-indexed)** = the per-class polymorphic spawn ctor. Every
+   class registered via `_defineClass` inherits this slot from its nearest
+   **compile-time-baked C++ ancestor** (the slot is *not* wired by `_defineClass`
+   — see registry note below), so one factory produces 200+ runtime types
+   without class-specific factory code.
+2. Allocates a 16-byte `OnInitResumeChecker` (`operator new(0x10)`,
+   `OnInitResumeChecker_ctor`), pushes it onto the Lua return stack, and the
+   script **yields** on it. The engine flips the checker's `readyFlag` (+0x0C)
+   when the actor's `_onInit` chain completes, then resumes the coroutine on the
+   next pump opportunity.
+
+```cpp
+struct OnInitResumeChecker {   // base Component::Lua::GameEngine::ResumeCheckerInterface
+  void**   vtable;             // +0x00  ...::Control::Global::OnInitResumeChecker::vftable
+  uint32_t scriptContext;      // +0x04  the spawning Lua script
+  uint32_t actorRef;           // +0x08
+  uint8_t  readyFlag;          // +0x0C
+};                             // sizeof = 16
+```
+
+This is why a Lua sequence like `local n = global:_createActor(...)` then
+`n:setPosition(...)` *looks* synchronous: the create call transparently yields
+until `_onInit` finishes. Same primitive as `_wait()`. Coroutine tracking keys
+on a `(script_id, sub_id)` pair into a per-context map + a resume-checker queue.
+
+This connects directly to the **kick-gate** finding above: the `ActorBase` ctor
+explicitly zeroes `+0x5c`, and the actor isn't "kick-ready" until its post-spawn
+init sequence flips it — consistent with `_createActor` returning *before* the
+actor is fully live.
+
+### `_canCreateActorByName` — creatability pre-check + 3 category sentinels
+
+`_canCreateActorByName(name)` is the defensive guard meant to wrap `_createActor`
+(so script code can branch instead of triggering an engine error on a
+non-instantiable class). It looks the class up in the registry and returns the
+**inversion** of a 3-tag non-creatable test on `class_entry[+0x08]`:
+
+| Sentinel | Likely meaning | Maps to (this doc's hierarchy) |
+|---|---|---|
+| `DAT_0130d4fc` | abstract root | `ActorBase` (the universal supertype) |
+| `DAT_0130d500` | singleton | `WorldMaster` |
+| `DAT_0130d504` | engine-spawned | `DirectorBase` (Director spawned by the quest system, not by Lua) |
+
+So `_canCreateActorByName` returns TRUE iff `class_entry[+0x08]` is **none** of
+those three. This matches the inheritance tree above: `ActorBase` is the abstract
+root, `WorldMaster` hangs off it as a singleton, and `DirectorBase` is the
+engine-managed branch. (The exact tag→meaning mapping is inferred by ffxivDecomp
+from semantics, not from an xref to the constant writers — treat the right two
+columns as "likely".)
+
+### `_isInstanceOf` — DUAL dispatch (7 hardcoded RTTI + Lua chain walk)
+
+The type check has two paths:
+
+1. **Hardcoded fast-path** — string-compares the queried name against 7 base
+   class names. `"ActorBaseClass"` returns TRUE unconditionally (it's the
+   universal supertype; no cast). The other 6 — `CharaBaseClass`,
+   `PlayerBaseClass`, `NpcBaseClass`, `AreaBaseClass`, `DirectorBaseClass`,
+   `DesktopWidget` — each do a native `___RTDynamicCast`. **Every cast uses the
+   same SOURCE type:** `Component::Lua::GameEngine::LuaControl` — strong evidence
+   that every Lua-passable object is a `LuaControl` subclass.
+2. **Dynamic fall-through** — any other (Lua-only) class name resolves to a
+   numeric `classId`, then walks the instance's parent chain
+   (`node[+0xc]` = next parent, compare `node[+0x54]` == classId) built by
+   `_defineClass`. So one check works seamlessly for both C++ and Lua-defined
+   classes (e.g. `PartyCharaActor`, `LinkshellCharaActor`).
+
+The 6 RTTI base types here are the same `Application::Lua::Script::Client::Control::*`
+descriptors whose vtable RVAs this doc tabulated; `_isInstanceOf` is the runtime
+consumer of the hierarchy the ctor sweep mapped statically.
+
+### `_defineClass` — class-registration loop with forward declarations
+
+`_defineClass(child, parent)` delegates to a worker
+(`defineClass_extractAndRegister`) that extracts both string args, registers the
+child derived from the parent, and clears the child's pending flag. The engine
+keeps a **two-table registry** to support forward references during multi-file
+load:
+
+| Engine offset | Field |
+|---|---|
+| `+0x17c` | `classByNameMap` — finalized classes by name |
+| `+0x204` | `pendingClassMap` — forward-declared / under-construction classes |
+| `+0x1cc` | `errorPool` — class-def diagnostics (cycles, missing parents, dups) |
+
+Class-entry layout: `+0x04` = parent ptr, `+0x20` = derived-classes list,
+`+0x7c` = pending flag (1 = under construction, 0 = finalized), `+0x00` = vtable
+(set when the entry is built from a baked-in C++ class). **Correction worth
+flagging:** ffxivDecomp explicitly notes `vtable[0x6c]` is **not** written by
+`_defineClass` — the C++ vtables are baked at compile time and a Lua child simply
+inherits its parent's `vtable[0x6c]`. (Compare this doc's `DirectorBase` ctor,
+which installs `DirectorBaseClass` vtable at `0xfd5d6c` directly — the C++ ctor
+path, not the Lua-registration path.)
+
+### Wire side: the 6-stage spawn ring buffer (84-byte actor alloc)
+
+Server-pushed spawns are not a flat opcode — they arrive as polymorphic
+`Group::PacketRequestBase` typed packets processed through a 6-stage,
+2-entries-per-tick ring buffer (this is the visible "fade-in" when a dense zone
+loads):
+
+| Stage | What it does |
+|---|---|
+| **T0** `perTickPump_processQueue` | Per-tick drain when queue size (`this+0x2c`) > 0 and busy flag (`this+0xea`) == 0; sets/clears busy to prevent reentrancy |
+| **T1** `ringBufferConsumer_castEntryBuilderBase` | Ring read (storage `+0x20`, capacity `+0x24`, head `+0x28`, size `+0x2c`); `___RTDynamicCast` from `Group::PacketRequestBase` → `Group::EntryBuilderBase`; extract actor-id pair `+0x10`/`+0x14` |
+| **T2** `orchestrate_listObject_emits_0x130_pair` | Validates 2 slots, builds a list object, **emits the OUT `0x130` ACK pair** (queueAdd + delete) |
+| **T3** `dispatch2plusN_actorsList` | Dispatches 2+N actor slots, branching on existing-instance vs override callback |
+| **T4** `buildAndDispatchToAllocator` | Class-info lookup; if class has work fields, `operator new(0x48)` for a 72-byte WorkRecord |
+| **T5** `allocateActor_84B_invokeOnInit_ackVia_0x133` | **`operator new(0x54)` = 84-byte actor instance**, runs actor ctor, fires `Actor_invokeLua_onInit` (the same `_onInit` that flips the `OnInitResumeChecker.readyFlag`), sets active flag `+0x50`, and on `+0x18 != 0` sends the **OUT `0x133` WorkSync ACK** |
+
+So the full join across all five findings:
+
+```
+WIRE IN: Group::PacketRequestBase (typed packet, likely tagged container ~0x12d — unverified)
+  → T0..T4 ring-buffer pipeline (2/tick)
+  → T5: alloc 84B actor, run C++ ctor (vtable[0x6c] family), fire _onInit
+        ├─ T2 already emitted OUT 0x130 pair (queueAdd + delete) — spawn-state ACK
+        └─ T5 emits OUT 0x133 — per-actor WorkSync completion ACK
+  → Lua: OnInitResumeChecker.readyFlag set → yielded _createActor resumes
+  → actor LIVE; _isInstanceOf / kick-gate (+0x5c) now meaningful
+```
+
+This adds 2 RTTI types in a **new** `Application::Lua::Script::Client::Group::`
+namespace (`PacketRequestBase`, `EntryBuilderBase`) — distinct from the
+`...::Control::` namespace whose `ActorBase`/`CharaBase`/… descriptors this doc
+already covers — bringing ffxivDecomp's confirmed RTTI count to 15.
+
+**Server implications.** The OUT `0x130` pair and OUT `0x133` ACK are the
+client→server spawn-state handshake garlemald should expect after pushing a
+spawn: don't assume the client is "actor-ready" the instant the spawn opcode is
+sent (the client allocates 84 B, runs an async `_onInit`, then ACKs). Respect the
+client's 2-spawns-per-tick drain rate; a 50-actor zone ramps over ~25 frames.
+The 3 non-createable category tags also reinforce that some classes are
+spawned **implicitly** by the engine (`WorldMaster` on zone-enter, `Director` on
+quest start) rather than by a spawn opcode — relevant to SEQ_005's content
+director path (see `docs/event_kick_receiver_decomp.md` for the `+0x5c` gate this
+async model feeds into).

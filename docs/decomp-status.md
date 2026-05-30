@@ -1289,3 +1289,103 @@ In rough priority order:
 | Tool | Role |
 |---|---|
 | `tools/progress.py` | Per-binary headline numbers (matched / total / `_rosetta/*.cpp`) |
+
+## Phase 5 — engine main-loop architecture (ffxivDecomp cross-ref, 2026-05-30)
+
+> Sourced from **ffxivDecomp** (github.com/Yokimitsuro/ffxivDecomp), an independent
+> docs-only RE of FFXIV 1.23b `ffxivgame.exe`, used with permission (see `NOTICE.md`).
+> **Cross-referenced, not byte-verified** by meteor-decomp's own decompilation —
+> confirm against the asm before relying on offsets for a code change.
+> Captured 2026-05-30 from the ffxivDecomp 2026-05-27/28 session.
+
+The bare 993-symbol name import names the per-frame subsystem functions but
+doesn't carry the *scheduling skeleton* that explains how they fit together.
+ffxivDecomp's session pinned the engine's two-level tick loop and characterized
+all 15 PerFrameTick slots; this section records that prose so the names in the
+import are legible.
+
+### Two-level tick architecture
+
+```text
+Win32 message loop (outer)
+   ↓
+Application_mainTick  @ FUN_004da680   (1 caller, from the Win32 message loop)
+   ↓ (when 3 startup gates passed)
+PerFrameTick          @ FUN_00578970   (called once per frame)
+   ↓ (per-subsystem dispatch)
+[widget ticks] [Spawn slot 6] [WorkSync slots 7/8] [...] (15 slots)
+```
+
+`Application_mainTick` (`FUN_004da680`) gates on three deferred-init flags
+(`this+0x4a8` startup-complete, `this+0x17444` system-ready, `this+0x174dc`
+render-ready) and a shutdown flag (`this+0x504`); when ready it drains the
+pending event-handler list, walks the 32-bit packed input-event buffer at
+`this+0x1782c` (top 3 bits `0xc0000000` = routed event, 4-bit subsystem id in
+`0x0e000000` → `DAT_01336b60 + id*24`, 24-bit payload), and then calls
+`PerFrameTick` once. `PerFrameTick` (`FUN_00578970`) dispatches the subsystem
+slots off its container (`this+0x510` in the caller's frame).
+
+### PerFrameTick 15-slot map
+
+| Slot | Function | Role |
+|---|---|---|
+| 0 | `this[0]` | engine state container |
+| 1 | `this[1]` | secondary state container (hosts the `+0x110`/`+0x114` sub-slots) |
+| 2 | `FUN_00766f00` | widget lifecycle pump (state machine, `this+0x16c == 10` = active) |
+| 3 | `FUN_0076f6f0` | widget animation/state tick |
+| 4 | `FUN_007700b0` | widget load manager (dispatches deferred load msg `0xde`) |
+| 5 | `FUN_0076a9c0` | spreadsheet CSV preloader (4 categories: worldMasterLogCategory / command / achievement / hamletDefScore; runs once across multiple frames) |
+| **6** | **`SpawnPipeline_perFrameWrapper_dispatchesT0` (`FUN_006cdf20`)** | **spawn pipeline** — drains the actor-spawn ring buffer |
+| **7** | **`FUN_00583440`** | **inbound WorkSync pump (complex)** — up to 32 items/tick via `CommandUpdater_invokeLua_onUpdateWork_complex`; STOP/DEFER/COMPLETE per item |
+| **8** | **`FUN_005836d0`** | **inbound WorkSync pump (simple)** — identical ring shape, callback `FUN_00794250`; 32 items/tick (2 pumps → ~64 state updates/frame) |
+| 9 | `thunk_FUN_007694d0` | widget tick thunk |
+| **10** | **`FUN_00770c00`** | **timeout monitor** — 900-frame (~15 s @ 60 Hz) timeout watcher |
+| 11 | `FUN_0076dab0` | compound widget tick (calls `FUN_0075cea0` + `FUN_0076a490`) |
+| 12 | `FUN_00765340` | dead-session cleanup tick (GCs disconnected/timed-out sessions) |
+| 1+0x110 | **`FUN_0075d120`** | **player-mode state ticker** (see below) |
+| 1+0x114 | `FUN_00764fd0` | widget-container child-creation notifier (fires `onCreatedWidgetInWidgetContainer` Lua callback) |
+| 0xd | `vtable[+8](this[0xd])` | pluggable polymorphic slot (runtime-installed subsystem) |
+
+### Why spawn is ~2/frame
+
+The spawn ramp visible at zone-enter in 1.x falls straight out of this loop:
+slot 6's `SpawnPipeline_perFrameWrapper_dispatchesT0` calls the T1 stage once
+per invocation, T1 reads 2 ring entries per call, and the wrapper itself is
+called once per `PerFrameTick`, which is called once per `Application_mainTick`,
+which is called once per Win32 frame — so **2 actor spawns/frame max** (~120/s
+@ 60 Hz; a 50-actor zone takes ~25 frames / ~417 ms to fully populate). The
+WorkSync pumps (slots 7/8) and spawn pump (slot 6) each carry their own
+per-tick rate-limit, which is why a high-population zone fades in rather than
+appearing instantly. This is consistent with — and gives the engine-side
+mechanism behind — the spawn-protocol quirks recorded in
+`memory/reference_ffxiv_1x_spawn_protocol.md`.
+
+### Slot 1+0x110 — player-mode ticker (`FUN_0075d120`)
+
+Polls a target actor's bindings each frame to track a player mode state
+(likely battle/event/cutscene):
+
+```text
+mode root      = binding 0xc0000024
+sub-mode value = binding 0x7a121   (uint, low 2 bits used)
+mode active    = binding 0x7a122   (bool)
+primary value  = binding 0x7a123   (uint, low 5 bits used)
+
+if (0x7a122 == false):  if previously active → FUN_004d7230(0); mark inactive
+else:                   mark active
+                        primary = 0x7a123 & 0x1f
+                        sub     = 0x7a121 & 0x03
+                        if changed → FUN_004d7230( ((sub << 5) | primary) * 2 | 1 )
+```
+
+These four binding ids (`0xc0000024`, `0x7a121`, `0x7a122`, `0x7a123`) extend
+the bindWork catalog; the packed dispatch value is `(((sub & 3) << 5) | (primary
+& 0x1f)) * 2 | 1` (low bit = active marker).
+
+**Caveat:** all VAs/offsets here are ffxivDecomp's, cross-referenced not
+byte-verified against meteor-decomp's own asm. Slots 7/8 split (complex vs
+simple WorkSync) and the slot 1+0x110 mode semantics are ffxivDecomp's
+"Likely (Medium)" confidence; confirm against the disassembly before driving a
+code change. ffxivDecomp source:
+`docs/re/exe/finding_application_mainTick_and_per_frame_subsystem_dispatch.md`
+and `docs/re/exe/finding_perFrameTick_subsystems_COMPLETE_15_slots_characterized.md`.

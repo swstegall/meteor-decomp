@@ -234,3 +234,116 @@ wiring is presumed to enforce the type contract by construction.
 - `garlemald-server/docs/post_warp_respawn_fix_analysis.md` — the
   garlemald-side application of Phase 7's `+0x5c` gate finding
   (still being applied as of 2026-05-15 SEQ_005 work)
+
+## `ResumeChecker` census — the engine's coroutine-yield queue (ffxivDecomp, 2026-05-30)
+
+> Sourced from **ffxivDecomp** (github.com/Yokimitsuro/ffxivDecomp), an independent
+> docs-only RE of FFXIV 1.23b `ffxivgame.exe`, used with permission (see `NOTICE.md`).
+> **Cross-referenced, not byte-verified** by meteor-decomp's own decompilation —
+> confirm against the asm before relying on offsets for a code change.
+> Captured 2026-05-30 from the ffxivDecomp 2026-05-27/28 session.
+
+The `Receiver` classes above are the **inbound** dispatch side (server→client
+packet → actor-state mutation). Their **outbound** complement — how the client
+*requests* a server-validated action and then *waits* for the reply — is the
+`ResumeChecker` family. Each blocking Lua binding allocates a concrete
+`ResumeChecker`, pushes it onto a per-coroutine queue, and yields; the engine's
+pump dequeues it once its polymorphic `isReady()` returns true. This is the
+**only** yield mechanism in 1.x Lua scripts (no other suspend path exists).
+
+This matters for the Receiver inventory because the two halves are paired: the
+event-lifecycle receivers (`Kick`/`Start`/`End`, slots 56/57/58 per Phase 9 #5)
+deliver the inbound packets that flip a pending `ResumeChecker`'s readiness, and
+the notice-event path specifically suspends on
+`ClientOrderEventWaitingResumeChecker` (see
+`docs/seq005_kick_gate_analysis.md`).
+
+### Count correction: ~24 subclasses (was 11)
+
+ffxivDecomp's inventory grew across three findings. The first two confirmed 10
+then 11 subclasses by disassembling `_wait*` thunk ctors; the third corrected
+the total to **~24** by enumerating `.?AV*ResumeChecker*` RTTI strings — roughly
+doubling the known hierarchy. Treat the count as a floor (RTTI enumeration may
+miss engine-internal checkers Ghidra didn't auto-detect, e.g. the
+HamletDefenseScore candidate at `0x006dcb00` that resolved to a data label).
+
+| Category | Subclasses |
+|---|---|
+| **Async I/O / loading** (6) | `LoadDataResumeChecker` (148 B), `TextDataReadResumeChecker`, `s_MapLoadResumeChecker`, `WaitLoadFormResumeChecker`, `s_PreloadResumeChecker`, `LpbLoader::ResumeChecker` (~120 B, engine-internal) |
+| **Server RPC-backed** (3) | `CreateStaticActorResumeChecker`, `CreateClientItemResumeChecker`, `GetStringResumeChecker` |
+| **Animation / visual** (3) | `PlayingResumeChecker` (cutscene), `s_FadeResumeChecker`, `s_WaitForTransformIntoChocoboResumeChecker` |
+| **Scheduler** (3) | `WaitForCharaSchedulerFinishedResumeChecker`, `s_WaitForCharaSchedulerTutorialFinishedResumeChecker`, `BgSchedulerResumeChecker` |
+| **Tutorial** (3) | `TargetTutorialResumeChecker`, `s_CameraTutorialResumeChecker`, `s_ItemSearchWidgetResumeChecker` |
+| **Core / misc** (6) | `OnInitResumeChecker` (16 B), `WaitResumeChecker` (40 B, timer), `AppendMessageResumeChecker` (12 B), `WaitForTurningResumeChecker` (8 B), `ClientOrderEventWaitingResumeChecker`, `CancelResumeChecker` |
+
+Concrete class names live across seven namespaces — most under
+`Application::Lua::Script::Client::Control::{Global,CharaBase,DesktopWidget,SpreadSheet}`,
+the three tutorial helpers under the anon TU `_anon_FD906835`, the generic
+timer-based `WaitResumeChecker` under `_anon_1EEF0F3D`, and the two
+engine-internal checkers (`LpbLoader::ResumeChecker`, base
+`ResumeCheckerInterface`) under `Component::Lua::GameEngine`. Size tracks
+readiness-check state complexity: 8 B (vtable + 1 ctx ptr) for simple "is X
+done?" checks, up through 40 B (timer deadline) and 120–148 B for async-I/O
+checkers that carry retry/handle state.
+
+### SEQ-005-relevant subclasses
+
+| Subclass | Role in the cinematic path |
+|---|---|
+| `ClientOrderEventWaitingResumeChecker` | **The notice-path suspend point.** The Lua notice/event flow yields on this while waiting for the server's event-lifecycle packets; its readiness flips when the inbound `Kick`/`Start`/`End` receivers (this doc's 5-slot trio) land. See `docs/seq005_kick_gate_analysis.md`. |
+| `s_FadeResumeChecker` | Screen fade between cinematic beats / loading screens (e.g. the `_fadeInNowLoadingForNoticeEventJustInArea` flow noted in the kick-dispatcher work). |
+| `s_MapLoadResumeChecker` | Map-load wait — the "Now Loading" suspend during a zone/area handoff (relevant to the SEQ_005 same-zone `DoZoneChangeContent` warp hang). |
+| `PlayingResumeChecker` (`CutScenePlaying`) | Cutscene-playback wait — yields for the duration of an in-engine cutscene. |
+| `LpbLoader::ResumeChecker` | Async `.lpb` bytecode-loader wait when the content/quest script is fetched. Engine-internal (not script-callable). |
+| `LoadDataResumeChecker` | SpreadSheet/`.exd`-row async read (`_loadKeyTemporarily`); the canonical example of the 2-tier async pattern below. |
+
+### The `FunctionEndCallbackInterface` 2-tier async pattern
+
+Async operations that complete *off* the Lua tick (disk I/O, server RPC) use a
+**two-object** scheme rather than a single `ResumeChecker`:
+
+```
+TIER 1 — FunctionEndCallback  (~40 B, e.g. SpreadSheet::LoadDataFunctionEndCallback)
+  Component::Lua::GameEngine::FunctionEndCallbackInterface subclass.
+  Fires when the underlying async op (disk load, RPC reply) actually finishes;
+  flips a "done" flag the resume-checker polls.
+
+TIER 2 — ResumeChecker        (~148 B, e.g. SpreadSheet::LoadDataResumeChecker)
+  ResumeCheckerInterface subclass. Holds a reference to the Tier-1 callback.
+  This is the object the Lua coroutine yields on; its isReady() just checks the
+  linked callback's done flag.
+```
+
+Each pending coroutine therefore carries **two** queues in its
+`CoroutineContext`, drained by distinct helpers:
+
+| Queue | Push helper | Drain semantics |
+|---|---|---|
+| End-callbacks (Tier 1) | `CoroutineContext_pushEndCallback` (`FUN_00cd28c0`) | fired on async completion |
+| Resume-checkers (Tier 2) | `CoroutineContext_pushResumeChecker` (`FUN_00cd2860`) | polled each tick via `isReady()` |
+
+A dedup helper `CoroutineContext_findPendingCallback` (`FUN_00cd2630`) lets a
+binding short-circuit when an identical request (e.g. the same SpreadSheet row)
+is already in flight, avoiding a double load.
+
+**Universal yield slot.** Every Lua-registered C++ class exposes its polymorphic
+spawn/yield machinery through `vtable[0x6c]` (entry 27, `0x6c = 27 * 4`) — the
+same slot `_createActor` invokes to allocate `OnInitResumeChecker`. The pump
+calls each checker's readiness method through its vtable, so the engine stays
+agnostic to wait type: it never blocks, scripts cooperate via the queue. (Note:
+ffxivDecomp could not enumerate the concrete vtable addresses — Ghidra's
+auto-analysis left most C++ class vtables as anonymous `.rdata` arrays, so the
+per-class `vtable[0x6c]` targets remain unnamed; only the RTTI type descriptors
+are symbolized. The 0x6c slot index is proven via the `_createActor` path, not
+walked per-class.)
+
+### Cross-references (ffxivDecomp section)
+
+- `docs/seq005_kick_gate_analysis.md` — the SEQ_005 notice/kick gate; the
+  notice path suspends on `ClientOrderEventWaitingResumeChecker` whose readiness
+  the inbound `Kick`/`Start`/`End` receivers (above) flip.
+- ffxivDecomp `finding_resumechecker_full_inventory_10_subclasses_confirmed.md`,
+  `finding_resumechecker_11th_subclass_LpbLoader_plus_vtable_methodology.md`,
+  `finding_outbound_rpc_0x12e_format_plus_resumechecker_count_correction.md`
+  (source findings; the third carries the 11 → ~24 count correction and the
+  outbound `0x12e` RPC pairing).

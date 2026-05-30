@@ -46,7 +46,12 @@ What this tool DOES produce:
      functions. High-frequency small opcodes (0x3, 0x6, 0x7, 0xCA …)
      produce many false positives (the value 7 is just used a lot in
      non-network code); the larger opcodes (≥ 0x100) cluster in
-     clearly-relevant sender functions.
+     clearly-relevant sender functions. Entries whose opcode is also an
+     outbound sender in ffxivDecomp's symbol import get a
+     `direction_conflict` annotation: garlemald's `OP_RX_*` name marks
+     the opcode inbound, but the send-path RE shows it is a client→server
+     sender (e.g. 0x12d–0x135) — so it must not be built as an inbound
+     handler.
 
   3. **A cross-reference markdown report** for the contributor doing
      subsequent Ghidra analysis to start from.
@@ -132,6 +137,34 @@ def parse_garlemald_rx_opcodes() -> dict[int, str]:
     for m in re.finditer(r"^pub const (OP_RX_[A-Z0-9_]+):\s*u16\s*=\s*(0x[0-9a-fA-F]+|\d+);",
                          GARLEMALD_OPCODES.read_text(), re.MULTILINE):
         out[int(m.group(2), 0)] = m.group(1)
+    return out
+
+
+# Outbound kinds in ffxivDecomp's symbol import — functions that SEND a packet
+# (opcode_sender) or are the Lua send-impl behind an outbound binding (lua_impl).
+_FD_OUTBOUND_KINDS = {"opcode_sender", "lua_impl"}
+
+
+def load_ffxivdecomp_outbound(stem: str) -> dict[int, list[str]]:
+    """ffxivDecomp's send-path RE names the client→server (outbound) senders.
+    Return {opcode: [sender names]} from config/<stem>.ffxivdecomp_symbols.json
+    for entries whose kind is an outbound sender and that carry an `opcode`.
+    Used to flag rx_opcode_validation entries whose garlemald OP_RX_* (inbound)
+    label is direction-contradicted by the send-path RE. Empty if the import
+    sidecar is absent (run tools/import_ffxivdecomp_symbols.py first)."""
+    p = CONFIG / f"{stem}.ffxivdecomp_symbols.json"
+    if not p.exists():
+        return {}
+    out: dict[int, list[str]] = {}
+    for e in json.loads(p.read_text()):
+        op = e.get("opcode")
+        if op is None or e.get("kind") not in _FD_OUTBOUND_KINDS:
+            continue
+        try:
+            opi = int(op, 16) if isinstance(op, str) else int(op)
+        except (TypeError, ValueError):
+            continue
+        out.setdefault(opi, []).append(e["name"])
     return out
 
 
@@ -337,6 +370,34 @@ def main() -> int:
     print(f"\n=== Garlemald RX opcode validation ({len(rx_ops)} opcodes) ===")
     push_hits = scan_push_immediates(data, text_sec, set(rx_ops), syms)
 
+    fd_outbound = load_ffxivdecomp_outbound(stem)
+
+    def _rx_entry(op: int) -> dict:
+        e = {
+            "opcode": op,
+            "opcode_hex": f"0x{op:04x}",
+            "name": rx_ops[op],
+            "site_count": len(push_hits[op]),
+            "fn_count": len({s["fn"] for s in push_hits[op] if s["fn"]}),
+            "sample_fns": sorted({s["fn"] for s in push_hits[op] if s["fn"]})[:5],
+        }
+        senders = fd_outbound.get(op)
+        if senders:
+            e["direction_conflict"] = {
+                "garlemald_label": "rx (server->client / inbound)",
+                "ffxivdecomp_sendpath": "out (client->server / outbound)",
+                "ffxivdecomp_senders": sorted(senders)[:5],
+                "note": (
+                    "garlemald's OP_RX_* name marks this opcode inbound, but "
+                    "ffxivDecomp's send-path RE shows it is an outbound "
+                    "(client->server) sender -- do NOT implement it as an inbound "
+                    "handler. Cross-referenced, not byte-verified; see "
+                    "docs/ffxivdecomp_opcode_binding_map.md and "
+                    "docs/ffxivdecomp_2026-05-28_session_integration.md."
+                ),
+            }
+        return e
+
     summary = {
         "ctor_sites": ctor_sites,
         "ctor_callers": ctor_calls,
@@ -351,17 +412,7 @@ def main() -> int:
             }
             for op in sorted(recovered_opcodes)
         ],
-        "rx_opcode_validation": [
-            {
-                "opcode": op,
-                "opcode_hex": f"0x{op:04x}",
-                "name": rx_ops[op],
-                "site_count": len(push_hits[op]),
-                "fn_count": len({s["fn"] for s in push_hits[op] if s["fn"]}),
-                "sample_fns": sorted({s["fn"] for s in push_hits[op] if s["fn"]})[:5],
-            }
-            for op in sorted(rx_ops)
-        ],
+        "rx_opcode_validation": [_rx_entry(op) for op in sorted(rx_ops)],
     }
     out_json = CONFIG / f"{stem}.up_opcodes.json"
     out_json.write_text(json.dumps(summary, indent=2))
@@ -442,11 +493,17 @@ def main() -> int:
         f.write("This is a *necessary* condition for the opcodes to be real, not a\n")
         f.write("*sufficient* one — to confirm an opcode is actually emitted on the\n")
         f.write("wire we'd need to verify the PUSH feeds a CPB constructor.\n\n")
+        f.write("> **`⚠OUT` direction-conflict** marks opcodes whose garlemald\n")
+        f.write("> `OP_RX_*` (inbound) label is contradicted by ffxivDecomp's\n")
+        f.write("> send-path RE, which shows them as outbound (client→server)\n")
+        f.write("> senders. See the `direction_conflict` field in the JSON — do\n")
+        f.write("> NOT implement these as inbound handlers.\n\n")
         f.write("| opcode | hex | name | sites | fns | first 3 fns |\n")
         f.write("|---:|---:|---|---:|---:|---|\n")
         for entry in summary["rx_opcode_validation"]:
             fns = entry["sample_fns"][:3]
-            f.write(f"| {entry['opcode']} | `{entry['opcode_hex']}` | `{entry['name']}` | "
+            name = entry["name"] + (" `⚠OUT`" if "direction_conflict" in entry else "")
+            f.write(f"| {entry['opcode']} | `{entry['opcode_hex']}` | `{name}` | "
                     f"{entry['site_count']} | {entry['fn_count']} | "
                     f"{', '.join(f'`{n}`' for n in fns) if fns else '—'} |\n")
 

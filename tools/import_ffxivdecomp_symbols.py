@@ -13,9 +13,15 @@ that we currently carry as FUN_xxxxxxxx. This tool harvests those
 cross-validation.
 
 Sources parsed (under <ffxivDecomp>/docs/re/):
+  ghidra_symbols_userdefined.tsv                  full USER_DEFINED export (~993 symbols) — BULK name source
   exe/finding_zone_outbound_opcode_roster.md      "Ghidra Annotations Made" block (17 senders/builders)
   exe/finding_playerbase_lua_bindings_39_of_94_named.md   per-family registrar tables (39 bindings)
+  exe/finding_playerbase_lua_bindings_99_complete.md      superset registrar table (99 bindings)
   correlation/finding_lua_api_to_zone_opcode_systematic_xref.md   (irregular -> hand-seeded below)
+
+The TSV is the authoritative bulk name source; it is parsed LAST so the
+curated prose sources above (which additionally carry opcode/Lua-binding
+metadata) win by VA for the rows they cover, and the TSV fills the rest.
 
 Emits:
   config/ffxivgame.ffxivdecomp_symbols.json   [{rva, rva_hex, name, kind,
@@ -161,6 +167,26 @@ def parse_playerbase(path: Path):
             yield va, name, "registrar", None, lua
 
 
+# Full USER_DEFINED Ghidra symbol export: `<address>\t<name>`, '#'-comment
+# header. Address column is an absolute VA (image base 0x00400000).
+RE_TSV = re.compile(r"^([0-9a-fA-F]{6,8})\t(\S.*)$")
+
+
+def parse_tsv(path: Path):
+    """Yield (va_str, name) for every symbol in ffxivDecomp's full Ghidra
+    USER_DEFINED export — the bulk name source (~993 symbols). Opcode/Lua
+    metadata is not present here; where a VA is also covered by a prose
+    source above, that richer record wins (added first; setdefault keeps it)."""
+    if not path.exists():
+        return
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line or line.startswith("#"):
+            continue
+        m = RE_TSV.match(line)
+        if m:
+            yield f"0x{m.group(1)}", m.group(2).strip()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--ffxivdecomp-root", default=str(REPO_ROOT.parent / "ffxivDecomp"))
@@ -192,8 +218,12 @@ def main() -> int:
 
     for va, name, kind, op, lua in parse_roster(re_root / "exe" / "finding_zone_outbound_opcode_roster.md"):
         add(va, name, kind, op, lua, "finding_zone_outbound_opcode_roster.md")
-    for va, name, kind, op, lua in parse_playerbase(re_root / "exe" / "finding_playerbase_lua_bindings_39_of_94_named.md"):
-        add(va, name, kind, op, lua, "finding_playerbase_lua_bindings_39_of_94_named.md")
+    # 99-complete superset first (newer), then the 39-of-94 file; setdefault
+    # keeps whichever names a given VA's registrar first.
+    for fn in ("finding_playerbase_lua_bindings_99_complete.md",
+               "finding_playerbase_lua_bindings_39_of_94_named.md"):
+        for va, name, kind, op, lua in parse_playerbase(re_root / "exe" / fn):
+            add(va, name, kind, op, lua, fn)
     # master block + hand-seed
     add("0x00753f90", "PlayerBase_registerAllLuaBindings", "master_block", None, None,
         "finding_playerbase_lua_bindings_39_of_94_named.md")
@@ -202,6 +232,14 @@ def main() -> int:
     # bulk harvest: every curated `- 0xVA -> Name` rename across all docs
     for va, name, kind, op, lua, src in parse_renames(re_root):
         add(va, name, kind, op, lua, src)
+    # bulk name source: ffxivDecomp's full USER_DEFINED Ghidra symbol export
+    # (~993 symbols). Added LAST so the curated prose sources above win for
+    # any VA they cover; this fills the ~700 VAs the prose never named. An
+    # opcode embedded in the name (`..._opcode_0xNNN_...`) is harvested too.
+    for va, name in parse_tsv(re_root / "ghidra_symbols_userdefined.tsv"):
+        op = re.search(r"opcode_(0x[0-9a-fA-F]+)", name)
+        add(va, name, classify(name), (op.group(1) if op else None), None,
+            "ghidra_symbols_userdefined.tsv")
 
     # cross-check vs symbols.json: keep only RVAs that resolve to a function
     kept, dropped = [], []
@@ -287,12 +325,41 @@ def write_reference_doc(binary, kept):
     for r in sorted(kept, key=lambda x: x["rva"]):
         L.append(f"| `{r['rva_hex']}` | `{r['name']}` | {r['kind']} | "
                  f"{r.get('opcode','')} | {r.get('lua_binding','')} | `{r['current_name']}` |")
-    L += ["", "## SEQ-005 cutscene-hang relevance", "",
+    L += ["", "## Wire semantics (net-new — ffxivDecomp 2026-05-28)", "",
+          "Cross-referenced from the 2026-05-27/28 ffxivDecomp session, not "
+          "byte-verified. Full context: "
+          "`docs/ffxivdecomp_2026-05-28_session_integration.md`.", "",
+          "- **0x12d** has a discriminator byte at **+0x28** (immediate-vs-queued; "
+          "command vs SIMPLE noticeEvent). Integrity is a **uint32 standard CRC32 "
+          "at +0x24** (poly 0xEDB88320 = `Sqex::Crypt::Crc32` @ `FUN_00d3a380`) "
+          "over the 128B payload at +0x49 — NOT the 32 bytes at +0x29 (a "
+          "command-specific hash/id). CRC = transport integrity, not anti-cheat. "
+          "8 commandName flags: commandRequest / commandJudgeMode / commandDefault "
+          "/ commandWeak / commandForced / commandContent / widgetCreate / "
+          "macroRequest.",
+          "- **Per-class `_updateWork` divergence:** CharaBase + Director -> "
+          "**0x12f** (56B string-path WorkSync, predictive UpdateQueue); Item -> "
+          "**0x132** (24B, NO WorkPath, no predictive enqueue); GroupBase -> "
+          "**0x133** (56B, byte-identical to 0x12f, per-instance @ instance+0x68, "
+          "server-authoritative). The 0x12f/0x133 split is a server-side routing "
+          "hint (actor-table vs group-table).",
+          "- **WorkSync is SUBSCRIBE-based** (not broadcast-all): client requests "
+          "binding-ids via **0x135**; server pushes only subscribed bindings. "
+          "0x3f2/0x3f3/0x3f4 (hp/hpMax/level) always force the server query. "
+          "Inbound chain: `docs/worksync_inbound_chain.md`. Outbound two-queue "
+          "split: WorkSync vtable[0xec] vs CommandUpdater 280B records "
+          "(`docs/group_system_decomp.md`).",
+          "- **0x18a is NOT a linkshell variant** (it is BULK_PAIR_SET — existing "
+          "pin correct); PropertyUpdater has no dedicated opcode (it is "
+          "EntryLinkShellBuilder vftable[12]).",
+          "",
+          "## SEQ-005 cutscene-hang relevance", "",
           "Two registrars here name functions the SEQ-005 kick-dispatcher work",
           "has been circling (see the SEQ-005 memory chain):",
           "",
           "- `_cancelNotice` registrar — the Notice stream's cancel path "
-          "(1.x has 5 command streams: Command/Talk/Notice/Emote/Push).",
+          "(1.x has 4 event types — Command/Talk/Emote/Push — each with a "
+          "call*/do* pair, plus an orthogonal Notice/cancel mode).",
           "- `_fadeInNowLoadingForNoticeEventJustInArea` — previously located via "
           "MyPlayer vtable slot 66 as the kick-dispatcher clearer; ffxivDecomp",
           "  independently names its registrar, corroborating that anchor and",

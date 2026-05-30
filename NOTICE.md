@@ -89,7 +89,12 @@ author's (Yokimitsuro's) express permission. The structured import
 cross-checked against our own `config/ffxivgame.symbols.json` and
 confirmed against our own disassembly as a **correctness** practice (so
 a match doesn't inherit an upstream error), and the opcode set is
-cross-validated against our own `up_opcodes` extraction.
+cross-validated against our own `up_opcodes` extraction. As of the
+2026-05-28 refresh, the importer's bulk name source is ffxivDecomp's
+full USER_DEFINED Ghidra symbol export
+(`docs/re/ghidra_symbols_userdefined.tsv`, ~993 VA→name pairs); the
+curated prose findings still supply the opcode / Lua-binding metadata
+and win by VA where they overlap.
 
 ## LandSandBoat (referenced, not copied)
 
