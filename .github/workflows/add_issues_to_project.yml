@@ -33,5 +33,5 @@ jobs:
           curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "{
-              \"content\": \"@taskmaster, Issue created for Meteor Decomp.\nTitle: ${{ github.event.issue.title }}\n${{ github.event.issue.html_url }}\"
+              \"content\": \"<@&1510380634349109440>, Issue created for Meteor Decomp.\nTitle: ${{ github.event.issue.title }}\n${{ github.event.issue.html_url }}\"
             }"
