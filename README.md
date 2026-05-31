@@ -235,3 +235,19 @@ build pipeline. Never `git add` them.
 
 AGPL-3.0-or-later (matches `garlemald-server` / `garlemald-client`).
 See [LICENSE.md](LICENSE.md) and [NOTICE.md](NOTICE.md).
+
+## Special Thanks
+
+Special thanks to **Yokimitsuro** for his reverse-engineering research on the
+FFXIV 1.23b client in his [**ffxivDecomp**](https://github.com/Yokimitsuro/ffxivDecomp)
+project, for the additional structural comparison his
+[**FFXIVLegacyClientStructs**](https://github.com/Yokimitsuro/FFXIVLegacyClientStructs)
+project made possible, and for his ongoing support of this effort. Much of the
+client-side understanding this decomp builds on was sharpened by
+cross-referencing his work.
+
+If you're interested in the 1.x client internals, check out his projects
+directly:
+
+- [Yokimitsuro/ffxivDecomp](https://github.com/Yokimitsuro/ffxivDecomp)
+- [Yokimitsuro/FFXIVLegacyClientStructs](https://github.com/Yokimitsuro/FFXIVLegacyClientStructs)
