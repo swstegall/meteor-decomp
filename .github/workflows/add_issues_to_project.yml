@@ -29,9 +29,17 @@ jobs:
             }
 
       - name: Notify Discord
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
         run: |
-          curl -s -X POST "${{ secrets.DISCORD_WEBHOOK_URL }}" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"content\": \"<@&1510380634349109440>, Issue created for Meteor Decomp.\nTitle: ${{ github.event.issue.title }}\n${{ github.event.issue.html_url }}\"
-            }"
+          # Build the payload with jq so titles containing quotes, backslashes,
+          # or other JSON-special characters are escaped correctly (a raw
+          # interpolated title broke the JSON -> Discord 50109). Passing the
+          # title/URL via env also avoids shell-injection from `${{ }}` in `run:`.
+          content="$(printf '<@&1510380634349109440>, Issue created for Meteor Decomp.\nTitle: %s\n%s' "$ISSUE_TITLE" "$ISSUE_URL")"
+          jq -n --arg content "$content" '{content: $content}' \
+            | curl -sS -X POST "$DISCORD_WEBHOOK_URL" \
+                -H "Content-Type: application/json" \
+                -d @-
