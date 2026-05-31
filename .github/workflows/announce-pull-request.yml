@@ -17,6 +17,10 @@ name: Announce pull request
 on:
   pull_request_target:
     types: [opened, reopened, closed]
+    # For pull_request_target, `branches` filters the BASE (target/destination)
+    # branch of the PR — NOT the head branch. So this only runs for PRs targeting
+    # master (e.g. develop -> master release PRs). PRs targeting develop never trigger.
+    branches: [master]
 
 # Maintainer role pinged for PR announcements. Defined once here so it's
 # easy to change in a single place.
@@ -34,9 +38,11 @@ permissions: {}
 
 jobs:
   announce:
+    # Defense-in-depth: even if the trigger `branches` filter is later loosened,
+    # the base.ref == 'master' guard ensures a non-master PR is never announced.
     # Announce on raise (opened/reopened) and on merge only. A closed-WITHOUT-merge
     # PR must NOT be announced.
-    if: github.event.action == 'opened' || github.event.action == 'reopened' || (github.event.action == 'closed' && github.event.pull_request.merged == true)
+    if: github.event.pull_request.base.ref == 'master' && (github.event.action == 'opened' || github.event.action == 'reopened' || (github.event.action == 'closed' && github.event.pull_request.merged == true))
     runs-on: ubuntu-latest
     steps:
       - name: Announce the pull request on Discord
