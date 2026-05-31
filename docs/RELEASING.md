@@ -6,9 +6,31 @@ truth** — there is **nothing in the tree to version**. This repo has no
 `Cargo.toml` and no `VERSION` file, so a release writes **no commit** back to the
 branch: it only creates and pushes a tag (and publishes a GitHub Release).
 
+## Branching model
+
+- **`develop`** is the default branch and the integration branch for day-to-day
+  decomp work. It is **unprotected** — commit/push to it directly (agent
+  orchestration included) or via PR, whatever fits the moment. **Nothing merged
+  into `develop` produces a release or a tag.**
+- **`master`** is the protected **release** branch. A release is cut by opening a
+  PR from `develop` into `master`; when it merges, the push to `master` triggers
+  `release.yml` (tag + GitHub Release). `master` requires a pull request (no
+  direct pushes) but **no approving review**, so you can self-merge your own
+  `develop` → `master` release PR.
+
+Flow: work on `develop` → release PR `develop` → `master` → merge → automatic
+tag + GitHub Release.
+
+> Branch protection on `master` does **not** block the release automation: the
+> workflow pushes only a **tag** (`refs/tags/vX.Y.Z`), and tag pushes are not
+> gated by branch-protection rules — only commits to the branch are, which this
+> workflow never makes. So the default `GITHUB_TOKEN` still suffices (see
+> [Why no PAT](#why-no-pat)).
+
 ## How it works
 
-`.github/workflows/release.yml` runs on every push/merge to **`master`** and:
+`.github/workflows/release.yml` runs on every push/merge to **`master`** (i.e.
+when a `develop` → `master` release PR merges) and:
 
 1. reads the highest existing `vX.Y.Z` tag,
 2. picks a bump level (see below),

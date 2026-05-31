@@ -235,11 +235,13 @@ build pipeline. Never `git add` them.
 
 Releases follow [Semantic Versioning](https://semver.org/) driven entirely by
 git tags: an annotated **`vX.Y.Z` tag is the sole source of truth** (this repo
-has no `Cargo.toml` / `VERSION` file, so nothing is versioned in the tree). On
-every merge/push to `master`, CI auto-bumps the **patch** version — it creates
-and pushes the next `vX.Y.Z` tag and publishes a GitHub Release (with a
-best-effort decomp-progress block). Minor/major bumps are opt-in via a
-`release:minor` / `release:major` PR label or a manual tag. See
+has no `Cargo.toml` / `VERSION` file, so nothing is versioned in the tree).
+Day-to-day work happens on **`develop`** (the default, unprotected branch);
+cutting a release means merging **`develop` → `master`** (the protected release
+branch). That merge auto-bumps the **patch** version — CI creates and pushes the
+next `vX.Y.Z` tag and publishes a GitHub Release (with a best-effort
+decomp-progress block). Minor/major bumps are opt-in via a `release:minor` /
+`release:major` PR label or a manual tag. See
 **[docs/RELEASING.md](docs/RELEASING.md)** for the full workflow.
 
 ## License
