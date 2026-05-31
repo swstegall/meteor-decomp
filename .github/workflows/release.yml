@@ -1,0 +1,164 @@
+name: Release
+
+# Tag-only SemVer release automation — see issue #7.
+#
+# DESIGN: the annotated git tag `vX.Y.Z` is the SOLE source of truth. This repo
+# has NO Cargo.toml and NO VERSION file, so there is nothing in the tree to
+# rewrite. On every push/merge to `master` this workflow:
+#   1. reads the highest existing vX.Y.Z git tag,
+#   2. bumps PATCH by default, or MINOR/MAJOR when the merged PR carried a
+#      `release:minor` / `release:major` label,
+#   3. creates + pushes the matching annotated vX.Y.Z tag on the merge commit
+#      (NO commit is written back to the branch — only a tag), and
+#   4. publishes a GitHub Release with auto-generated notes, best-effort
+#      appended with the current decomp progress (matched-function /
+#      _rosetta file counts from tools/progress.py).
+#
+# Why NO PAT: unlike the sibling Garlemald-Server/Client release workflows,
+# `master` here is NOT branch-protected and this workflow pushes ONLY a tag
+# (never a commit back to the branch). The default GITHUB_TOKEN (github.token)
+# can both push a tag to an unprotected branch and create a Release, so no
+# fine-grained RELEASE_PAT is required. The checkout uses the default token.
+#
+# Why NO loop guard: because nothing is committed back to `master`, there is no
+# re-trigger to guard against. A tag push does NOT match an `on: push: branches`
+# trigger, so creating vX.Y.Z below cannot re-run this workflow. Consequently we
+# deliberately add NO bot-identity `if` guard and NO `[skip ci]` marker — they
+# would only be needed if we pushed a bump commit, which we never do.
+on:
+  push:
+    branches: [master]
+
+# Serialize releases so two quick merges produce monotonic tags (the second run
+# waits for the first to push its tag, then computes the next from it).
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  # Push the annotated tag + create the GitHub Release.
+  contents: write
+  # Needed for the commits/{sha}/pulls label lookup below. Specifying
+  # `permissions` sets every unlisted scope to `none`, so this must be explicit
+  # or the lookup 403s and every release silently falls back to a patch bump.
+  pull-requests: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout master (full history + tags; default token can push a tag)
+        uses: actions/checkout@v6
+        with:
+          # master is unprotected and we only push a TAG, so the default
+          # GITHUB_TOKEN suffices — no RELEASE_PAT needed.
+          token: ${{ github.token }}
+          fetch-depth: 0
+          ref: master
+
+      - name: Fetch all tags
+        run: git fetch --tags --force --prune
+
+      - name: Determine bump level from the merged PR's labels
+        id: level
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # PR(s) associated with this merge commit; labels decide minor/major.
+          # A direct push (no PR) -> empty -> patch. Manual `git tag vX.Y.0`/`vX.0.0`
+          # is also honored automatically via the highest-tag read below.
+          # An empty result is the legitimate "direct push, no PR" case (-> patch).
+          # A non-zero exit is an API/permission error: warn so a missed
+          # release:minor/major label is visible rather than silently downgraded.
+          if ! labels="$(gh api "repos/${{ github.repository }}/commits/${{ github.sha }}/pulls" --jq '[.[].labels[].name] | join(",")')"; then
+            echo "::warning::Could not query PR labels for ${{ github.sha }}; defaulting to a patch bump (a release:minor/major label, if any, was NOT applied)."
+            labels=""
+          fi
+          echo "PR labels: ${labels:-<none>}"
+          level=patch
+          case ",$labels," in
+            *,release:major,*) level=major ;;
+            *,release:minor,*) level=minor ;;
+          esac
+          echo "level=$level" >> "$GITHUB_OUTPUT"
+          echo "Bump level: $level"
+
+      - name: Compute next version from the highest tag
+        id: ver
+        run: |
+          set -euo pipefail
+          # Deterministic for double-digit patches via `--sort=-v:refname`.
+          latest="$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | head -n1 || true)"
+          latest="${latest:-v0.0.0}"
+          echo "Highest existing tag: $latest"
+          base="${latest#v}"
+          major="${base%%.*}"; rest="${base#*.}"; minor="${rest%%.*}"; patch="${rest#*.}"
+          case "${{ steps.level.outputs.level }}" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            *)     patch=$((patch + 1)) ;;
+          esac
+          new="${major}.${minor}.${patch}"
+          tag="v${new}"
+          echo "Next version: ${new} (tag ${tag})"
+          if git rev-parse -q --verify "refs/tags/${tag}" >/dev/null; then
+            echo "::error::Tag ${tag} already exists — aborting to avoid clobber."
+            exit 1
+          fi
+          echo "new=${new}"  >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}"  >> "$GITHUB_OUTPUT"
+
+      - name: Create and push the annotated tag (tag only — no commit, no file edits)
+        run: |
+          set -euo pipefail
+          tag="${{ steps.ver.outputs.tag }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Tag the merge commit that triggered this run (HEAD == github.sha).
+          # NOTHING is written into the tree and NO commit is pushed back to
+          # master — only the tag ref. A tag push does not re-trigger this
+          # workflow (the trigger is scoped to branch pushes on master).
+          git tag -a "${tag}" -m "${tag}"
+          git push origin "refs/tags/${tag}"
+          echo "Pushed tag ${tag}"
+
+      - name: Create the GitHub Release (auto notes + best-effort progress block)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${{ steps.ver.outputs.tag }}"
+
+          # 1) Create the Release first with GitHub's auto-generated notes.
+          gh release create "${tag}" --title "${tag}" --target master --generate-notes
+          echo "Released ${tag}"
+
+          # 2) Best-effort: append a short decomp-progress block by EDITING the
+          #    release body. We deliberately create-then-edit (rather than
+          #    --notes-file) because `gh release create` cannot combine
+          #    --generate-notes with --notes-file; editing afterwards lets us
+          #    keep GitHub's generated notes AND prepend our progress block.
+          #    The whole attempt is wrapped so a failure (no PyYAML, no network,
+          #    progress.py change, etc.) NEVER fails the release — the tag and
+          #    Release above have already published.
+          set +e
+          progress_block=""
+          pip install --quiet pyyaml >/dev/null 2>&1
+          progress_out="$(python3 tools/progress.py 2>/dev/null)"
+          if [ -n "${progress_out}" ]; then
+            # Keep only the human-meaningful "overall ..." summary lines.
+            overall="$(printf '%s\n' "${progress_out}" | grep -E '^overall \(' || true)"
+            if [ -n "${overall}" ]; then
+              progress_block="$(printf '### Decomp progress at %s\n\n```\n%s\n```' "${tag}" "${overall}")"
+            fi
+          fi
+          if [ -n "${progress_block}" ]; then
+            body="$(gh release view "${tag}" --json body -q .body)"
+            gh release edit "${tag}" --notes "$(printf '%s\n\n---\n\n%s' "${progress_block}" "${body}")" \
+              && echo "Appended decomp-progress block to ${tag} release notes." \
+              || echo "::warning::Could not edit release notes for ${tag}; progress block skipped (release still published)."
+          else
+            echo "::notice::No decomp-progress block captured (tools/progress.py produced no 'overall' lines); release notes left as auto-generated."
+          fi
+          set -e
