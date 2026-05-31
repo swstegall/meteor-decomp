@@ -1,0 +1,90 @@
+name: Announce pull request
+
+# Posts a Discord announcement when a pull request is RAISED (opened/reopened)
+# and when it is MERGED, to the PR-announcements channel via webhook.
+#
+# Why `pull_request_target` (NOT `pull_request`): the contribution model here is
+# fork -> PR. A `pull_request` run triggered from a fork runs WITHOUT repo
+# secrets and, for first-time contributors, requires a maintainer to approve the
+# run — so the webhook secret would be missing and the announcement would
+# silently never fire. `pull_request_target` runs in the BASE-repo context, so
+# it HAS the secret and needs no approval.
+#
+# SAFETY: this workflow NEVER checks out or executes the PR head/code. It only
+# reads event metadata (title, head/base label, URL, merged flag) and POSTs to
+# Discord. The usual `pull_request_target` code-execution risk (running
+# attacker-controlled code with secrets in scope) therefore does not apply.
+on:
+  pull_request_target:
+    types: [opened, reopened, closed]
+    # For pull_request_target, `branches` filters the BASE (target/destination)
+    # branch of the PR — NOT the head branch. So this only runs for PRs targeting
+    # master (e.g. develop -> master release PRs). PRs targeting develop never trigger.
+    branches: [master]
+
+# Maintainer role pinged for PR announcements. Defined once here so it's
+# easy to change in a single place.
+env:
+  MAINTAINER_ROLE_ID: "1510751664347283556"
+
+# Serialize duplicate events for the same PR + action so we never double-post.
+concurrency:
+  group: announce-pr-${{ github.event.pull_request.number }}-${{ github.event.action }}
+  cancel-in-progress: false
+
+# Least privilege: the GITHUB_TOKEN is never used (we only read the event
+# payload and POST to an external webhook), so request no scopes at all.
+permissions: {}
+
+jobs:
+  announce:
+    # Defense-in-depth: even if the trigger `branches` filter is later loosened,
+    # the base.ref == 'master' guard ensures a non-master PR is never announced.
+    # Announce on raise (opened/reopened) and on merge only. A closed-WITHOUT-merge
+    # PR must NOT be announced.
+    if: github.event.pull_request.base.ref == 'master' && (github.event.action == 'opened' || github.event.action == 'reopened' || (github.event.action == 'closed' && github.event.pull_request.merged == true))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Announce the pull request on Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_PR_WEBHOOK_URL }}
+          ROLE_ID: ${{ env.MAINTAINER_ROLE_ID }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          # GitHub already formats head/base label as `owner:ref`.
+          SOURCE_LABEL: ${{ github.event.pull_request.head.label }}
+          DEST_LABEL: ${{ github.event.pull_request.base.label }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          ACTION: ${{ github.event.action }}
+          MERGED: ${{ github.event.pull_request.merged }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DISCORD_WEBHOOK:-}" ]; then
+            echo "::warning::DISCORD_PR_WEBHOOK_URL secret is not set — skipping the Discord announcement."
+            exit 0
+          fi
+          # Verb: "merged" on a merged close, "raised" otherwise (opened/reopened).
+          # The job-level if already filters out closed-without-merge events.
+          if [ "$ACTION" = "closed" ] && [ "$MERGED" = "true" ]; then
+            verb="merged"
+          else
+            verb="raised"
+          fi
+          # Build the content text. Branch labels are already `username:branchname`.
+          content="$(printf '<@&%s>, Pull Request %s for Meteor Decomp.\nTitle: %s\nSource Branch: %s\nDestination Branch: %s\n%s' \
+            "$ROLE_ID" "$verb" "$PR_TITLE" "$SOURCE_LABEL" "$DEST_LABEL" "$PR_URL")"
+          # Build the JSON with jq (--arg escapes every value) so an attacker-controlled
+          # title can never break out of the shell or the JSON payload (a raw
+          # interpolated title broke the issue notifier with Discord error 50109).
+          # allowed_mentions hardening: parse [] disables @everyone/@here and all
+          # user/role auto-parsing; roles is the lone explicit allow-list, so a
+          # hostile title can ONLY ever ping the one maintainer role and nothing else.
+          payload="$(jq -n \
+            --arg content "$content" \
+            --arg role "$ROLE_ID" \
+            '{content: $content, allowed_mentions: {parse: [], roles: [$role]}}')"
+          # A notification failure must not fail the job (matches the release announcer).
+          if curl -fsS -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" -d "$payload"; then
+            echo "Announced PR $verb to Discord."
+          else
+            echo "::warning::Discord PR announcement failed (webhook unreachable or rejected)."
+          fi
