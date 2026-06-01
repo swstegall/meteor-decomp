@@ -63,6 +63,10 @@ config/*.yaml
 # Build logs
 build/logs/
 
+# decomp-agents local-mode worktrees (transient; each is its own checkout —
+# never commit them as embedded repos).
+.worktrees/
+
 # OS / editor noise
 .DS_Store
 .idea/
