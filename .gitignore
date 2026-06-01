@@ -67,6 +67,10 @@ build/logs/
 # never commit them as embedded repos).
 .worktrees/
 
+# Transient staging dir for `make push-matches` GREEN re-grades (auto-cleaned;
+# guards against a SIGKILL-orphaned copy ever being committed).
+.push-matches-stage/
+
 # OS / editor noise
 .DS_Store
 .idea/
