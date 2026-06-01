@@ -69,6 +69,7 @@ help:
 	@echo "  make update-docs          D3: regen sentinel progress regions in README/PLAN/decomp-status"
 	@echo "  make sync-develop         ff-only sync local develop to origin (safe; no-op if dirty/ahead)"
 	@echo "  make install-sync-timer   macOS launchd timer running sync-develop every 10 min"
+	@echo "  make push-matches         push local-ahead GREEN _rosetta matches to origin/develop (all-or-nothing)"
 	@echo "  make clean                wipe build/"
 
 bootstrap:
@@ -181,7 +182,7 @@ decompile-headless:
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 
-.PHONY: setup-msvc find-rosetta rosetta diff progress freeze-sizes reconcile update-docs sync-develop install-sync-timer extract-net extract-gam struct-layouts extract-gam-types-rtti emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes extract-up-opcodes extract-crypt-engine
+.PHONY: setup-msvc find-rosetta rosetta diff progress freeze-sizes reconcile update-docs sync-develop install-sync-timer push-matches extract-net extract-gam struct-layouts extract-gam-types-rtti emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes extract-up-opcodes extract-crypt-engine
 
 # Walk the RTTI dump for net-relevant classes; emit class→slot→fn_rva map.
 extract-net:
@@ -356,6 +357,12 @@ sync-develop:
 
 install-sync-timer:
 	@$(TOOLS)/install-sync-timer.sh
+
+# Push local-ahead GREEN _rosetta match commits to origin/develop (re-grades
+# each; pushes nothing unless ALL are clean GREEN matches). Clears the
+# divergence local-mode runs create by committing matches without pushing.
+push-matches:
+	@$(TOOLS)/push-matches.sh
 
 # --- Phase 2.6 — byte-passthrough fallback ----------------------------
 #
