@@ -103,13 +103,23 @@ done
 rm -rf "$stage"; trap - EXIT
 
 # --- all verified GREEN → drop dup strays, rebase, push ----------------------
+# A stray whose path is ALREADY on origin/develop (committed via a PR) is a
+# transient duplicate — origin's version is authoritative — so drop it whether
+# or not the bytes match (a differing untracked copy would otherwise block the
+# rebase checkout, the #1 cause of a manual reconcile). A stray NOT on origin is
+# potential unique local work: it can't block the rebase (origin doesn't add
+# it), so leave it in place but surface it so it isn't silently lost.
+unpushed_strays=""
 while IFS= read -r f; do
   [ -z "$f" ] && continue
   printf '%s' "$f" | grep -qE '^src/[A-Za-z0-9_]+/_rosetta/FUN_[0-9a-fA-F]+\.cpp$' || continue
-  if git cat-file -e "origin/develop:$f" 2>/dev/null && diff -q <(git show "origin/develop:$f") "$f" >/dev/null 2>&1; then
-    rm -f "$f"; say "dropped dup stray $f (already on origin)"
+  if git cat-file -e "origin/develop:$f" 2>/dev/null; then
+    rm -f "$f"; say "dropped dup stray $f (origin's committed version is authoritative)"
+  else
+    unpushed_strays="$unpushed_strays $f"
   fi
 done < <(git ls-files --others --exclude-standard)
+[ -n "$unpushed_strays" ] && say "note: untracked _rosetta file(s) NOT on origin — left in place; commit them if they are real matches:$unpushed_strays"
 
 n="$(printf '%s\n' "$ahead" | grep -c .)"
 for try in 1 2 3 4 5; do
