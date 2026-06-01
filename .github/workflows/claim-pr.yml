@@ -1,0 +1,234 @@
+name: Pin/free claim on PR
+
+# D2 of issue #11 — the PR side of the claim lifecycle. A PR that ADDS a
+# src/<bin>/_rosetta/FUN_<va>.cpp file pins the matching claim (state =
+# pinned-by-PR, NO expiry) so the sweeper never reclaims work that is already
+# in review. Closing the PR WITHOUT merging frees (deletes) the pinned claim;
+# a MERGE leaves it for reconcile.yml's release-solved to drop once the solved
+# state is on develop (solved-by-presence).
+#
+# Why `pull_request_target` (same posture as announce-pull-request.yml): a
+# fork PR's `pull_request` run has NO repo secrets, so CLAIMS_BOT_TOKEN would
+# be missing and the pin/free would silently never fire. `pull_request_target`
+# runs in the BASE-repo context and HAS the secret.
+#
+# SAFETY — this is the dangerous trigger: it MUST NEVER checkout or execute the
+# PR HEAD code. We only read EVENT METADATA (author, merged flag) and the diff
+# FILENAMES (via `gh pr diff --name-only`, an API call — not a checkout), then
+# mutate the orphan `claims` branch. No fork-controlled code ever runs with the
+# secret in scope.
+on:
+  pull_request_target:
+    types: [opened, reopened, closed]
+
+# One run per PR + action; do not cancel so an opened-then-closed pair both run.
+concurrency:
+  group: claim-pr-${{ github.event.pull_request.number }}-${{ github.event.action }}
+  cancel-in-progress: false
+
+# The default GITHUB_TOKEN only needs to READ the PR diff filenames; the ledger
+# push uses CLAIMS_BOT_TOKEN. pull-requests:read covers `gh pr diff`.
+permissions:
+  pull-requests: read
+  contents: read
+
+jobs:
+  pin-or-free:
+    runs-on: ubuntu-latest
+    steps:
+      # ---------------------------------------------------------------
+      # 1) Bot-token guard — skip-with-warning if CLAIMS_BOT_TOKEN absent.
+      # ---------------------------------------------------------------
+      - name: Check for the claims bot token
+        id: token
+        env:
+          CLAIMS_BOT_TOKEN: ${{ secrets.CLAIMS_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLAIMS_BOT_TOKEN:-}" ]; then
+            echo "::warning::CLAIMS_BOT_TOKEN secret is not set — skipping claim pin/free."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ---------------------------------------------------------------
+      # 2) Read the ADDED _rosetta filenames from the PR diff via the API.
+      #    `gh pr diff --name-only` lists changed paths WITHOUT checking out
+      #    the PR head, so no attacker code runs. We then map each added
+      #    src/<bin>/_rosetta/FUN_<va>.cpp -> (binary, va) pair and emit a
+      #    repeatable --binary/--va arg list per binary for claim.py.
+      #
+      #    NOTE: --name-only cannot tell added from modified; for the claim
+      #    model that is fine — pin is idempotent, and a PR touching a
+      #    _rosetta file IS the work that should be pinned/freed.
+      # ---------------------------------------------------------------
+      - name: Parse VAs from the PR diff filenames
+        id: parse
+        if: steps.token.outputs.present == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # API-only filename listing — never a PR-head checkout.
+          files="$(gh pr diff "$PR_NUMBER" --repo "$REPO" --name-only || true)"
+
+          # Match src/<bin>/_rosetta/FUN_<va>.cpp and capture (binary, va).
+          # Build, per binary, a space-joined list of `--va 0x<va>` flags that
+          # the pin/free steps splice straight into claim.py's argv.
+          matches="$(printf '%s\n' "$files" \
+            | grep -aoE 'src/[A-Za-z0-9_]+/_rosetta/FUN_[0-9a-fA-F]+\.cpp' \
+            | sort -u || true)"
+
+          if [ -z "$matches" ]; then
+            echo "No _rosetta/FUN_*.cpp files in this PR diff — nothing to pin/free."
+            echo "has_va=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Emit a newline-delimited "binary va" table; the pin/free step turns
+          # it into per-binary claim.py invocations. (Stored as an output via a
+          # heredoc so multi-line survives.)
+          table="$(printf '%s\n' "$matches" | sed -E 's#src/([^/]+)/_rosetta/FUN_([0-9a-fA-F]+)\.cpp#\1 0x\2#')"
+          echo "Pinning/freeing VAs:"
+          printf '%s\n' "$table"
+          {
+            echo "has_va=true"
+            printf 'table<<TBL\n%s\nTBL\n' "$table"
+          } >> "$GITHUB_OUTPUT"
+
+      # ---------------------------------------------------------------
+      # 3) Checkout the orphan claims branch with the bot PAT.
+      # ---------------------------------------------------------------
+      - name: Checkout the claims ledger branch
+        if: steps.token.outputs.present == 'true' && steps.parse.outputs.has_va == 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: claims
+          token: ${{ secrets.CLAIMS_BOT_TOKEN }}
+          fetch-depth: 1
+          path: claims-ledger
+
+      # ---------------------------------------------------------------
+      # 4) Fetch claim.py from develop (tools only) — never from the PR head.
+      # ---------------------------------------------------------------
+      - name: Checkout claim.py from develop (tools only)
+        if: steps.token.outputs.present == 'true' && steps.parse.outputs.has_va == 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: develop
+          path: tooling
+          sparse-checkout: |
+            tools
+          sparse-checkout-cone-mode: true
+          fetch-depth: 1
+
+      # ---------------------------------------------------------------
+      # 5) Pin (opened/reopened) or free (closed && NOT merged) the claims,
+      #    then push the ledger with a push-CAS retry. A merged close does
+      #    NOTHING here — reconcile.yml releases merged VAs by presence.
+      # ---------------------------------------------------------------
+      - name: Pin or free the claims (push-CAS with retry)
+        if: steps.token.outputs.present == 'true' && steps.parse.outputs.has_va == 'true'
+        env:
+          ACTION: ${{ github.event.action }}
+          MERGED: ${{ github.event.pull_request.merged }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          TABLE: ${{ steps.parse.outputs.table }}
+          CLAIMS_BOT_TOKEN: ${{ secrets.CLAIMS_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # Decide the verb. A merged close is a no-op (reconcile releases it).
+          if [ "$ACTION" = "closed" ]; then
+            if [ "$MERGED" = "true" ]; then
+              echo "PR merged — leaving claims for reconcile.yml release-solved. No-op."
+              exit 0
+            fi
+            verb="free"
+          else
+            # opened / reopened
+            verb="pin"
+          fi
+          echo "Lifecycle action=$ACTION merged=$MERGED -> verb=$verb"
+
+          claim_py="$GITHUB_WORKSPACE/tooling/tools/claim.py"
+          cd "$GITHUB_WORKSPACE/claims-ledger"
+
+          git config user.name  "claims-bot"
+          git config user.email "claims-bot@users.noreply.github.com"
+
+          # Real UTC time: a pin that has to CREATE a claim (PR opened with no
+          # prior reservation) stamps claimed_at with it. claim.py is
+          # wall-clock-free, so the workflow injects the real time.
+          now="$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"
+
+          # Apply the verb against the current ledger. Re-applied verbatim on a
+          # rejected push (after re-sync), so it must be idempotent — pin/free
+          # both are.
+          apply_verb() {
+            # Group the (binary, va) table by binary and call claim.py once per
+            # binary with all its --va flags. `read` walks the TABLE lines.
+            #   pin  --binary B --va 0x.. --va 0x.. --owner <pr_author>
+            #   free --binary B --va 0x.. --va 0x..
+            current_bin=""
+            va_args=()
+            flush() {
+              if [ -n "$current_bin" ]; then
+                if [ "$verb" = "pin" ]; then
+                  python3 "$claim_py" --ledger-dir claims --now "$now" \
+                    pin --binary "$current_bin" "${va_args[@]}" --owner "$PR_AUTHOR" \
+                    >/dev/null
+                else
+                  python3 "$claim_py" --ledger-dir claims \
+                    free --binary "$current_bin" "${va_args[@]}" \
+                    >/dev/null
+                fi
+              fi
+            }
+            # Sort so all rows for one binary are contiguous.
+            while read -r b v; do
+              [ -z "$b" ] && continue
+              if [ "$b" != "$current_bin" ]; then
+                flush
+                current_bin="$b"
+                va_args=()
+              fi
+              va_args+=(--va "$v")
+            done <<< "$(printf '%s\n' "$TABLE" | sort)"
+            flush
+          }
+
+          max_attempts=6
+          attempt=0
+          while [ "$attempt" -lt "$max_attempts" ]; do
+            attempt=$((attempt + 1))
+
+            # Re-stage from a clean ledger each attempt.
+            git checkout -- claims 2>/dev/null || true
+            apply_verb
+
+            git add claims
+            if git diff --cached --quiet; then
+              echo "No ledger change ($verb idempotent / nothing to do) — done."
+              break
+            fi
+            git commit -m "claim-$verb: PR #$GITHUB_RUN_NUMBER ($verb) [skip ci]" >/dev/null
+
+            if git push origin HEAD:claims; then
+              echo "Ledger $verb pushed on attempt $attempt."
+              break
+            fi
+
+            echo "::notice::Push rejected (ref advanced) — re-syncing and re-applying $verb (attempt $attempt)."
+            git fetch origin claims
+            git reset --hard origin/claims
+            sleep "$((attempt * 2))"
+
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "::warning::Claim $verb CAS exhausted $max_attempts attempts under contention; giving up this run."
+            fi
+          done

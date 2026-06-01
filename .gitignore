@@ -52,8 +52,20 @@ config/*.yaml
 !config/symbols.txt
 !config/ffxivgame.yaml.example
 
+# D3 — committed, toolchain-free per-function size manifest. Derived
+# deterministically from the (gitignored) *.symbols.json + the
+# (committed) *.size_overrides.json by `make freeze-sizes`. This MUST be
+# tracked so the byte metric (`make progress` / `make reconcile`) works in
+# a clean CI checkout that has no symbols.json. The explicit un-ignore
+# guards against any future broad config/ pattern catching it.
+!config/*.func_sizes.json
+
 # Build logs
 build/logs/
+
+# decomp-agents local-mode worktrees (transient; each is its own checkout —
+# never commit them as embedded repos).
+.worktrees/
 
 # OS / editor noise
 .DS_Store

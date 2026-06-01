@@ -64,6 +64,9 @@ help:
 	@echo "  make stamp-all            Phase 2.5: stamp-reloc + seed-templates --all --reloc"
 	@echo "  make diff FUNC=X          objdiff-cli on one matched function"
 	@echo "  make progress             print matched/total across all *.yaml"
+	@echo "  make freeze-sizes         D3: write committed config/<bin>.func_sizes.json size manifests"
+	@echo "  make reconcile            D3: recompute solved set → docs/reconcile-state.json (pure-tree)"
+	@echo "  make update-docs          D3: regen sentinel progress regions in README/PLAN/decomp-status"
 	@echo "  make clean                wipe build/"
 
 bootstrap:
@@ -176,7 +179,7 @@ decompile-headless:
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 
-.PHONY: setup-msvc find-rosetta rosetta diff progress extract-net extract-gam struct-layouts extract-gam-types-rtti emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes extract-up-opcodes extract-crypt-engine
+.PHONY: setup-msvc find-rosetta rosetta diff progress freeze-sizes reconcile update-docs extract-net extract-gam struct-layouts extract-gam-types-rtti emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes extract-up-opcodes extract-crypt-engine
 
 # Walk the RTTI dump for net-relevant classes; emit class→slot→fn_rva map.
 extract-net:
@@ -322,6 +325,27 @@ diff:
 
 progress:
 	$(PY) $(TOOLS)/progress.py
+
+# --- D3 — merge-time recompute of solved set + committed sizes manifest ---
+#
+# freeze-sizes : apply config/<bin>.size_overrides.json onto the gitignored
+#                config/<bin>.symbols.json sizes and write the COMMITTED,
+#                toolchain-free config/<bin>.func_sizes.json (decimal-rva →
+#                effective size) so the byte metric survives a clean checkout.
+# reconcile    : pure-tree scan of src/<bin>/_rosetta/FUN_*.cpp → committed
+#                aggregate docs/reconcile-state.json (deterministic, no clock).
+# update-docs  : regenerate the <!-- BEGIN:progress -->..<!-- END:progress -->
+#                regions in README.md / docs/decomp-status.md / PLAN.md from
+#                progress.py --json. Idempotent; preserves everything else.
+
+freeze-sizes:
+	$(PY) $(TOOLS)/freeze_sizes.py
+
+reconcile:
+	$(PY) $(TOOLS)/reconcile.py
+
+update-docs:
+	$(PY) $(TOOLS)/update_docs.py
 
 # --- Phase 2.6 — byte-passthrough fallback ----------------------------
 #

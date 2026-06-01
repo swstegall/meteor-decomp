@@ -1,0 +1,373 @@
+name: Claim a function
+
+# D1/D2 of issue #11 — the WRITE half of the fork-based distributed-decomp
+# claim system. A contributor (or an agent) reserves a single VA so two people
+# never decompile the same FUN_<va> in parallel.
+#
+# THE ATOMICITY MODEL (read tools/claim.py's header too):
+#   The ledger is an orphan `claims` branch — ONE file per active claim at
+#   claims/<bin>/<decimal_rva>.json. There is NO Actions-`concurrency` queue
+#   here ON PURPOSE: Actions `concurrency` only de-dupes/cancels, it has no
+#   FIFO and CANNOT serialise two racing claimers. The real compare-and-swap is
+#   GitHub's serialized per-ref commit: we checkout `claims`, mutate the ledger
+#   with claim.py, commit, and `git push`. A non-fast-forward push is REJECTED
+#   if another writer advanced the ref between our fetch and our push — on
+#   rejection we re-fetch/reset to the new tip, RE-RUN claim.py against the now
+#   newer ledger, and retry (bounded, with backoff). create-if-not-exists falls
+#   out for free: a ledger path can be added at most once per ref state.
+#
+# IDENTITY BINDING (security): `owner` is ALWAYS the trigger's AUTHENTICATED
+# identity — github.event.comment.user.login for the comment path, the
+# dispatching actor (github.actor) for the dispatch paths — NEVER request-body
+# data a fork could spoof. A shared bot PAT for agent claims is forbidden;
+# every agent authenticates as itself and we record github.actor.
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      binary:
+        description: "Binary stem (e.g. ffxivgame)"
+        required: true
+        type: string
+      va:
+        description: "VA hex (0x...) or FUN_<va>"
+        required: true
+        type: string
+  repository_dispatch:
+    types: [claim]
+
+# De-dupe rapid duplicate events for the SAME trigger (e.g. an edited+created
+# burst); this is NOT the claim serialiser — the push-CAS below is. We do not
+# cancel-in-progress so a queued run still gets its turn at the CAS.
+concurrency:
+  group: claim-${{ github.event.issue.number || github.run_id }}
+  cancel-in-progress: false
+
+# Least privilege: we push the `claims` branch with CLAIMS_BOT_TOKEN (a PAT,
+# checked out below), so the default GITHUB_TOKEN only needs to write the
+# acknowledgement comment back on the issue. issues:write covers that; nothing
+# else is granted.
+permissions:
+  issues: write
+
+jobs:
+  claim:
+    # Comment path: only act on a comment whose body starts with `/claim`, and
+    # never on a comment the bot itself posted (loop guard). Dispatch paths
+    # always run. A normal PR/issue comment that is not a /claim is ignored.
+    if: >-
+      (github.event_name == 'issue_comment'
+        && startsWith(github.event.comment.body, '/claim')
+        && github.event.comment.user.type != 'Bot')
+      || github.event_name == 'workflow_dispatch'
+      || github.event_name == 'repository_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      # ---------------------------------------------------------------
+      # 1) Resolve the request: (binary, va, owner) from the AUTHENTICATED
+      #    trigger. owner is github.actor / comment.user.login — never body
+      #    fields a fork controls. The raw comment body is parsed for the VA
+      #    only (untrusted text -> a VA token, validated by a strict regex).
+      # ---------------------------------------------------------------
+      - name: Resolve claim request (authenticated owner + parsed VA)
+        id: req
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          # Comment path inputs (untrusted body, authenticated author).
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          COMMENT_AUTHOR: ${{ github.event.comment.user.login }}
+          # workflow_dispatch inputs (authenticated actor).
+          WD_BINARY: ${{ github.event.inputs.binary }}
+          WD_VA: ${{ github.event.inputs.va }}
+          # repository_dispatch client_payload (authenticated actor; the
+          # payload is data, so binary/va come from it but OWNER does not).
+          RD_BINARY: ${{ github.event.client_payload.binary }}
+          RD_VA: ${{ github.event.client_payload.va }}
+          # The authenticated dispatching identity for both dispatch paths.
+          DISPATCH_ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+
+          case "$EVENT_NAME" in
+            issue_comment)
+              owner="$COMMENT_AUTHOR"
+              raw_binary=""
+              # Body shape: `/claim FUN_<va> [binary]` or `/claim 0x<va> [binary]`.
+              # Pull the first VA-looking token and an optional binary stem.
+              va_token="$(printf '%s' "$COMMENT_BODY" \
+                | grep -oiE '(FUN_)?0?x?[0-9a-f]{4,8}' | head -n1 || true)"
+              raw_binary="$(printf '%s' "$COMMENT_BODY" \
+                | grep -oiE '\b(ffxivboot|ffxivconfig|ffxivgame|ffxivlogin|ffxivupdater)\b' \
+                | head -n1 || true)"
+              ;;
+            workflow_dispatch)
+              owner="$DISPATCH_ACTOR"
+              va_token="$WD_VA"
+              raw_binary="$WD_BINARY"
+              ;;
+            repository_dispatch)
+              owner="$DISPATCH_ACTOR"
+              va_token="$RD_VA"
+              raw_binary="$RD_BINARY"
+              ;;
+            *)
+              echo "::error::Unsupported event $EVENT_NAME"
+              exit 1
+              ;;
+          esac
+
+          # Default binary when the comment omitted one — ffxivgame is the
+          # primary decomp target.
+          binary="${raw_binary:-ffxivgame}"
+
+          # Normalise the VA token: strip a FUN_ prefix, ensure a 0x prefix so
+          # claim.py reads it as hex. Reject anything that is not clean hex.
+          va="${va_token#FUN_}"
+          va="${va#fun_}"
+          case "$va" in
+            0x*|0X*) ;;
+            *) va="0x${va}" ;;
+          esac
+          if ! printf '%s' "$va" | grep -qiE '^0x[0-9a-f]{4,8}$'; then
+            echo "::error::Could not parse a valid VA from the request (got '${va_token}')."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # Lowercase the VA for stable downstream behaviour.
+          va="$(printf '%s' "$va" | tr 'A-FX' 'a-fx')"
+
+          {
+            echo "ok=true"
+            echo "binary=$binary"
+            echo "va=$va"
+            echo "owner=$owner"
+          } >> "$GITHUB_OUTPUT"
+          echo "Resolved claim: owner=$owner binary=$binary va=$va"
+
+      # ---------------------------------------------------------------
+      # 2) Bot-token guard: the claims-branch push needs CLAIMS_BOT_TOKEN.
+      #    Absent/empty -> ::warning:: + exit 0 (skip), never fail.
+      # ---------------------------------------------------------------
+      - name: Check for the claims bot token
+        id: token
+        if: steps.req.outputs.ok == 'true'
+        env:
+          CLAIMS_BOT_TOKEN: ${{ secrets.CLAIMS_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLAIMS_BOT_TOKEN:-}" ]; then
+            echo "::warning::CLAIMS_BOT_TOKEN secret is not set — skipping the claim (ledger not mutated)."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # ---------------------------------------------------------------
+      # 3) Checkout the orphan `claims` branch with the bot PAT so its pushes
+      #    are attributed to the claims bot. The default token CANNOT push the
+      #    ledger here (we want the CAS to be a real branch push under the PAT).
+      # ---------------------------------------------------------------
+      - name: Checkout the claims ledger branch
+        if: steps.req.outputs.ok == 'true' && steps.token.outputs.present == 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: claims
+          token: ${{ secrets.CLAIMS_BOT_TOKEN }}
+          # Shallow is fine — we only need the ledger tip; the push-retry loop
+          # re-fetches the ref explicitly when it needs to.
+          fetch-depth: 1
+          path: claims-ledger
+
+      # ---------------------------------------------------------------
+      # 4) Also fetch the develop tree's _rosetta solved set so claim.py's
+      #    "already solved" check sees real data. We sparse-checkout only
+      #    src/ to keep it cheap (the solved set is presence-of-file).
+      # ---------------------------------------------------------------
+      - name: Checkout the develop solved set (src/_rosetta only)
+        if: steps.req.outputs.ok == 'true' && steps.token.outputs.present == 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: develop
+          path: solved-src
+          sparse-checkout: |
+            src
+            tools
+          sparse-checkout-cone-mode: true
+          fetch-depth: 1
+
+      # ---------------------------------------------------------------
+      # 5) The compare-and-swap: run claim.py decide against the ledger,
+      #    commit, push. On a rejected (non-fast-forward) push, re-fetch the
+      #    new tip, hard-reset, RE-RUN claim.py, retry. Bounded with backoff.
+      # ---------------------------------------------------------------
+      - name: Decide + push the claim (push-CAS with retry)
+        id: decide
+        if: steps.req.outputs.ok == 'true' && steps.token.outputs.present == 'true'
+        env:
+          BINARY: ${{ steps.req.outputs.binary }}
+          VA: ${{ steps.req.outputs.va }}
+          OWNER: ${{ steps.req.outputs.owner }}
+          CLAIMS_BOT_TOKEN: ${{ secrets.CLAIMS_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          claim_py="$GITHUB_WORKSPACE/solved-src/tools/claim.py"
+          src_root="$GITHUB_WORKSPACE/solved-src/src"
+          cd "$GITHUB_WORKSPACE/claims-ledger"
+
+          git config user.name  "claims-bot"
+          git config user.email "claims-bot@users.noreply.github.com"
+
+          # Real UTC time for the lease math (claim.py is wall-clock-free; the
+          # workflow injects the real time so leases are anchored to now).
+          now="$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"
+
+          decision=""
+          result_json=""
+          max_attempts=6
+          attempt=0
+          while [ "$attempt" -lt "$max_attempts" ]; do
+            attempt=$((attempt + 1))
+
+            # Run the pure decision against the CURRENT local ledger tip.
+            # Exit 0 -> granted/extended, exit 2 -> rejected. Capture both the
+            # JSON (stdout) and the exit code without tripping set -e.
+            set +e
+            result_json="$(python3 "$claim_py" \
+              --ledger-dir claims \
+              --src-root "$src_root" \
+              --now "$now" \
+              decide --binary "$BINARY" --va "$VA" --owner "$OWNER")"
+            rc=$?
+            set -e
+
+            # shellcheck disable=SC2016  # single-quoted Python source, not shell expansion
+            decision="$(printf '%s' "$result_json" | python3 -c 'import json,sys; print(json.load(sys.stdin)["decision"])')"
+            echo "Attempt $attempt: decision=$decision (rc=$rc)"
+
+            if [ "$decision" = "rejected" ]; then
+              # No ledger change to push — a rejection mutates nothing. Done.
+              break
+            fi
+
+            # Granted/extended: stage + commit the ledger mutation.
+            git add claims
+            if git diff --cached --quiet; then
+              # An idempotent extend may produce no textual change (pinned
+              # heartbeat). Nothing to push; treat as success.
+              echo "No ledger change to commit (idempotent) — accepting."
+              break
+            fi
+            git commit -m "claim: $OWNER -> $BINARY $VA ($decision) [skip ci]" >/dev/null
+
+            # THE CAS: a non-fast-forward push is rejected if another writer
+            # advanced refs/heads/claims since our checkout/fetch.
+            if git push origin HEAD:claims; then
+              echo "Claim pushed on attempt $attempt."
+              break
+            fi
+
+            echo "::notice::Push rejected (ref advanced) — re-syncing and re-running claim.py (attempt $attempt)."
+            # Re-fetch the new tip, hard-reset to it (drop our local commit),
+            # then loop to RE-RUN claim.py against the newer ledger state.
+            git fetch origin claims
+            git reset --hard origin/claims
+            # Small backoff to spread out a thundering herd of claimers.
+            sleep "$((attempt * 2))"
+
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "::warning::Claim CAS exhausted $max_attempts attempts under contention; giving up this run."
+              decision="contended"
+            fi
+          done
+
+          {
+            echo "decision=$decision"
+            # Re-emit a compact JSON for the reply step (escape newlines).
+            printf 'result_json<<RJSON\n%s\nRJSON\n' "$result_json"
+          } >> "$GITHUB_OUTPUT"
+
+      # ---------------------------------------------------------------
+      # 6a) Reply on the issue (comment path) with a jq-built JSON body so a
+      #     hostile holder login can never break the API payload.
+      # ---------------------------------------------------------------
+      - name: Reply to the issue comment
+        if: steps.req.outputs.ok == 'true' && github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          TOKEN_PRESENT: ${{ steps.token.outputs.present }}
+          DECISION: ${{ steps.decide.outputs.decision }}
+          RESULT_JSON: ${{ steps.decide.outputs.result_json }}
+          BINARY: ${{ steps.req.outputs.binary }}
+          VA: ${{ steps.req.outputs.va }}
+          OWNER: ${{ steps.req.outputs.owner }}
+        run: |
+          set -euo pipefail
+          # Every single-quoted string in this block is an intentional literal:
+          # printf format strings (the %s are positional args, NOT shell vars)
+          # and inline Python source. None should ever be shell-expanded.
+          # shellcheck disable=SC2016
+
+          if [ "$TOKEN_PRESENT" != "true" ]; then
+            body="$(printf '@%s — the claim system is not yet wired (CLAIMS_BOT_TOKEN is unset). Your `/claim %s %s` was not recorded.' \
+              "$OWNER" "$BINARY" "$VA")"
+          else
+            case "$DECISION" in
+              granted)
+                body="$(printf '@%s claimed `%s %s`. Lease is active — open a PR adding `src/%s/_rosetta/FUN_%s.cpp` to pin it.' \
+                  "$OWNER" "$BINARY" "$VA" "$BINARY" "${VA#0x}")"
+                ;;
+              extended)
+                body="$(printf '@%s — your existing claim on `%s %s` was refreshed (heartbeat).' \
+                  "$OWNER" "$BINARY" "$VA")"
+                ;;
+              rejected)
+                reason="$(printf '%s' "$RESULT_JSON" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("reason","unavailable"))' 2>/dev/null || echo unavailable)"
+                body="$(printf '@%s — `%s %s` cannot be claimed: %s.' \
+                  "$OWNER" "$BINARY" "$VA" "$reason")"
+                ;;
+              *)
+                body="$(printf '@%s — `%s %s` could not be claimed this run (%s); please retry.' \
+                  "$OWNER" "$BINARY" "$VA" "$DECISION")"
+                ;;
+            esac
+          fi
+
+          # jq --arg escapes every value: a holder/owner login or reason that
+          # contains JSON-special characters can never break the payload.
+          payload="$(jq -n --arg body "$body" '{body: $body}')"
+          printf '%s' "$payload" \
+            | gh api "repos/$REPO/issues/$ISSUE_NUMBER/comments" \
+                --method POST --input - >/dev/null
+          echo "Replied on issue #$ISSUE_NUMBER."
+
+      # ---------------------------------------------------------------
+      # 6b) Dispatch paths have no issue to reply on -> write a job summary.
+      # ---------------------------------------------------------------
+      - name: Write a job summary (dispatch path)
+        if: steps.req.outputs.ok == 'true' && (github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch')
+        env:
+          TOKEN_PRESENT: ${{ steps.token.outputs.present }}
+          DECISION: ${{ steps.decide.outputs.decision }}
+          BINARY: ${{ steps.req.outputs.binary }}
+          VA: ${{ steps.req.outputs.va }}
+          OWNER: ${{ steps.req.outputs.owner }}
+        run: |
+          set -euo pipefail
+          {
+            echo "### Claim result"
+            echo ""
+            echo "| field | value |"
+            echo "| --- | --- |"
+            echo "| owner | $OWNER |"
+            echo "| binary | $BINARY |"
+            echo "| va | $VA |"
+            if [ "$TOKEN_PRESENT" != "true" ]; then
+              echo "| decision | skipped (CLAIMS_BOT_TOKEN unset) |"
+            else
+              echo "| decision | $DECISION |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
