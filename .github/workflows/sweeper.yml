@@ -98,7 +98,7 @@ jobs:
               --grace-hours "$CLAIM_GRACE_HOURS" \
               sweep >/dev/null
 
-            git add claims
+            git add -A claims 2>/dev/null || true
             if git diff --cached --quiet; then
               echo "Sweep made no changes — ledger is clean."
               break

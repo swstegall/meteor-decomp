@@ -211,7 +211,7 @@ jobs:
             git checkout -- claims 2>/dev/null || true
             apply_verb
 
-            git add claims
+            git add -A claims 2>/dev/null || true
             if git diff --cached --quiet; then
               echo "No ledger change ($verb idempotent / nothing to do) — done."
               break

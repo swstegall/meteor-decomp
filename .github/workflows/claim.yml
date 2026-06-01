@@ -252,7 +252,7 @@ jobs:
             fi
 
             # Granted/extended: stage + commit the ledger mutation.
-            git add claims
+            git add -A claims 2>/dev/null || true
             if git diff --cached --quiet; then
               # An idempotent extend may produce no textual change (pinned
               # heartbeat). Nothing to push; treat as success.

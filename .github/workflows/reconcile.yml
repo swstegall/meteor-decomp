@@ -150,7 +150,7 @@ jobs:
               --src-root "$src_root" \
               release-solved >/dev/null
 
-            git add claims
+            git add -A claims 2>/dev/null || true
             if git diff --cached --quiet; then
               echo "No solved claims to release — ledger unchanged."
               break
