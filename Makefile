@@ -67,6 +67,8 @@ help:
 	@echo "  make freeze-sizes         D3: write committed config/<bin>.func_sizes.json size manifests"
 	@echo "  make reconcile            D3: recompute solved set → docs/reconcile-state.json (pure-tree)"
 	@echo "  make update-docs          D3: regen sentinel progress regions in README/PLAN/decomp-status"
+	@echo "  make sync-develop         ff-only sync local develop to origin (safe; no-op if dirty/ahead)"
+	@echo "  make install-sync-timer   macOS launchd timer running sync-develop every 10 min"
 	@echo "  make clean                wipe build/"
 
 bootstrap:
@@ -179,7 +181,7 @@ decompile-headless:
 
 # --- Phase 2 (TODO once MSVC is wired) ---------------------------------
 
-.PHONY: setup-msvc find-rosetta rosetta diff progress freeze-sizes reconcile update-docs extract-net extract-gam struct-layouts extract-gam-types-rtti emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes extract-up-opcodes extract-crypt-engine
+.PHONY: setup-msvc find-rosetta rosetta diff progress freeze-sizes reconcile update-docs sync-develop install-sync-timer extract-net extract-gam struct-layouts extract-gam-types-rtti emit-gam-header extract-paramnames validate-chara-make validate-chara-list validate-murmur2 extract-opcodes extract-up-opcodes extract-crypt-engine
 
 # Walk the RTTI dump for net-relevant classes; emit class→slot→fn_rva map.
 extract-net:
@@ -346,6 +348,14 @@ reconcile:
 
 update-docs:
 	$(PY) $(TOOLS)/update_docs.py
+
+# Safe, fast-forward-ONLY sync of local develop to origin (no-ops on a dirty
+# tree or local-ahead commits). install-sync-timer wires it to a launchd timer.
+sync-develop:
+	@$(TOOLS)/sync-develop.sh; tail -n 1 $(BUILD)/logs/sync-develop.log 2>/dev/null || true
+
+install-sync-timer:
+	@$(TOOLS)/install-sync-timer.sh
 
 # --- Phase 2.6 — byte-passthrough fallback ----------------------------
 #
