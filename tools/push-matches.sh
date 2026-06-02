@@ -87,6 +87,29 @@ fi
 git fetch --quiet origin develop || { say "fetch failed"; exit 1; }
 trap 'rm -rf "$stage"' EXIT
 
+# Atomicity anchor. Phase 0 may `git commit` adopted strays BEFORE Phase 1/2
+# decide whether anything can actually be pushed. If a later phase bails, hold()
+# rewinds develop to here so a minted commit is NEVER left stranded ahead of
+# origin — the #1 way a stray "decomp: match" commit used to linger on develop.
+pre_head="$(git rev-parse HEAD)"
+
+# Bail that first undoes any commits Phase 0 minted (back to pre_head), leaving
+# their .cpp files in the tree as UNTRACKED (reset --mixed doesn't touch the
+# working tree) so the next run retries them. NEVER --hard: that would destroy
+# the match work. Pre-existing ahead commits and the rebase are rewound too, so
+# the invariant is "either everything pushes, or develop is left exactly as we
+# found it." $1 (optional) is a final message.
+hold() {
+  if [ -n "${pre_head:-}" ] && [ "$(git rev-parse HEAD)" != "$pre_head" ]; then
+    local undone
+    undone="$(git rev-list --count "$pre_head"..HEAD 2>/dev/null || echo '?')"
+    git reset -q "$pre_head"
+    say "reverted $undone un-pushable commit(s) to keep develop clean; any .cpp left untracked for retry"
+  fi
+  [ -n "${1:-}" ] && say "$1"
+  exit 1
+}
+
 # --- Phase 0: resolve untracked _rosetta strays ------------------------------
 while IFS= read -r f; do
   [ -z "$f" ] && continue
@@ -140,13 +163,13 @@ for c in $ahead; do
 $(git diff-tree --no-commit-id --name-status -r "$c")
 EOF
 
-  [ -n "$bad" ] && { say "HELD (no push): commit $short — $bad"; say "Push/resolve that commit manually; nothing was pushed."; exit 1; }
-  [ -n "$added_cpp" ] || { say "HELD (no push): commit $short adds no _rosetta match file"; exit 1; }
+  [ -n "$bad" ] && { say "HELD (no push): commit $short — $bad"; hold "Push/resolve that commit manually; nothing was pushed."; }
+  [ -n "$added_cpp" ] || hold "HELD (no push): commit $short adds no _rosetta match file"
 
   bin="$(printf '%s' "$added_cpp" | sed -E 's#^src/([^/]+)/_rosetta/.*#\1#')"
   mkdir -p "$stage/$bin"
   git show "$c:$added_cpp" > "$stage/$bin/$(basename "$added_cpp")" 2>/dev/null \
-    || { say "HELD: cannot read $added_cpp from $short"; exit 1; }
+    || hold "HELD: cannot read $added_cpp from $short"
   case " $bins " in *" $bin "*) : ;; *) bins="$bins $bin" ;; esac
 done
 
@@ -155,20 +178,18 @@ for bin in $bins; do
     say "GREEN re-grade OK ($bin): $LAST_SUMM"
   else
     say "HELD (no push): $bin matches did not all re-grade GREEN:"
-    say "  $LAST_SUMM"
-    exit 1
+    hold "  $LAST_SUMM"
   fi
 done
 rm -rf "$stage"; trap - EXIT
 
 # --- Phase 2: rebase + push (strays already resolved in Phase 0) --------------
 n="$(printf '%s\n' "$ahead" | grep -c .)"
-for try in 1 2 3 4 5; do
+for _ in 1 2 3 4 5; do
   git fetch --quiet origin develop
   if ! git rebase origin/develop >/dev/null 2>&1; then
     git rebase --abort 2>/dev/null || true
-    say "HELD: rebase onto origin/develop hit a conflict; resolve manually"
-    exit 1
+    hold "HELD: rebase onto origin/develop hit a conflict; resolve manually"
   fi
   if git push origin develop 2>&1 | tail -1; then
     say "pushed $n GREEN match commit(s) to origin/develop — develop in sync"
@@ -176,5 +197,4 @@ for try in 1 2 3 4 5; do
   fi
   say "origin advanced mid-push; retrying…"; sleep 2
 done
-say "HELD: could not push after retries (origin contention)"
-exit 1
+hold "HELD: could not push after retries (origin contention)"
