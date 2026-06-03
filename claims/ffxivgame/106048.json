@@ -1,9 +1,0 @@
-{
-  "binary": "ffxivgame",
-  "claimed_at": "2026-06-03T06:39:17+00:00",
-  "lease_expires_at": null,
-  "owner": "swstegall",
-  "rva": 106048,
-  "state": "pinned-by-PR",
-  "va": "0x00419e40"
-}
