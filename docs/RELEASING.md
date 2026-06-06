@@ -35,9 +35,12 @@ when a `develop` → `master` release PR merges) and:
 1. reads the highest existing `vX.Y.Z` tag,
 2. picks a bump level (see below),
 3. creates an annotated `vX.Y.Z` tag on the merge commit and pushes **only that
-   tag** (no commit, no file edits — nothing is rewritten in the tree), and
+   tag** (no commit, no file edits — nothing is rewritten in the tree),
 4. publishes a GitHub Release with auto-generated notes, best-effort appended
-   with the current decomp progress (see [Progress tie-in](#progress-tie-in)).
+   with the current decomp progress (see [Progress tie-in](#progress-tie-in)),
+   and
+5. posts a Discord release notification (see
+   [Discord release notification](#discord-release-notification)).
 
 After a release, `git describe --tags` on `master` reports the new `X.Y.Z`.
 
@@ -109,6 +112,38 @@ The create-then-edit approach is used because `gh release create` cannot combine
 notes *and* the progress block. The whole progress attempt is wrapped so that a
 failure (PyYAML missing, network blip, `progress.py` change, no YAML present)
 **never** fails the release — the tag and Release publish regardless.
+
+## Discord release notification
+
+After the tag and GitHub Release publish, `release.yml`'s final step POSTs a
+Discord embed announcing the new release to the release-announcements channel
+(mirrors the sibling `garlemald-server` / `garlemald-client` release announcers).
+Because the only trigger is a push to `master` (a `develop` → `master` release
+merge), every successful release is announced — there is no separate event guard.
+
+The embed reads:
+
+> **Meteor Decomp vX.Y.Z** — A new Meteor Decomp release is available: vX.Y.Z.
+
+…linked to the Release page.
+
+This step requires a repo secret **`DISCORD_RELEASE_WEBHOOK_URL`** (the Discord
+webhook URL for the release-announcements channel — distinct from
+`DISCORD_PR_WEBHOOK_URL` and `DISCORD_WEBHOOK_URL`). It is a separate webhook so
+release pings land in their own channel and a leaked/rotated webhook is scoped to
+one purpose. Hardening matches the other Discord workflows:
+
+- the payload is assembled with `jq --arg` (every value escaped), so the tag can
+  never break out of the shell or the JSON;
+- a missing secret logs a `::warning::` and **skips** the post (`exit 0`) rather
+  than failing — so the release still succeeds before the secret is configured;
+- a webhook failure (unreachable/rejected) is likewise non-fatal — the tag and
+  Release have already published.
+
+> If `DISCORD_RELEASE_WEBHOOK_URL` is not set, releases still cut normally; only
+> the Discord ping is skipped (with a warning in the job log). Add the secret to
+> enable announcements:
+> `gh secret set DISCORD_RELEASE_WEBHOOK_URL --repo swstegall/meteor-decomp`.
 
 ## Seeding
 

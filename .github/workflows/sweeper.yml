@@ -1,0 +1,121 @@
+name: Sweep stale claims
+
+# D2 of issue #11 — the scheduled grace/quarantine sweeper. claim.py's two-phase
+# sweep:
+#   phase 1 (first sweep past lease_expires_at): mark active -> expiring and
+#           grant a short grace window (a worker that heartbeats within grace
+#           reclaims its claim — the next `decide` by its owner resets it).
+#   phase 2 (a later sweep, grace elapsed un-renewed): delete the expiring claim.
+# `pinned-by-PR` claims are NEVER swept (an open PR pins indefinitely).
+#
+# The sweeper mutates the ledger via the SAME checkout + claim.py + push-with-
+# retry CAS as claim.yml — no Actions `concurrency` queue is relied on for
+# correctness (it only de-dupes overlapping sweeps).
+on:
+  schedule:
+    # Every 6h, on the hour. Runs phase 1 then, on a later tick, phase 2 — so a
+    # claim survives at least one full grace window (CLAIM_GRACE_HOURS) past its
+    # lease before deletion. Keep the cron interval <= grace so phase 2 lands.
+    - cron: "13 */6 * * *"
+  workflow_dispatch:
+
+# A scheduled sweep should never overlap itself; cancel a still-running prior
+# sweep if a new tick fires. (Correctness still rides on the push-CAS, not this.)
+concurrency:
+  group: claim-sweeper
+  cancel-in-progress: true
+
+# The ledger push uses CLAIMS_BOT_TOKEN; the default token needs nothing.
+permissions: {}
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for the claims bot token
+        id: token
+        env:
+          CLAIMS_BOT_TOKEN: ${{ secrets.CLAIMS_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLAIMS_BOT_TOKEN:-}" ]; then
+            echo "::warning::CLAIMS_BOT_TOKEN secret is not set — skipping the claim sweep."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout the claims ledger branch
+        if: steps.token.outputs.present == 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: claims
+          token: ${{ secrets.CLAIMS_BOT_TOKEN }}
+          fetch-depth: 1
+          path: claims-ledger
+
+      - name: Checkout claim.py from develop (tools only)
+        if: steps.token.outputs.present == 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: develop
+          path: tooling
+          sparse-checkout: |
+            tools
+          sparse-checkout-cone-mode: true
+          fetch-depth: 1
+
+      - name: Sweep + push the ledger (push-CAS with retry)
+        if: steps.token.outputs.present == 'true'
+        env:
+          CLAIMS_BOT_TOKEN: ${{ secrets.CLAIMS_BOT_TOKEN }}
+          # Sweep grace window — claim.py default is 6h; make it explicit so the
+          # cron interval and grace stay legibly coupled.
+          CLAIM_GRACE_HOURS: "6"
+        run: |
+          set -euo pipefail
+
+          claim_py="$GITHUB_WORKSPACE/tooling/tools/claim.py"
+          cd "$GITHUB_WORKSPACE/claims-ledger"
+
+          git config user.name  "claims-bot"
+          git config user.email "claims-bot@users.noreply.github.com"
+
+          # Real UTC time: the sweep grace math is anchored to actual now.
+          now="$(date -u +%Y-%m-%dT%H:%M:%S+00:00)"
+
+          max_attempts=6
+          attempt=0
+          while [ "$attempt" -lt "$max_attempts" ]; do
+            attempt=$((attempt + 1))
+
+            # Re-run the sweep from a clean ledger each attempt (idempotent for
+            # a fixed `now`).
+            git checkout -- claims 2>/dev/null || true
+            python3 "$claim_py" \
+              --ledger-dir claims \
+              --now "$now" \
+              --grace-hours "$CLAIM_GRACE_HOURS" \
+              sweep >/dev/null
+
+            git add -A claims 2>/dev/null || true
+            if git diff --cached --quiet; then
+              echo "Sweep made no changes — ledger is clean."
+              break
+            fi
+            git commit -m "claim-sweep: grace/quarantine pass [skip ci]" >/dev/null
+
+            if git push origin HEAD:claims; then
+              echo "Sweep pushed on attempt $attempt."
+              break
+            fi
+
+            echo "::notice::Push rejected (ref advanced) — re-syncing and re-running sweep (attempt $attempt)."
+            git fetch origin claims
+            git reset --hard origin/claims
+            sleep "$((attempt * 2))"
+
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "::warning::Sweep CAS exhausted $max_attempts attempts under contention; next scheduled run will retry."
+            fi
+          done

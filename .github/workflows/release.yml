@@ -162,3 +162,42 @@ jobs:
             echo "::notice::No decomp-progress block captured (tools/progress.py produced no 'overall' lines); release notes left as auto-generated."
           fi
           set -e
+
+      - name: Announce the release on Discord
+        # Runs only after the tag + GitHub Release above succeed (a failed step
+        # stops the job before this one), so a release is never announced unless
+        # it actually published. No event guard is needed: this workflow's only
+        # trigger is push to `master`, i.e. a develop -> master release merge.
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK_URL }}
+          PROJECT: Meteor Decomp
+          TAG: ${{ steps.ver.outputs.tag }}
+          RELEASE_URL: ${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ steps.ver.outputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DISCORD_WEBHOOK:-}" ]; then
+            echo "::warning::DISCORD_RELEASE_WEBHOOK_URL secret is not set — skipping the Discord announcement."
+            exit 0
+          fi
+          # Build the JSON with jq (--arg escapes every value) so the tag can never
+          # break out of the shell or the JSON payload.
+          payload="$(jq -n \
+            --arg project "$PROJECT" \
+            --arg tag "$TAG" \
+            --arg url "$RELEASE_URL" \
+            '{
+              username: ($project + " Releases"),
+              embeds: [{
+                title: ($project + " " + $tag),
+                description: ("A new " + $project + " release is available: " + $tag + "."),
+                url: $url,
+                color: 12595755
+              }]
+            }')"
+          # A notification failure must not fail the release (the tag + Release are
+          # already published).
+          if curl -fsS -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" -d "$payload"; then
+            echo "Announced $TAG to Discord."
+          else
+            echo "::warning::Discord announcement for $TAG failed (webhook unreachable or rejected)."
+          fi

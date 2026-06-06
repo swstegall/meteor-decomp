@@ -1,0 +1,173 @@
+name: Reconcile
+
+# D4 of issue #11 — merge-time recompute of the solved set + claim auto-release.
+#
+# On every push/merge to `develop` this workflow:
+#   1. recomputes docs/reconcile-state.json from the committed _rosetta tree
+#      (`make reconcile`),
+#   2. regenerates the progress regions in README.md / docs/decomp-status.md /
+#      PLAN.md (`make update-docs`),
+#   3. commits any doc churn BACK to develop (loop-guarded), and
+#   4. releases (deletes) the claim-branch files for every VA that is now
+#      solved on develop — reconcile.yml is the SOLE releaser for merged VAs,
+#      and the release runs STRICTLY AFTER the solved state is on develop.
+#
+# LOOP PREVENTION (this workflow commits back to its own trigger branch):
+#   (1) no-op guard — if `git diff --quiet` shows nothing, exit 0;
+#   (2) bot-author guard — the job `if` skips runs whose actor is the bot, so
+#       the reconcile commit we push cannot re-trigger us;
+#   (3) we push with the default GITHUB_TOKEN (its pushes do NOT trigger
+#       further `push` workflows — a PAT WOULD) PLUS a `[skip ci]` marker as a
+#       belt-and-suspenders.
+on:
+  push:
+    branches: [develop]
+
+# Serialize: a second merge waits, then recomputes from the first's result.
+concurrency:
+  group: reconcile
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  reconcile:
+    # Bot-author guard (loop prevention #2): skip runs triggered by our own
+    # reconcile commit. github.actor for a default-GITHUB_TOKEN push is
+    # `github-actions[bot]`. A `[skip ci]` marker is also added below, but this
+    # `if` is the primary guard so the run never even starts.
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      # ===============================================================
+      # Part A — reconcile + update-docs, commit-back to develop.
+      # ===============================================================
+      - name: Checkout develop (default token; its pushes do not re-trigger push workflows)
+        uses: actions/checkout@v6
+        with:
+          ref: develop
+          token: ${{ github.token }}
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PyYAML
+        run: |
+          set -euo pipefail
+          pip install --quiet pyyaml
+
+      - name: Recompute reconcile-state + regenerate doc progress regions
+        run: |
+          set -euo pipefail
+          make reconcile
+          make update-docs
+
+      - name: Commit docs back to develop (loop-guarded)
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          set -euo pipefail
+
+          # Loop prevention #1 — no-op guard. Only these four paths are ever
+          # rewritten by reconcile/update-docs; if none changed, do nothing.
+          if git diff --quiet -- \
+              README.md docs/decomp-status.md PLAN.md docs/reconcile-state.json; then
+            echo "Reconcile produced no doc changes — nothing to commit."
+            exit 0
+          fi
+
+          git add README.md docs/decomp-status.md PLAN.md docs/reconcile-state.json
+          # Loop prevention #3 — `[skip ci]` marker (belt-and-suspenders on top
+          # of the bot-author `if` and the default-token non-re-trigger).
+          git commit -m "docs: reconcile solved-set + progress regions [skip ci]"
+          # Pushed with the default GITHUB_TOKEN -> does NOT trigger another
+          # `push` workflow run (a PAT would). Combined with the bot-author
+          # `if` and `[skip ci]`, the recursion is closed three ways.
+          git push origin HEAD:develop
+          echo "Pushed reconcile doc update to develop."
+
+      # ===============================================================
+      # Part B — claim auto-release. STRICTLY AFTER the solved state is on
+      # develop (Part A above is committed). reconcile.yml is the SOLE releaser
+      # for merged VAs: claim.py release-solved deletes claims whose VA is now
+      # present in src/<bin>/_rosetta on develop.
+      # ===============================================================
+      - name: Check for the claims bot token
+        id: token
+        env:
+          CLAIMS_BOT_TOKEN: ${{ secrets.CLAIMS_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CLAIMS_BOT_TOKEN:-}" ]; then
+            echo "::warning::CLAIMS_BOT_TOKEN secret is not set — skipping claim auto-release."
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout the claims ledger branch
+        if: steps.token.outputs.present == 'true'
+        uses: actions/checkout@v6
+        with:
+          ref: claims
+          token: ${{ secrets.CLAIMS_BOT_TOKEN }}
+          fetch-depth: 1
+          path: claims-ledger
+
+      - name: Release solved claims + push the ledger (push-CAS with retry)
+        if: steps.token.outputs.present == 'true'
+        env:
+          CLAIMS_BOT_TOKEN: ${{ secrets.CLAIMS_BOT_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          # claim.py + the develop _rosetta solved set live in the primary
+          # checkout (the workspace root from Part A's checkout).
+          claim_py="$GITHUB_WORKSPACE/tools/claim.py"
+          src_root="$GITHUB_WORKSPACE/src"
+          cd "$GITHUB_WORKSPACE/claims-ledger"
+
+          git config user.name  "claims-bot"
+          git config user.email "claims-bot@users.noreply.github.com"
+
+          max_attempts=6
+          attempt=0
+          while [ "$attempt" -lt "$max_attempts" ]; do
+            attempt=$((attempt + 1))
+
+            # release-solved is presence-based + idempotent, so re-running it
+            # from a clean ledger after a rejected push is safe.
+            git checkout -- claims 2>/dev/null || true
+            python3 "$claim_py" \
+              --ledger-dir claims \
+              --src-root "$src_root" \
+              release-solved >/dev/null
+
+            git add -A claims 2>/dev/null || true
+            if git diff --cached --quiet; then
+              echo "No solved claims to release — ledger unchanged."
+              break
+            fi
+            git commit -m "claim-release: solved-on-develop auto-release [skip ci]" >/dev/null
+
+            if git push origin HEAD:claims; then
+              echo "Released solved claims on attempt $attempt."
+              break
+            fi
+
+            echo "::notice::Push rejected (ref advanced) — re-syncing and re-running release-solved (attempt $attempt)."
+            git fetch origin claims
+            git reset --hard origin/claims
+            sleep "$((attempt * 2))"
+
+            if [ "$attempt" -eq "$max_attempts" ]; then
+              echo "::warning::Release-solved CAS exhausted $max_attempts attempts under contention; next reconcile will retry."
+            fi
+          done
