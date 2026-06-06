@@ -16,16 +16,16 @@ The durable, authoritative metric is the committed `_rosetta/*.cpp` solved
 set — do not hand-edit between the sentinels.
 
 <!-- BEGIN:progress -->
-`_rosetta/*.cpp` solved set across all five binaries (**68,662 files / 863,753 B / 4.56 %**):
+`_rosetta/*.cpp` solved set across all five binaries (**68,664 files / 864,037 B / 4.56 %**):
 
 | Binary | `_rosetta/*.cpp` files | bytes | total bytes |
 |---|---:|---:|---:|
-| `ffxivgame.exe` | 40,750 | 567,048 | 10,000,069 |
+| `ffxivgame.exe` | 40,752 | 567,332 | 10,000,069 |
 | `ffxivboot.exe` | 26,970 | 286,276 | 8,128,842 |
 | `ffxivlogin.exe` | 291 | 2,412 | 225,434 |
 | `ffxivupdater.exe` | 451 | 6,045 | 329,621 |
 | `ffxivconfig.exe` | 200 | 1,972 | 253,900 |
-| **Total** | **68,662** | **863,753** | **18,937,866** |
+| **Total** | **68,664** | **864,037** | **18,937,866** |
 <!-- END:progress -->
 
 > **On the "YAML matched" column:** this counts only `config/<bin>.yaml`
