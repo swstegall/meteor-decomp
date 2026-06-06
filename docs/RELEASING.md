@@ -13,13 +13,14 @@ branch: it only creates and pushes a tag (and publishes a GitHub Release).
   orchestration included) or via PR, whatever fits the moment. **Nothing merged
   into `develop` produces a release or a tag.**
 - **`master`** is the protected **release** branch. A release is cut by opening a
-  PR from `develop` into `master`; when it merges, the push to `master` triggers
-  `release.yml` (tag + GitHub Release). `master` requires a pull request (no
-  direct pushes) but **no approving review**, so you can self-merge your own
-  `develop` → `master` release PR.
+  PR from `develop` into `master`; when it **merges**, `release.yml` fires (tag +
+  GitHub Release + Discord). `master` requires a pull request (no direct pushes)
+  but **no approving review**, so you can self-merge your own `develop` → `master`
+  release PR. **Any** merge method works — squash, merge commit, or rebase (see
+  [Why `pull_request_target`, not `push`](#why-pull_request_target-not-push)).
 
 Flow: work on `develop` → release PR `develop` → `master` → merge → automatic
-tag + GitHub Release.
+tag + GitHub Release + Discord announcement.
 
 > Branch protection on `master` does **not** block the release automation: the
 > workflow pushes only a **tag** (`refs/tags/vX.Y.Z`), and tag pushes are not
@@ -29,8 +30,9 @@ tag + GitHub Release.
 
 ## How it works
 
-`.github/workflows/release.yml` runs on every push/merge to **`master`** (i.e.
-when a `develop` → `master` release PR merges) and:
+`.github/workflows/release.yml` runs when a `develop` → `master` release PR
+**merges** (a `pull_request_target` `closed` + merged event), or on a manual
+`workflow_dispatch`, and:
 
 1. reads the highest existing `vX.Y.Z` tag,
 2. picks a bump level (see below),
@@ -48,13 +50,14 @@ After a release, `git describe --tags` on `master` reports the new `X.Y.Z`.
 
 | Bump      | How to trigger                                                                 |
 |-----------|--------------------------------------------------------------------------------|
-| **Patch** | Default. Any merge/push to `master` with no release label → `Z` increments.     |
+| **Patch** | Default. A merged `develop` → `master` release PR (or manual dispatch) with no release label → `Z` increments. |
 | **Minor** | Add the **`release:minor`** label to the PR before merging → `Y+1`, `Z=0`.      |
 | **Major** | Add the **`release:major`** label to the PR before merging → `X+1`, `Y=0`, `Z=0`. |
 
 The label is read from the PR associated with the merge commit; if both labels
-are present, **`release:major` wins**. A direct push with no associated PR is
-treated as a patch bump.
+are present, **`release:major` wins**. A run with no associated PR (a manual
+`workflow_dispatch`, or a merge GitHub doesn't link to a PR) is treated as a
+patch bump.
 
 The `release:minor` and `release:major` labels must exist in the repo.
 
@@ -70,30 +73,63 @@ git tag -a v0.2.0 -m v0.2.0 && git push origin v0.2.0
 The automation then continues patch-incrementing from there (`v0.2.1`, …). This
 is handy for the first minor/major when no PR is involved.
 
+## Why `pull_request_target`, not `push`
+
+The release PR merges `develop` into `master`, and `develop` is **saturated with
+`[skip ci]` commits** (the reconcile bot stamps every progress-doc commit with
+`[skip ci]`). A **squash** merge folds *all* the squashed commit messages —
+`[skip ci]` markers included — into the squash commit's body. GitHub then scans
+the merged commit's message, sees `[skip ci]`, and **skips every workflow for
+that push** (including `release.yml`). With a `push: branches: [master]` trigger,
+a squash-merged release therefore **silently never releases** — no tag, no
+GitHub Release, no Discord ping. (This is exactly what happened to the first
+release PR after the Discord step was added.)
+
+`pull_request_target` keys off the **PR-merge event**, not the pushed commit, so
+it is **immune to `[skip ci]`** and fires regardless of merge method (squash,
+merge commit, or rebase). The job is gated on `pull_request.merged == true` (so a
+PR closed *without* merging never releases) and `base.ref == 'master'`.
+
+> **Safety:** despite the `pull_request_target` event, this workflow never checks
+> out or runs PR head code — it checks out `master` and reads only git tags and
+> the merged PR's labels. The usual `pull_request_target` risk (running
+> attacker-controlled code with secrets in scope) does not apply.
+
+## Manual release (`workflow_dispatch`)
+
+`release.yml` also exposes a manual **Run workflow** button (`workflow_dispatch`,
+no inputs). Use it to cut a release on demand — e.g. to recover a push that was
+skipped before this trigger fix landed, or to force a patch bump. It always
+checks out and releases **`master` HEAD**, computing the next version from the
+highest tag exactly like an automatic run.
+
+```sh
+gh workflow run release.yml --repo swstegall/meteor-decomp
+```
+
 ## Why no PAT
 
-Unlike the sibling `garlemald-server` / `garlemald-client` release workflows,
-`master` here is **not branch-protected**, and this workflow pushes **only a
-tag** — it never commits anything back to the branch. The default
-`GITHUB_TOKEN` (`github.token`) can:
+This workflow pushes **only a tag** — it never commits anything back to the
+branch. Tag pushes are **not** gated by branch-protection rules (only commits to
+the branch are), so even though `master` is protected, the default `GITHUB_TOKEN`
+(`github.token`) can:
 
-- push a tag to an unprotected branch, and
-- create a GitHub Release.
+- push the `vX.Y.Z` tag, and
+- create the GitHub Release.
 
-So **no fine-grained `RELEASE_PAT` is required**. The checkout uses the default
-token. (If `master` were ever branch-protected, note that tag pushes are not
-gated by branch protection rules, so even then the default token would still
-suffice for the tag — protection only matters for commits to the branch, which
-this workflow never makes.)
+So **no fine-grained `RELEASE_PAT` is required** (unlike the sibling
+`garlemald-server` / `garlemald-client` release workflows, which commit a version
+bump back to a protected branch and therefore do need a PAT). The checkout uses
+the default token.
 
 ## Why no loop guard
 
 Because nothing is committed back to `master`, there is no re-trigger to guard
 against:
 
-- The workflow triggers on `push: branches: [master]`.
-- Pushing a **tag** does **not** match that trigger, so creating `vX.Y.Z`
-  cannot re-run this workflow.
+- The workflow triggers on a PR **merge** into `master` (and manual dispatch).
+- Pushing a **tag** creates no PR-close event and matches no trigger here, so
+  creating `vX.Y.Z` cannot re-run this workflow.
 
 So there is deliberately **no bot-identity `if` guard** and **no `[skip ci]`
 marker** — both are only needed when a workflow pushes a *commit* back to the
@@ -118,8 +154,9 @@ failure (PyYAML missing, network blip, `progress.py` change, no YAML present)
 After the tag and GitHub Release publish, `release.yml`'s final step POSTs a
 Discord embed announcing the new release to the release-announcements channel
 (mirrors the sibling `garlemald-server` / `garlemald-client` release announcers).
-Because the only trigger is a push to `master` (a `develop` → `master` release
-merge), every successful release is announced — there is no separate event guard.
+Because every reached run is a genuine release — a merged `develop` → `master`
+release PR, or a manual `workflow_dispatch`, both of which compute and publish a
+new version — each successful release is announced; there is no separate event guard.
 
 The embed reads:
 
@@ -154,6 +191,6 @@ once by a maintainer as a seed step **outside** this workflow:
 git tag -a v0.1.0 -m v0.1.0 <master-HEAD-sha> && git push origin v0.1.0
 ```
 
-The first merge/push to `master` after the release automation lands bumps it to
-`v0.1.1` (or the labeled minor/major). The workflow never creates `v0.1.0`
-itself.
+The first `develop` → `master` release PR merged after the release automation
+lands bumps it to `v0.1.1` (or the labeled minor/major). The workflow never
+creates `v0.1.0` itself.
