@@ -12,7 +12,7 @@
     },
     "ffxivgame": {
       "rosetta_bytes": 597086,
-      "rosetta_count": 40965,
+      "rosetta_count": 40966,
       "total_bytes": 10000069
     },
     "ffxivlogin": {
@@ -30,7 +30,7 @@
   "totals": {
     "pct_bytes": 4.7196,
     "rosetta_bytes": 893791,
-    "rosetta_count": 68877,
+    "rosetta_count": 68878,
     "total_bytes": 18937866
   }
 }
