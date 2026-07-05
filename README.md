@@ -248,6 +248,24 @@ decomp-progress block). Minor/major bumps are opt-in via a `release:minor` /
 `release:major` PR label or a manual tag. See
 **[docs/RELEASING.md](docs/RELEASING.md)** for the full workflow.
 
+## Sister projects
+
+- **[decomp-agents](https://github.com/swstegall/decomp-agents)** —
+  parallel autonomous Claude agents that grind through this project's
+  per-function matching workflow via a shared claim queue.
+- **[Garlemald Server](https://github.com/swstegall/Garlemald-Server)** —
+  Rust port of the FFXIV 1.23b server emulator (lobby / world / map),
+  backed by SQLite and 1,142 Lua content scripts.
+- **[Garlemald Client](https://github.com/swstegall/Garlemald-Client)** —
+  cross-platform Rust launcher that patches a 1.x install forward and
+  drives it against a private server (macOS / Linux / Windows).
+- **[XIV 1.0 Apple Silicon Installer](https://github.com/swstegall/XIV-1.0-Apple-Silicon-Installer)** —
+  one-command installer that stands up a working 1.23b client on Apple
+  Silicon Macs.
+- **[XIV 1.0 Linux Installer](https://github.com/swstegall/XIV-1.0-Linux-Installer)** —
+  one-command installer that stands up a working 1.23b client on x86_64
+  Linux, across distributions.
+
 ## License
 
 AGPL-3.0-or-later (matches `garlemald-server` / `garlemald-client`).
